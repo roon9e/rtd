@@ -440,17 +440,39 @@ pub(crate) fn emit(schema: &crate::model::SchemaModel) -> Result<String, EmitErr
         let class_ident = ident_for_qname(class_qname);
         let mut constructors: Vec<&Definition> = class_map[class_qname].clone();
         constructors.sort_by(|a, b| a.key.qname.cmp(&b.key.qname));
-        emit_class_enum(&mut code, &class_ident, &constructors, &classes, &bare_ids)?;
+        // A type whose single constructor is named after the type itself is a
+        // concrete type, not a union: emit a struct rather than a one-variant
+        // enum. Real unions (several constructors, or a differently named one)
+        // stay enums.
+        let is_concrete = constructors.len() == 1 && {
+            let ctor_qname = &constructors[0].key.qname;
+            let type_local = class_qname.rsplit('.').next().unwrap_or(class_qname);
+            let ctor_local = ctor_qname.rsplit('.').next().unwrap_or(ctor_qname);
+            type_local.eq_ignore_ascii_case(ctor_local)
+        };
+        if is_concrete {
+            emit_struct(
+                &mut code,
+                &class_ident,
+                constructors[0],
+                &classes,
+                &bare_ids,
+            )?;
+        } else {
+            emit_class_enum(&mut code, &class_ident, &constructors, &classes, &bare_ids)?;
+        }
     }
 
     // Direct `Object` constructors (for example `gzip_packed`).
     for definition in &object_constructors {
-        emit_method_struct(&mut code, definition, &classes, &bare_ids)?;
+        let ident = ident_for_qname(&definition.key.qname);
+        emit_struct(&mut code, &ident, definition, &classes, &bare_ids)?;
     }
 
     // Methods.
     for method in &methods {
-        emit_method_struct(&mut code, method, &classes, &bare_ids)?;
+        let ident = ident_for_qname(&method.key.qname);
+        emit_struct(&mut code, &ident, method, &classes, &bare_ids)?;
     }
 
     emit_object(
@@ -618,13 +640,13 @@ fn emit_class_enum(
     Ok(())
 }
 
-fn emit_method_struct(
+fn emit_struct(
     code: &mut Code,
+    ident: &str,
     method: &Definition,
     classes: &BTreeSet<String>,
     bare_ids: &BTreeMap<String, (String, u32)>,
 ) -> Result<(), EmitError> {
-    let ident = ident_for_qname(&method.key.qname);
     let types = prepare(method, classes, bare_ids)?;
     code.line("#[derive(Debug, Clone, PartialEq)]");
     if method.fields.is_empty() {
@@ -653,6 +675,13 @@ fn emit_method_struct(
     }
     code.close("}");
     code.close("");
+    code.open("/// Encodes the fields without the constructor identifier.");
+    code.open("pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {");
+    if !method.fields.is_empty() {
+        emit_encode_fields(code, &method.fields, &types, true);
+    }
+    code.close("}");
+    code.close("");
     code.open("/// Decodes a value with an already-read identifier.");
     code.open("pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {");
     code.open(&format!("if id != {:#010x} {{", method.wire_id));
@@ -664,7 +693,7 @@ fn emit_method_struct(
     if method.fields.is_empty() {
         code.line(&format!("Ok({ident})"));
     } else {
-        emit_constructor_decode(code, &method.fields, &types, &ident);
+        emit_constructor_decode(code, &method.fields, &types, ident);
     }
     code.close("}");
     code.close("");

@@ -276,85 +276,62 @@ impl BadMsgNotification {
         }
     }
 }
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Client_DH_Inner_Data {
-    Client_DH_inner_data {
-        nonce: ::rtd_bin::Int128,
-        server_nonce: ::rtd_bin::Int128,
-        retry_id: i64,
-        g_b: ::std::vec::Vec<u8>,
-    },
+pub struct Client_DH_Inner_Data {
+    pub nonce: ::rtd_bin::Int128,
+    pub server_nonce: ::rtd_bin::Int128,
+    pub retry_id: i64,
+    pub g_b: ::std::vec::Vec<u8>,
 }
 impl Client_DH_Inner_Data {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x6643b654;
     /// Returns the wire constructor identifier of this value.
     pub fn type_id(&self) -> u32 {
-        match self {
-            Client_DH_Inner_Data::Client_DH_inner_data { .. } => 0x6643b654,
-        }
+        Self::TYPE_ID
     }
 
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Client_DH_Inner_Data::Client_DH_inner_data {
-                nonce,
-                server_nonce,
-                retry_id,
-                g_b,
-            } => {
-                __w.put_u32(0x6643b654);
-                __w.put_int128(*nonce);
-                __w.put_int128(*server_nonce);
-                __w.put_i64(*retry_id);
-                __w.put_bytes(g_b.as_slice());
-            }
-        }
+        __w.put_u32(0x6643b654);
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_i64(self.retry_id);
+        __w.put_bytes(self.g_b.as_slice());
     }
 
-    /// Encodes the value without its constructor identifier.
+    /// Encodes the fields without the constructor identifier.
     pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Client_DH_Inner_Data::Client_DH_inner_data {
-                nonce,
-                server_nonce,
-                retry_id,
-                g_b,
-            } => {
-                __w.put_int128(*nonce);
-                __w.put_int128(*server_nonce);
-                __w.put_i64(*retry_id);
-                __w.put_bytes(g_b.as_slice());
-            }
-        }
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_i64(self.retry_id);
+        __w.put_bytes(self.g_b.as_slice());
     }
 
-    /// Decodes a value, reading and dispatching on its identifier.
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x6643b654 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x6643b654,
+            });
+        }
+        let nonce: ::rtd_bin::Int128 = __d.take_int128()?;
+        let server_nonce: ::rtd_bin::Int128 = __d.take_int128()?;
+        let retry_id: i64 = __d.take_i64()?;
+        let g_b: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+        Ok(Client_DH_Inner_Data {
+            nonce,
+            server_nonce,
+            retry_id,
+            g_b,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
     pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
         let id = __d.take_u32()?;
         Self::decode_with_id(__d, id)
-    }
-
-    /// Decodes a value whose identifier has already been read.
-    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
-        match id {
-            0x6643b654 => {
-                let nonce: ::rtd_bin::Int128 = __d.take_int128()?;
-                let server_nonce: ::rtd_bin::Int128 = __d.take_int128()?;
-                let retry_id: i64 = __d.take_i64()?;
-                let g_b: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
-                Ok(Client_DH_Inner_Data::Client_DH_inner_data {
-                    nonce,
-                    server_nonce,
-                    retry_id,
-                    g_b,
-                })
-            }
-            other => Err(::rtd_bin::Error::UnexpectedId {
-                id: other,
-                expected: 0x6643b654,
-            }),
-        }
     }
 }
 #[allow(clippy::large_enum_variant)]
@@ -588,90 +565,67 @@ impl FutureSalts {
         }
     }
 }
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Message {
-    Message {
-        msg_id: i64,
-        seqno: i32,
-        bytes: i32,
-        body: ::std::boxed::Box<Object>,
-    },
+pub struct Message {
+    pub msg_id: i64,
+    pub seqno: i32,
+    pub bytes: i32,
+    pub body: ::std::boxed::Box<Object>,
 }
 impl Message {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x5bb8e511;
     /// Returns the wire constructor identifier of this value.
     pub fn type_id(&self) -> u32 {
-        match self {
-            Message::Message { .. } => 0x5bb8e511,
-        }
+        Self::TYPE_ID
     }
 
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Message::Message {
-                msg_id,
-                seqno,
-                bytes,
-                body,
-            } => {
-                __w.put_u32(0x5bb8e511);
-                __w.put_i64(*msg_id);
-                __w.put_i32(*seqno);
-                __w.put_i32(*bytes);
-                body.encode(__w);
-            }
-        }
+        __w.put_u32(0x5bb8e511);
+        __w.put_i64(self.msg_id);
+        __w.put_i32(self.seqno);
+        __w.put_i32(self.bytes);
+        self.body.encode(__w);
     }
 
-    /// Encodes the value without its constructor identifier.
+    /// Encodes the fields without the constructor identifier.
     pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Message::Message {
-                msg_id,
-                seqno,
-                bytes,
-                body,
-            } => {
-                __w.put_i64(*msg_id);
-                __w.put_i32(*seqno);
-                __w.put_i32(*bytes);
-                body.encode(__w);
-            }
-        }
+        __w.put_i64(self.msg_id);
+        __w.put_i32(self.seqno);
+        __w.put_i32(self.bytes);
+        self.body.encode(__w);
     }
 
-    /// Decodes a value, reading and dispatching on its identifier.
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x5bb8e511 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x5bb8e511,
+            });
+        }
+        let msg_id: i64 = __d.take_i64()?;
+        let seqno: i32 = __d.take_i32()?;
+        let bytes: i32 = __d.take_i32()?;
+        let body: ::std::boxed::Box<Object> = {
+            __d.enter()?;
+            let value = Object::decode(__d)?;
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        };
+        Ok(Message {
+            msg_id,
+            seqno,
+            bytes,
+            body,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
     pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
         let id = __d.take_u32()?;
         Self::decode_with_id(__d, id)
-    }
-
-    /// Decodes a value whose identifier has already been read.
-    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
-        match id {
-            0x5bb8e511 => {
-                let msg_id: i64 = __d.take_i64()?;
-                let seqno: i32 = __d.take_i32()?;
-                let bytes: i32 = __d.take_i32()?;
-                let body: ::std::boxed::Box<Object> = {
-                    __d.enter()?;
-                    let value = Object::decode(__d)?;
-                    __d.leave();
-                    ::std::boxed::Box::new(value)
-                };
-                Ok(Message::Message {
-                    msg_id,
-                    seqno,
-                    bytes,
-                    body,
-                })
-            }
-            other => Err(::rtd_bin::Error::UnexpectedId {
-                id: other,
-                expected: 0x5bb8e511,
-            }),
-        }
     }
 }
 #[allow(clippy::large_enum_variant)]
@@ -1545,153 +1499,120 @@ impl P_Q_inner_data {
         }
     }
 }
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Pong {
-    Pong { msg_id: i64, ping_id: i64 },
+pub struct Pong {
+    pub msg_id: i64,
+    pub ping_id: i64,
 }
 impl Pong {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x347773c5;
     /// Returns the wire constructor identifier of this value.
     pub fn type_id(&self) -> u32 {
-        match self {
-            Pong::Pong { .. } => 0x347773c5,
-        }
+        Self::TYPE_ID
     }
 
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Pong::Pong { msg_id, ping_id } => {
-                __w.put_u32(0x347773c5);
-                __w.put_i64(*msg_id);
-                __w.put_i64(*ping_id);
-            }
-        }
+        __w.put_u32(0x347773c5);
+        __w.put_i64(self.msg_id);
+        __w.put_i64(self.ping_id);
     }
 
-    /// Encodes the value without its constructor identifier.
+    /// Encodes the fields without the constructor identifier.
     pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Pong::Pong { msg_id, ping_id } => {
-                __w.put_i64(*msg_id);
-                __w.put_i64(*ping_id);
-            }
-        }
+        __w.put_i64(self.msg_id);
+        __w.put_i64(self.ping_id);
     }
 
-    /// Decodes a value, reading and dispatching on its identifier.
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x347773c5 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x347773c5,
+            });
+        }
+        let msg_id: i64 = __d.take_i64()?;
+        let ping_id: i64 = __d.take_i64()?;
+        Ok(Pong { msg_id, ping_id })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
     pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
         let id = __d.take_u32()?;
         Self::decode_with_id(__d, id)
     }
-
-    /// Decodes a value whose identifier has already been read.
-    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
-        match id {
-            0x347773c5 => {
-                let msg_id: i64 = __d.take_i64()?;
-                let ping_id: i64 = __d.take_i64()?;
-                Ok(Pong::Pong { msg_id, ping_id })
-            }
-            other => Err(::rtd_bin::Error::UnexpectedId {
-                id: other,
-                expected: 0x347773c5,
-            }),
-        }
-    }
 }
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum ResPQ {
-    ResPQ {
-        nonce: ::rtd_bin::Int128,
-        server_nonce: ::rtd_bin::Int128,
-        pq: ::std::vec::Vec<u8>,
-        server_public_key_fingerprints: ::std::vec::Vec<i64>,
-    },
+pub struct ResPQ {
+    pub nonce: ::rtd_bin::Int128,
+    pub server_nonce: ::rtd_bin::Int128,
+    pub pq: ::std::vec::Vec<u8>,
+    pub server_public_key_fingerprints: ::std::vec::Vec<i64>,
 }
 impl ResPQ {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x05162463;
     /// Returns the wire constructor identifier of this value.
     pub fn type_id(&self) -> u32 {
-        match self {
-            ResPQ::ResPQ { .. } => 0x05162463,
-        }
+        Self::TYPE_ID
     }
 
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            ResPQ::ResPQ {
-                nonce,
-                server_nonce,
-                pq,
-                server_public_key_fingerprints,
-            } => {
-                __w.put_u32(0x05162463);
-                __w.put_int128(*nonce);
-                __w.put_int128(*server_nonce);
-                __w.put_bytes(pq.as_slice());
-                __w.put_vector_header(server_public_key_fingerprints.len());
-                for item in server_public_key_fingerprints.iter() {
-                    __w.put_i64(*item);
-                }
-            }
+        __w.put_u32(0x05162463);
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_bytes(self.pq.as_slice());
+        __w.put_vector_header(self.server_public_key_fingerprints.len());
+        for item in self.server_public_key_fingerprints.iter() {
+            __w.put_i64(*item);
         }
     }
 
-    /// Encodes the value without its constructor identifier.
+    /// Encodes the fields without the constructor identifier.
     pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            ResPQ::ResPQ {
-                nonce,
-                server_nonce,
-                pq,
-                server_public_key_fingerprints,
-            } => {
-                __w.put_int128(*nonce);
-                __w.put_int128(*server_nonce);
-                __w.put_bytes(pq.as_slice());
-                __w.put_vector_header(server_public_key_fingerprints.len());
-                for item in server_public_key_fingerprints.iter() {
-                    __w.put_i64(*item);
-                }
-            }
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_bytes(self.pq.as_slice());
+        __w.put_vector_header(self.server_public_key_fingerprints.len());
+        for item in self.server_public_key_fingerprints.iter() {
+            __w.put_i64(*item);
         }
     }
 
-    /// Decodes a value, reading and dispatching on its identifier.
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x05162463 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x05162463,
+            });
+        }
+        let nonce: ::rtd_bin::Int128 = __d.take_int128()?;
+        let server_nonce: ::rtd_bin::Int128 = __d.take_int128()?;
+        let pq: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+        let server_public_key_fingerprints: ::std::vec::Vec<i64> = {
+            let n = __d.take_vector_header()?;
+            let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+            for _ in 0..n {
+                items.push(__d.take_i64()?);
+            }
+            items
+        };
+        Ok(ResPQ {
+            nonce,
+            server_nonce,
+            pq,
+            server_public_key_fingerprints,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
     pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
         let id = __d.take_u32()?;
         Self::decode_with_id(__d, id)
-    }
-
-    /// Decodes a value whose identifier has already been read.
-    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
-        match id {
-            0x05162463 => {
-                let nonce: ::rtd_bin::Int128 = __d.take_int128()?;
-                let server_nonce: ::rtd_bin::Int128 = __d.take_int128()?;
-                let pq: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
-                let server_public_key_fingerprints: ::std::vec::Vec<i64> = {
-                    let n = __d.take_vector_header()?;
-                    let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
-                    for _ in 0..n {
-                        items.push(__d.take_i64()?);
-                    }
-                    items
-                };
-                Ok(ResPQ::ResPQ {
-                    nonce,
-                    server_nonce,
-                    pq,
-                    server_public_key_fingerprints,
-                })
-            }
-            other => Err(::rtd_bin::Error::UnexpectedId {
-                id: other,
-                expected: 0x05162463,
-            }),
-        }
     }
 }
 #[allow(clippy::large_enum_variant)]
@@ -2021,99 +1942,72 @@ impl Server_DH_Params {
         }
     }
 }
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Server_DH_inner_data {
-    Server_DH_inner_data {
-        nonce: ::rtd_bin::Int128,
-        server_nonce: ::rtd_bin::Int128,
-        g: i32,
-        dh_prime: ::std::vec::Vec<u8>,
-        g_a: ::std::vec::Vec<u8>,
-        server_time: i32,
-    },
+pub struct Server_DH_inner_data {
+    pub nonce: ::rtd_bin::Int128,
+    pub server_nonce: ::rtd_bin::Int128,
+    pub g: i32,
+    pub dh_prime: ::std::vec::Vec<u8>,
+    pub g_a: ::std::vec::Vec<u8>,
+    pub server_time: i32,
 }
 impl Server_DH_inner_data {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0xb5890dba;
     /// Returns the wire constructor identifier of this value.
     pub fn type_id(&self) -> u32 {
-        match self {
-            Server_DH_inner_data::Server_DH_inner_data { .. } => 0xb5890dba,
-        }
+        Self::TYPE_ID
     }
 
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Server_DH_inner_data::Server_DH_inner_data {
-                nonce,
-                server_nonce,
-                g,
-                dh_prime,
-                g_a,
-                server_time,
-            } => {
-                __w.put_u32(0xb5890dba);
-                __w.put_int128(*nonce);
-                __w.put_int128(*server_nonce);
-                __w.put_i32(*g);
-                __w.put_bytes(dh_prime.as_slice());
-                __w.put_bytes(g_a.as_slice());
-                __w.put_i32(*server_time);
-            }
-        }
+        __w.put_u32(0xb5890dba);
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_i32(self.g);
+        __w.put_bytes(self.dh_prime.as_slice());
+        __w.put_bytes(self.g_a.as_slice());
+        __w.put_i32(self.server_time);
     }
 
-    /// Encodes the value without its constructor identifier.
+    /// Encodes the fields without the constructor identifier.
     pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
-        match self {
-            Server_DH_inner_data::Server_DH_inner_data {
-                nonce,
-                server_nonce,
-                g,
-                dh_prime,
-                g_a,
-                server_time,
-            } => {
-                __w.put_int128(*nonce);
-                __w.put_int128(*server_nonce);
-                __w.put_i32(*g);
-                __w.put_bytes(dh_prime.as_slice());
-                __w.put_bytes(g_a.as_slice());
-                __w.put_i32(*server_time);
-            }
-        }
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_i32(self.g);
+        __w.put_bytes(self.dh_prime.as_slice());
+        __w.put_bytes(self.g_a.as_slice());
+        __w.put_i32(self.server_time);
     }
 
-    /// Decodes a value, reading and dispatching on its identifier.
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0xb5890dba {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0xb5890dba,
+            });
+        }
+        let nonce: ::rtd_bin::Int128 = __d.take_int128()?;
+        let server_nonce: ::rtd_bin::Int128 = __d.take_int128()?;
+        let g: i32 = __d.take_i32()?;
+        let dh_prime: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+        let g_a: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+        let server_time: i32 = __d.take_i32()?;
+        Ok(Server_DH_inner_data {
+            nonce,
+            server_nonce,
+            g,
+            dh_prime,
+            g_a,
+            server_time,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
     pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
         let id = __d.take_u32()?;
         Self::decode_with_id(__d, id)
-    }
-
-    /// Decodes a value whose identifier has already been read.
-    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
-        match id {
-            0xb5890dba => {
-                let nonce: ::rtd_bin::Int128 = __d.take_int128()?;
-                let server_nonce: ::rtd_bin::Int128 = __d.take_int128()?;
-                let g: i32 = __d.take_i32()?;
-                let dh_prime: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
-                let g_a: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
-                let server_time: i32 = __d.take_i32()?;
-                Ok(Server_DH_inner_data::Server_DH_inner_data {
-                    nonce,
-                    server_nonce,
-                    g,
-                    dh_prime,
-                    g_a,
-                    server_time,
-                })
-            }
-            other => Err(::rtd_bin::Error::UnexpectedId {
-                id: other,
-                expected: 0xb5890dba,
-            }),
-        }
     }
 }
 #[allow(clippy::large_enum_variant)]
@@ -2278,6 +2172,11 @@ impl Gzip_packed {
         __w.put_bytes(self.packed_data.as_slice());
     }
 
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_bytes(self.packed_data.as_slice());
+    }
+
     /// Decodes a value with an already-read identifier.
     pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
         if id != 0x3072cfa1 {
@@ -2314,6 +2213,11 @@ impl Req_pq {
         __w.put_int128(self.nonce);
     }
 
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_int128(self.nonce);
+    }
+
     /// Decodes a value with an already-read identifier.
     pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
         if id != 0x60469778 {
@@ -2347,6 +2251,11 @@ impl Req_pq_multi {
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_u32(0xbe7e8ef1);
+        __w.put_int128(self.nonce);
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_int128(self.nonce);
     }
 
@@ -2388,6 +2297,16 @@ impl Req_DH_params {
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_u32(0xd712e4be);
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_bytes(self.p.as_slice());
+        __w.put_bytes(self.q.as_slice());
+        __w.put_i64(self.public_key_fingerprint);
+        __w.put_bytes(self.encrypted_data.as_slice());
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_int128(self.nonce);
         __w.put_int128(self.server_nonce);
         __w.put_bytes(self.p.as_slice());
@@ -2448,6 +2367,13 @@ impl Set_client_DH_params {
         __w.put_bytes(self.encrypted_data.as_slice());
     }
 
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_int128(self.nonce);
+        __w.put_int128(self.server_nonce);
+        __w.put_bytes(self.encrypted_data.as_slice());
+    }
+
     /// Decodes a value with an already-read identifier.
     pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
         if id != 0xf5045f1f {
@@ -2490,6 +2416,11 @@ impl Rpc_drop_answer {
         __w.put_i64(self.req_msg_id);
     }
 
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_i64(self.req_msg_id);
+    }
+
     /// Decodes a value with an already-read identifier.
     pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
         if id != 0x58e4a740 {
@@ -2523,6 +2454,11 @@ impl Get_future_salts {
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_u32(0xb921bd04);
+        __w.put_i32(self.num);
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_i32(self.num);
     }
 
@@ -2562,6 +2498,11 @@ impl Ping {
         __w.put_i64(self.ping_id);
     }
 
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_i64(self.ping_id);
+    }
+
     /// Decodes a value with an already-read identifier.
     pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
         if id != 0x7abe77ec {
@@ -2596,6 +2537,12 @@ impl Ping_delay_disconnect {
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_u32(0xf3427b8c);
+        __w.put_i64(self.ping_id);
+        __w.put_i32(self.disconnect_delay);
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_i64(self.ping_id);
         __w.put_i32(self.disconnect_delay);
     }
@@ -2640,6 +2587,11 @@ impl Destroy_session {
         __w.put_i64(self.session_id);
     }
 
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_i64(self.session_id);
+    }
+
     /// Decodes a value with an already-read identifier.
     pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
         if id != 0xe7512126 {
@@ -2675,6 +2627,13 @@ impl Http_wait {
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_u32(0x9299359f);
+        __w.put_i32(self.max_delay);
+        __w.put_i32(self.wait_after);
+        __w.put_i32(self.max_wait);
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
         __w.put_i32(self.max_delay);
         __w.put_i32(self.wait_after);
         __w.put_i32(self.max_wait);
