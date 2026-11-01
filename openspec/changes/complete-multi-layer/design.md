@@ -181,6 +181,14 @@ obligation shape is not yet emitted stays fail-closed (never a canonical fallbac
   tracked with tasks 3.3/4.1/5.1/5.3/5.4; the two keyboard-entangled ones belong with
   `add-legacy-layer-constructors`.
 
+`project` is the hard one: the reference generator (`td/gen/layer_codec_model.go`,
+`emitFieldProjectionGate` and its preflight cardinality checks) gates a field or vector
+element on a hook that reports whether the value survives, then requires the surviving
+cardinality to be exactly 0 or 1 (else a preflight error). Emitting that needs a
+projection-gate / cardinality subsystem in this generator, which is a focused follow-up; the
+`discard`/capture pair (chat invite) needs a profile-only field read that feeds a canonical
+field. Both keep failing closed until then.
+
 This keeps the change shippable and CI-green after each shape while preserving fail-closed
 semantics for the rest.
 
