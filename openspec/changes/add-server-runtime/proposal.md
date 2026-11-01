@@ -59,8 +59,8 @@ the extra ingress transports, storage traits, and the direction of the gRPC boun
 
 ### Modified Capabilities
 
-- `protocol-wire`: adds encrypted MTProto 2.0 message framing (auth-key-id envelope,
-  message key, AES-IGE payload) and server-salt derivation/update.
+- `protocol-crypto`: adds the encrypted MTProto 2.0 message envelope (auth-key-id,
+  message key, AES-IGE payload and inner header) and server-salt derivation.
 - `server-edge`: adds the encrypted session layer, WebSocket and FakeTLS/MTProxy ingress,
   the storage-backed session/key lifecycle, and the runtime budgets that serve them.
 - `server-rpc`: adds the pluggable request router and the built-in service methods.
@@ -71,10 +71,11 @@ the extra ingress transports, storage traits, and the direction of the gRPC boun
 
 ## Impact
 
-- **Crates**: new modules in `rtd-proto` (encrypted message, salt) and `rtd-server`
-  (transport ingress, session, service messages, rpc, storage, core); `rtd-edge` becomes
-  a service binary; `rtd-edge-proto` gains the call/event messages it needs; `rtd` facade
-  re-exports the runtime surface. Generated crates are untouched (canonical layer 232).
+- **Crates**: new modules in `rtd-crypto` (encrypted message envelope, server salt) and
+  `rtd-proto` (sans-IO session state), plus `rtd-server` (transport ingress, session actor,
+  service messages, rpc, storage, core); `rtd-edge` becomes a service binary;
+  `rtd-edge-proto` gains the call/event messages it needs; `rtd` facade re-exports the
+  runtime surface. Generated crates are untouched (canonical layer 232).
 - **Dependencies**: adds `tokio`, `tonic`, `tokio-tungstenite`/`tungstenite`, and a
   hashing/HTTP helper where needed; keeps `prost`. No GPL dependency; the official engine
   stays a run-only test peer.

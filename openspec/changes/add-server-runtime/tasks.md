@@ -3,17 +3,17 @@
 ## 1. Dependencies and scaffolding
 
 - [ ] 1.1 Add `tokio`, `tonic`, `prost` and `tokio-tungstenite` as dependencies of `rtd-server`, `rtd-edge` and `rtd-edge-proto` only, leaving the sans-IO crates' dependency sets unchanged; verify `cargo tree -p rtd-proto -p rtd-mt -p rtd-tlprofile` lists none of them and `cargo build --workspace` succeeds
-- [ ] 1.2 Create the `rtd-proto` `encrypted`/`session` modules and the `rtd-server` module skeleton (`storage`, `transport`, `session`, `rpc`, `core`), each re-exported from `lib.rs` with crate docs and no lint allowances; verify `cargo build -p rtd-proto -p rtd-server` and `cargo clippy -p rtd-proto -p rtd-server --all-targets -- -D warnings` succeed
+- [ ] 1.2 Create the `rtd-crypto` `encrypted_message`/`salt` modules, the `rtd-proto` `session` module, and the `rtd-server` module skeleton (`storage`, `transport`, `session`, `rpc`, `core`), each re-exported from `lib.rs` with crate docs and no lint allowances; verify `cargo build -p rtd-crypto -p rtd-proto -p rtd-server` and `cargo clippy -p rtd-crypto -p rtd-proto -p rtd-server --all-targets -- -D warnings` succeed
 
-## 2. `rtd-proto` — encrypted framing and server salt
+## 2. `rtd-crypto` — encrypted message envelope and server salt
 
-- [ ] 2.1 Implement the encrypted message envelope (auth-key id, message key, AES-IGE payload) with encode/decode that recomputes the message key and rejects a mismatch, distinguishing a zero auth-key id as plaintext; verify round-trip and tamper-rejection unit tests
-- [ ] 2.2 Implement server-salt handling (derive from the exchange nonces, track the current salt, replace it on a new salt) and expose it to the session layer; verify a leading-zero-nonce golden and a salt-replacement test
-- [ ] 2.3 Document the encrypted/salt module APIs; verify `cargo doc -p rtd-proto` builds without warnings
+- [ ] 2.1 Implement the encrypted message envelope and inner header (salt, session id, message id, sequence, body) with encrypt/decrypt that recomputes the message key and rejects a mismatch, distinguishing a zero auth-key id as plaintext; verify round-trip and tamper-rejection unit tests
+- [ ] 2.2 Implement server-salt derivation from the exchange nonces by the MTProto rule and expose the inner-header encode/decode; verify a leading-zero-nonce golden and a both-sides-agree test
+- [ ] 2.3 Document the encrypted-message and salt APIs; verify `cargo doc -p rtd-crypto` builds without warnings
 
 ## 3. `rtd-proto` — sans-IO session state machine
 
-- [ ] 3.1 Implement session message-id and sequence allocation using the injected clock and randomness, distinguishing content from service messages; verify the content-rule sequence test
+- [ ] 3.1 Implement the session struct with message-id and sequence allocation (adding `rtd-crypto` as a dependency of `rtd-proto` for the encrypted-message types) using the injected clock and randomness and distinguishing content from service messages; verify the content-rule sequence test
 - [ ] 3.2 Implement the inbound replay window and duplicate tolerance for encrypted messages; verify out-of-window rejection and duplicate-retransmission tolerance tests
 - [ ] 3.3 Implement pending-ack tracking and the resend queue (record outbound content messages, answer a resend request, drop on ack); verify ack-answer and resend tests
 - [ ] 3.4 Implement session identity and lifecycle state (session id, salt, layer slot) with clock-driven expiry and disconnect handling; verify a session-expiry test using `ManualClock`

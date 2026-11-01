@@ -52,23 +52,35 @@ specs left open.
 
 ## Decisions
 
-### D19. Encrypted framing in `rtd-proto`; the session state machine stays sans-IO
+### D19. Encrypted envelope in `rtd-crypto`; the session state machine stays sans-IO
 
-The MTProto 2.0 encrypted envelope (auth-key id, message key, AES-IGE payload) is byte
-layout and belongs with the other framing in `rtd-proto` as a new `encrypted` module that
-uses `rtd-crypto`'s KDF and IGE.
+Both reference implementations separate the encrypted message from the session state
+machine, and neither puts either in the IO runtime:
 
-Message-id/sequence allocation, the replay window, salt tracking, pending-ack and
-resend bookkeeping, and session-id ownership are protocol logic with no I/O, so they also
-live in the sans-IO core (a `session` module), driven by the injected clock/randomness.
-The **connection actor** in `rtd-server` owns the tokio task, reads bytes, and asks the
-session state machine what to do.
+- Go `td` keeps the envelope in `crypto/encrypted_message.go` (`AuthKeyID`, `MsgKey`,
+  `EncryptedData`) with `crypto/salt.go` (`ServerSalt(newNonce, serverNonce)`) and
+  `crypto/session_id.go`, and keeps the stateful `Session`/`Conn` (session id, salt,
+  `ackLoop`, `saltLoop`) in the `mtproto` package.
+- The official engine keeps `mtproto-core::message` (encrypt/decrypt + inner header),
+  `mtproto-core::msg_id` and `mtproto-core::session` (with `session::salts`,
+  `session::dedupe`) in one sans-IO core crate; only `mtproto-engine` owns IO.
 
-Alternatives: putting the session machine in `rtd-server` (rejected — makes it
-untestable without a runtime and breaks D18's boundary); a new `rtd-session` crate
-(rejected — a thin crate for one producer/consumer pair; `rtd-proto` already owns
-message ids, replay, and framing, so it is the cohesive home). If a second consumer
-(e.g. the deferred client library) appears, extracting a crate is mechanical.
+Following both: the **envelope** (encrypt/decrypt, message key, padding, inner header of
+salt/session id/message id/sequence) goes in **`rtd-crypto`**, beside the KDF, AES-IGE and
+auth key it needs, mirroring `td`'s `crypto/` (the capability is `protocol-crypto`). The
+**session state machine** (message-id/sequence allocation, replay window, salt tracking,
+pending-acks, resend queue, session identity) goes in the sans-IO core as a `session`
+module in **`rtd-proto`**, mirroring the engine's `mtproto-core::session`; `rtd-proto`
+gains a dependency on `rtd-crypto` (the engine keeps message and session in a single core
+crate; our crate split is only finer-grained). The **connection actor** in `rtd-server`
+owns the tokio task, reads bytes, and drives the session machine; it never reimplements
+protocol state.
+
+Alternatives: the envelope in `rtd-proto` (workable, but diverges from `td` and pushes a
+purely cryptographic operation into the framer); the session machine in `rtd-server`
+(rejected — untestable without a runtime and contrary to both references); a new
+`rtd-session` crate (rejected — the engine keeps session in its core crate and our core is
+`rtd-proto`; extraction stays mechanical if a second consumer appears).
 
 ### D20. One tokio actor per connection with a single writer
 
@@ -118,6 +130,12 @@ in-process core (used by the built-in router and by tests) and a tonic gRPC adap
 direction is edge → core (the edge runs the client side of `Execute`); lifecycle/routing
 events are surfaced as a server-streaming RPC on the same contract. Core
 unreachability becomes a TL error to the client; the session stays alive.
+
+Note: this boundary has **no precedent** in either reference. `td` and the engine are
+client-side libraries with no edge/core split, and the local `gramsrv` checkout contains no
+`.proto`/gRPC at all. The direction is taken from the maintainer's stated `gramsrv` v2
+Edge→Core shape (D14/D15), not from code we can read, so it is the one decision here that
+cannot be cross-checked locally.
 
 Alternatives: the edge hosting the service and the core dialing in (rejected — inverts
 the request path: the edge is the one that must call out per request, and the core is the
