@@ -11,11 +11,11 @@ libraries.
 ### Requirement: Byte-level edge boundary
 rtd SHALL expose its MTProto edge to a separate core process over a versioned gRPC
 contract. Request and response payloads SHALL cross the boundary as raw TL bytes plus
-metadata; the core SHALL NOT require, and rtd SHALL NOT assume, in-process linking of the
-two implementations.
+metadata, and the edge SHALL call the core; the core SHALL NOT require, and rtd SHALL NOT
+assume, in-process linking of the two implementations.
 
 #### Scenario: Core drives the edge remotely
-- **WHEN** a core service connects to an rtd edge over the boundary and opens a client connection
+- **WHEN** a client connects to an rtd edge and the edge calls its core over the boundary
 - **THEN** the edge performs the protocol work and exchanges TL bytes with the core across the boundary
 
 ### Requirement: Admitted-call metadata
@@ -40,14 +40,19 @@ fail closed rather than emitting a canonical fallback.
 - **WHEN** the core returns a value that cannot be represented in the session's layer
 - **THEN** the edge reports an error and does not emit a canonical fallback
 
-### Requirement: Edge owns keys and sessions
-The edge SHALL own authorization keys and session state through its storage traits, and
-SHALL expose lookup and lifecycle operations to the core so the core does not hold them
-directly.
+### Requirement: Core owns durable authorization keys
+The core SHALL be the durable owner of authorization keys and session-layer evidence. The
+edge SHALL save a newly created key to the core before confirming the exchange, and SHALL
+resolve a key or layer evidence it does not hold by calling the core and caching it for the
+life of the connection.
 
-#### Scenario: Core resolves a session through the edge
-- **WHEN** the core needs session or authorization-key information to run business logic
-- **THEN** it obtains it from the edge rather than from its own storage
+#### Scenario: New key is saved before confirmation
+- **WHEN** the edge completes a key exchange
+- **THEN** it saves the key to the core before confirming success
+
+#### Scenario: Unknown key is resolved from the core
+- **WHEN** an encrypted frame arrives for an authorization key the edge does not hold
+- **THEN** the edge fetches it from the core and proceeds
 
 ### Requirement: Lifecycle and routing events
 The edge SHALL surface lifecycle and routing events to the core, including session
@@ -72,3 +77,30 @@ independently, and a version mismatch SHALL be detectable at connection time.
 #### Scenario: Mismatched versions are detected
 - **WHEN** a core connects with an unsupported contract version
 - **THEN** the edge refuses the connection with a version error rather than misbehaving
+
+### Requirement: Edge admits, core executes
+The edge SHALL perform multi-layer admission locally and send the admitted call — session
+identity, semantic method, negotiated profile, wire identifier and canonical bytes — to the
+core, which executes it and returns a canonical result the edge encodes for the session's
+layer.
+
+#### Scenario: Admitted call reaches the core
+- **WHEN** the edge admits a request
+- **THEN** the core receives the admitted call and returns a result the edge encodes for the session's layer
+
+### Requirement: Interchangeable core implementations
+The edge SHALL reach its core through one abstraction satisfied by both the gRPC adapter
+and an in-process implementation, so the edge runs with either without changing observable
+protocol behavior.
+
+#### Scenario: In-process core serves a request
+- **WHEN** the edge runs with an in-process core implementation
+- **THEN** requests are served with the same observable behavior as over the gRPC adapter
+
+### Requirement: Core unavailable
+When the core cannot be reached or fails, the edge SHALL return a TL error to the client
+and SHALL keep the session alive.
+
+#### Scenario: Core failure is surfaced
+- **WHEN** the core is unreachable for an admitted request
+- **THEN** the client receives a TL error and the connection remains usable

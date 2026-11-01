@@ -17,6 +17,19 @@ and any DC label.
 - **WHEN** two connections arrive, one plaintext and one obfuscated
 - **THEN** each is served using its own detected framing
 
+### Requirement: MTProxy ingress
+The edge SHALL accept MTProxy connections that use FakeTLS or obfuscated2 framing with a
+configured secret, unwrap them to the MTProto stream, and reject a connection whose
+obfuscation does not authenticate with the secret.
+
+#### Scenario: FakeTLS connection with a valid secret is accepted
+- **WHEN** a client opens a FakeTLS connection using the configured secret
+- **THEN** the edge completes the handshake and serves the unwrapped MTProto stream
+
+#### Scenario: Wrong secret is rejected
+- **WHEN** a client opens an MTProxy connection whose obfuscation does not match the configured secret
+- **THEN** the edge rejects it
+
 ### Requirement: Authorization key exchange
 The edge SHALL perform the server side of the authorization key exchange, supporting
 both permanent and temporary keys, and SHALL persist a newly created authorization key
@@ -33,6 +46,19 @@ before confirming completion to the client.
 #### Scenario: Already-encrypted first frame is not rejected as unknown key
 - **WHEN** the first frame is an encrypted message from a peer that already holds a valid key
 - **THEN** the edge processes it rather than replying that the key is unknown
+
+### Requirement: Encrypted frame acceptance
+After a key exchange, the edge SHALL accept encrypted frames by their authorization-key
+identifier, decrypt and process them, and SHALL answer an unknown identifier with an
+authorization-key-not-found error rather than dropping the connection.
+
+#### Scenario: Known key is accepted
+- **WHEN** an encrypted frame arrives carrying a stored authorization-key identifier
+- **THEN** the edge decrypts and processes the message
+
+#### Scenario: Unknown key is refused
+- **WHEN** an encrypted frame carries an authorization-key identifier the edge does not hold
+- **THEN** the edge answers with an authorization-key-not-found error
 
 ### Requirement: Session lifecycle
 The edge SHALL maintain session state keyed by authorization key and session identifier,
