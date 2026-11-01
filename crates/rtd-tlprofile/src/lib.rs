@@ -21384,6 +21384,64 @@ fn wrapper_layer(method: &Method) -> Option<i32> {
     }
 }
 
+/// Builds immutable metadata for one transparent wrapper.
+fn wrapper_metadata(method: &Method, profile: Option<Profile>, semantic: SemanticId) -> Wrapper {
+    match method {
+        Method::InvokeAfterMsg(value) => Wrapper {
+            profile,
+            semantic,
+            wire_id: method.type_id(),
+            kind: WrapperKind::InvokeAfterMsg,
+            client: None,
+            ordering: OrderingKey {
+                msg_ids: vec![value.msg_id],
+            },
+        },
+        Method::InvokeAfterMsgs(value) => Wrapper {
+            profile,
+            semantic,
+            wire_id: method.type_id(),
+            kind: WrapperKind::InvokeAfterMsgs,
+            client: None,
+            ordering: OrderingKey {
+                msg_ids: value.msg_ids.clone(),
+            },
+        },
+        Method::InitConnection(value) => Wrapper {
+            profile,
+            semantic,
+            wire_id: method.type_id(),
+            kind: WrapperKind::InitConnection,
+            client: Some(ClientInfo {
+                api_id: value.api_id,
+                device_model: value.device_model.clone(),
+                system_version: value.system_version.clone(),
+                app_version: value.app_version.clone(),
+                system_lang_code: value.system_lang_code.clone(),
+                lang_pack: value.lang_pack.clone(),
+                lang_code: value.lang_code.clone(),
+            }),
+            ordering: OrderingKey::default(),
+        },
+        Method::InvokeWithLayer(_) => Wrapper {
+            profile,
+            semantic,
+            wire_id: method.type_id(),
+            kind: WrapperKind::Layer,
+            client: None,
+            ordering: OrderingKey::default(),
+        },
+        _ => Wrapper {
+            profile,
+            semantic,
+            wire_id: method.type_id(),
+            kind: WrapperKind::Other,
+            client: None,
+            ordering: OrderingKey::default(),
+        },
+    }
+}
+
 /// Bounded admission limits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
@@ -21479,6 +21537,143 @@ impl From<rtd_bin::Error> for AdmitError {
     }
 }
 
+/// The semantic kind of a transparently consumed RPC wrapper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WrapperKind {
+    /// `invokeWithLayer`, which selects an explicit profile.
+    Layer,
+    /// `initConnection`, which carries client and connection info.
+    InitConnection,
+    /// `invokeAfterMsg`, which depends on one prior message id.
+    InvokeAfterMsg,
+    /// `invokeAfterMsgs`, which depends on several prior message ids.
+    InvokeAfterMsgs,
+    /// Any other transparent wrapper.
+    Other,
+}
+
+/// Client and connection info captured from an `initConnection` wrapper.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ClientInfo {
+    /// The client's declared API id.
+    pub api_id: i32,
+    /// The client device model string.
+    pub device_model: String,
+    /// The client operating-system version.
+    pub system_version: String,
+    /// The client application version.
+    pub app_version: String,
+    /// The client system language code.
+    pub system_lang_code: String,
+    /// The requested language pack.
+    pub lang_pack: String,
+    /// The requested language code.
+    pub lang_code: String,
+}
+
+/// Prior-message dependencies declared by an `invokeAfter*` wrapper.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct OrderingKey {
+    msg_ids: Vec<i64>,
+}
+
+impl OrderingKey {
+    /// Returns `true` when the call depends on no prior message.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.msg_ids.is_empty()
+    }
+
+    /// Returns the number of prior message ids.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.msg_ids.len()
+    }
+
+    /// Returns the prior message ids in declaration order.
+    #[must_use]
+    pub fn as_slice(&self) -> &[i64] {
+        &self.msg_ids
+    }
+}
+
+/// Immutable metadata for one transparently consumed RPC wrapper.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Wrapper {
+    profile: Option<Profile>,
+    semantic: SemanticId,
+    wire_id: u32,
+    kind: WrapperKind,
+    client: Option<ClientInfo>,
+    ordering: OrderingKey,
+}
+
+impl Wrapper {
+    /// Returns the profile in effect when the wrapper was parsed, if known.
+    #[must_use]
+    pub fn profile(&self) -> Option<Profile> {
+        self.profile
+    }
+
+    /// Returns the stable semantic identity of the wrapper method.
+    #[must_use]
+    pub fn semantic(&self) -> SemanticId {
+        self.semantic
+    }
+
+    /// Returns the wrapper terminal wire identifier.
+    #[must_use]
+    pub fn wire_id(&self) -> u32 {
+        self.wire_id
+    }
+
+    /// Returns the wrapper kind.
+    #[must_use]
+    pub fn kind(&self) -> WrapperKind {
+        self.kind
+    }
+
+    /// Returns the client and connection info of an `initConnection` wrapper.
+    #[must_use]
+    pub fn client(&self) -> Option<&ClientInfo> {
+        self.client.as_ref()
+    }
+
+    /// Returns the prior-message ordering dependencies of this wrapper.
+    #[must_use]
+    pub fn ordering(&self) -> &OrderingKey {
+        &self.ordering
+    }
+}
+
+/// The comparable identity of an admitted call.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallIdentity {
+    semantic: SemanticId,
+    wire_id: u32,
+    ordering: OrderingKey,
+}
+
+impl CallIdentity {
+    /// Returns the stable semantic identity of the call.
+    #[must_use]
+    pub fn semantic(&self) -> SemanticId {
+        self.semantic
+    }
+
+    /// Returns the admitted terminal wire identifier.
+    #[must_use]
+    pub fn wire_id(&self) -> u32 {
+        self.wire_id
+    }
+
+    /// Returns the accumulated invoke-after ordering key of the call.
+    #[must_use]
+    pub fn ordering(&self) -> &OrderingKey {
+        &self.ordering
+    }
+}
+
 /// An admitted, exact-profile request.
 #[derive(Debug, Clone)]
 pub struct Admission {
@@ -21496,6 +21691,81 @@ pub struct Admission {
     pub wire_size: usize,
     /// SHA-256 of the original wire bytes.
     pub wire_digest: [u8; 32],
+    /// The transparent wrappers consumed around the terminal, outermost first.
+    pub wrappers: Vec<Wrapper>,
+    /// The admitted call identity.
+    pub call_identity: CallIdentity,
+}
+
+/// A view over an admitted request: explicit and effective profile plus the
+/// ordered wrapper metadata.
+#[derive(Debug, Clone, Copy)]
+pub struct AdmissionView<'a> {
+    admission: &'a Admission,
+}
+
+impl<'a> AdmissionView<'a> {
+    /// Returns the explicit profile evidence from a wrapper, if any.
+    #[must_use]
+    pub fn explicit_profile(&self) -> Option<Profile> {
+        self.admission.explicit_profile
+    }
+
+    /// Returns the effective profile, or `None` for a wire-invariant terminal.
+    #[must_use]
+    pub fn effective_profile(&self) -> Option<Profile> {
+        self.admission.effective_profile
+    }
+
+    /// Returns the wrappers consumed around the terminal, outermost first.
+    #[must_use]
+    pub fn wrappers(&self) -> &'a [Wrapper] {
+        &self.admission.wrappers
+    }
+
+    /// Returns the number of wrappers consumed around the terminal.
+    #[must_use]
+    pub fn wrapper_count(&self) -> usize {
+        self.admission.wrappers.len()
+    }
+
+    /// Returns one wrapper by index.
+    #[must_use]
+    pub fn wrapper(&self, index: usize) -> Option<&'a Wrapper> {
+        self.admission.wrappers.get(index)
+    }
+
+    /// Returns the admitted call identity.
+    #[must_use]
+    pub fn call_identity(&self) -> &'a CallIdentity {
+        &self.admission.call_identity
+    }
+}
+
+impl Admission {
+    /// Returns a view over the explicit/effective profile and wrapper metadata.
+    #[must_use]
+    pub fn view(&self) -> AdmissionView<'_> {
+        AdmissionView { admission: self }
+    }
+
+    /// Returns the wrappers consumed around the terminal, outermost first.
+    #[must_use]
+    pub fn wrappers(&self) -> &[Wrapper] {
+        &self.wrappers
+    }
+
+    /// Returns the admitted call identity.
+    #[must_use]
+    pub fn call_identity(&self) -> &CallIdentity {
+        &self.call_identity
+    }
+
+    /// Returns the accumulated invoke-after ordering key of the call.
+    #[must_use]
+    pub fn ordering(&self) -> &OrderingKey {
+        &self.call_identity.ordering
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21527,19 +21797,31 @@ fn admit_impl(
     }
 
     let mut explicit: Option<i32> = None;
+    let mut wrappers: Vec<Wrapper> = Vec::new();
+    let mut ordering: Vec<i64> = Vec::new();
+    let mut wrapper_profile = match mode {
+        AdmitMode::Unprofiled => None,
+        AdmitMode::Frozen | AdmitMode::Default => caller,
+    };
     let mut current: &Method = &decoded;
-    while let Some(layer) = wrapper_layer(current) {
-        match explicit {
-            None => explicit = Some(layer),
-            Some(previous) if previous != layer => {
-                return Err(AdmitError::Conflict(previous, layer));
+    while let Some(inner) = wrapper_query(current) {
+        let wire_id = current.type_id();
+        let semantic = semantic_for_wire_id(Profile::new(CANONICAL_LAYER), wire_id)
+            .ok_or(AdmitError::UnsupportedTerminal(wire_id))?;
+        let wrapper = wrapper_metadata(current, wrapper_profile, semantic);
+        ordering.extend_from_slice(wrapper.ordering().as_slice());
+        if let Some(layer) = wrapper_layer(current) {
+            match explicit {
+                None => explicit = Some(layer),
+                Some(previous) if previous != layer => {
+                    return Err(AdmitError::Conflict(previous, layer));
+                }
+                Some(_) => {}
             }
-            Some(_) => {}
+            wrapper_profile = Some(Profile::new(layer));
         }
-        match wrapper_query(current) {
-            Some(inner) => current = inner,
-            None => break,
-        }
+        wrappers.push(wrapper);
+        current = inner;
     }
     let terminal = current;
     let terminal_id = terminal.type_id();
@@ -21583,6 +21865,11 @@ fn admit_impl(
             .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?,
     };
 
+    let call_identity = CallIdentity {
+        semantic,
+        wire_id: terminal_id,
+        ordering: OrderingKey { msg_ids: ordering },
+    };
     let mut wire_digest = [0u8; 32];
     wire_digest.copy_from_slice(&sha256(body));
     Ok(Admission {
@@ -21593,6 +21880,8 @@ fn admit_impl(
         request: decoded,
         wire_size: body.len(),
         wire_digest,
+        wrappers,
+        call_identity,
     })
 }
 
@@ -21860,6 +22149,42 @@ where
     }
 }
 
+/// The result of dispatching an admitted call, bound to its call identity.
+#[derive(Debug, Clone)]
+pub struct DispatchResult {
+    identity: CallIdentity,
+    value: FrozenObject,
+}
+
+impl DispatchResult {
+    /// Returns the admitted call identity that produced this result.
+    #[must_use]
+    pub fn identity(&self) -> &CallIdentity {
+        &self.identity
+    }
+
+    /// Returns the frozen canonical result value.
+    #[must_use]
+    pub fn value(&self) -> &FrozenObject {
+        &self.value
+    }
+
+    /// Consumes the result, returning the frozen canonical value.
+    #[must_use]
+    pub fn into_value(self) -> FrozenObject {
+        self.value
+    }
+
+    /// Encodes the result for an exact profile, failing closed.
+    ///
+    /// # Errors
+    ///
+    /// As [`FrozenObject::encode`].
+    pub fn encode(&self, profile: Profile, out: &mut Writer) -> Result<(), ProjectionError> {
+        self.value.encode(profile, out)
+    }
+}
+
 /// A dispatcher keyed by stable semantic identity.
 #[derive(Default)]
 pub struct Dispatcher {
@@ -21884,13 +22209,17 @@ impl Dispatcher {
     ///
     /// Returns an error when no handler is registered, the handler fails, or
     /// the result cannot be frozen.
-    pub fn dispatch(&self, admission: &Admission) -> Result<FrozenObject, DispatchError> {
+    pub fn dispatch(&self, admission: &Admission) -> Result<DispatchResult, DispatchError> {
         let handler = self
             .handlers
             .get(&admission.semantic.0)
             .ok_or(DispatchError::NoHandler(admission.semantic))?;
         let value = handler.handle(admission).map_err(DispatchError::Handler)?;
-        FrozenObject::freeze(value).map_err(DispatchError::Value)
+        let value = FrozenObject::freeze(value).map_err(DispatchError::Value)?;
+        Ok(DispatchResult {
+            identity: admission.call_identity.clone(),
+            value,
+        })
     }
 }
 

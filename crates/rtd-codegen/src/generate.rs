@@ -153,4 +153,22 @@ mod tests {
     fn committed_sources_are_fresh() {
         run_verify(workspace_root()).expect("committed generated sources are fresh");
     }
+
+    #[test]
+    fn wrapper_metadata_is_emitted() {
+        let generated = generate(workspace_root()).expect("generation");
+        let tlprofile = generated
+            .files
+            .iter()
+            .find(|(path, _)| path.to_string_lossy().contains("rtd-tlprofile"))
+            .map(|(_, source)| source)
+            .expect("rtd-tlprofile source is generated");
+        assert!(tlprofile.contains("fn wrapper_metadata"));
+        assert!(tlprofile.contains("WrapperKind::InitConnection"));
+        assert!(tlprofile.contains("WrapperKind::InvokeAfterMsg"));
+        assert!(tlprofile.contains("WrapperKind::InvokeAfterMsgs"));
+        assert!(tlprofile.contains("WrapperKind::Layer"));
+        assert!(tlprofile.contains("device_model: value.device_model.clone()"));
+        assert!(tlprofile.contains("ordering: OrderingKey {"));
+    }
 }

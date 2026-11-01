@@ -238,6 +238,46 @@ mod tests {
     }
 
     #[test]
+    fn leading_zero_nonce_salt_golden() {
+        // Go `crypto.ServerSalt`: salt = int64(LE(new_nonce[0..8] XOR
+        // server_nonce[0..8])), keeping the fixed width so a leading zero byte
+        // is preserved rather than trimmed. The two nonces selected here have a
+        // zero first byte and XOR to `00 20 20 20 20 20 20 20`.
+        let new_nonce = new_nonce_sequential();
+        let mut server_nonce = [0u8; 16];
+        for (i, byte) in server_nonce.iter_mut().enumerate() {
+            *byte = 0x20 + i as u8;
+        }
+        server_nonce[0] = 0x00;
+
+        assert_eq!(
+            server_salt(&new_nonce, &server_nonce),
+            2_314_885_530_818_453_504
+        );
+    }
+
+    #[test]
+    fn salt_is_agreed_by_both_sides() {
+        // Both parties hold both nonces and apply the same rule, so they derive
+        // the identical value; assert it against the raw XOR as well.
+        let new_nonce = new_nonce_sequential();
+        let mut server_nonce = [0u8; 16];
+        for (i, byte) in server_nonce.iter_mut().enumerate() {
+            *byte = 0x40u8.wrapping_add(i as u8);
+        }
+
+        let client_salt = server_salt(&new_nonce, &server_nonce);
+        let server_salt_value = server_salt(&new_nonce, &server_nonce);
+        assert_eq!(client_salt, server_salt_value);
+
+        let mut expected = [0u8; 8];
+        for (i, byte) in expected.iter_mut().enumerate() {
+            *byte = new_nonce[i] ^ server_nonce[i];
+        }
+        assert_eq!(client_salt, i64::from_le_bytes(expected));
+    }
+
+    #[test]
     fn exchange_answer_round_trip() {
         let key = [0x11u8; 32];
         let iv = [0x22u8; 32];

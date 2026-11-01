@@ -1,18 +1,19 @@
 //! The rtd sidecar edge service.
 //!
-//! This is the service binary for the gRPC edge boundary defined by
+//! This is the service binary for the gRPC boundary defined by
 //! [`rtd_edge_proto`]. The protocol edge and its wiring are implemented in the
-//! server stage; today the binary exposes the contract version and can validate
-//! a core's declared version, which is what the boundary's handshake checks.
+//! server stage; today the binary reports the contract's protocol version and can
+//! validate a peer's declared version, which is what the boundary's handshake
+//! checks.
 #![warn(missing_docs)]
 
-use rtd_edge_proto::{CONTRACT_VERSION, HelloRequest, handshake};
+use rtd_edge_proto::{PROTOCOL_VERSION, version_is_supported};
 
 fn main() {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         None => {
-            println!("rtd-edge contract version {CONTRACT_VERSION}");
+            println!("rtd-edge protocol version {PROTOCOL_VERSION}");
         }
         Some("--check-version") => {
             let Some(value) = args.next() else {
@@ -26,16 +27,13 @@ fn main() {
                     std::process::exit(2);
                 }
             };
-            let request = HelloRequest {
-                contract_version: version,
-                core_id: "cli".to_owned(),
-            };
-            match handshake(&request) {
-                Ok(response) => println!("accepted contract version {}", response.contract_version),
-                Err(message) => {
-                    eprintln!("rejected: {message}");
-                    std::process::exit(1);
-                }
+            if version_is_supported(version) {
+                println!("accepted protocol version {version}");
+            } else {
+                eprintln!(
+                    "rejected: unsupported protocol version {version} (expected {PROTOCOL_VERSION})"
+                );
+                std::process::exit(1);
             }
         }
         Some(other) => {

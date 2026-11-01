@@ -6,6 +6,8 @@
 //! `td/crypto` byte for byte so that the two are wire-compatible:
 //!
 //! - [`ige`] — AES-256 in infinite-garble-extension (IGE) mode.
+//! - [`encrypted_message`] — the MTProto 2.0 encrypted-message envelope,
+//!   including its inner header and random padding.
 //! - [`kdf`] — the MTProto 2.0 key-derivation function (message key, AES key
 //!   and IGE initialization vector) with a side-dependent offset.
 //! - [`kdf_v1`] — the legacy MTProto 1.0 key-derivation function still required
@@ -26,6 +28,7 @@
 
 pub mod bind;
 pub mod dh;
+pub mod encrypted_message;
 pub mod error;
 pub mod ige;
 pub mod kdf;
@@ -42,6 +45,9 @@ mod testutil;
 
 pub use bind::{BIND_AUTH_KEY_INNER_TYPE_ID, BindAuthKeyInner, encrypt_bind_message};
 pub use dh::{DH_PRIME_BITS, check_dh, check_dh_params, check_gp, check_prime, in_range};
+pub use encrypted_message::{
+    DecryptedMessage, EncryptedMessage, MessageHeader, auth_key_id, decrypt, encrypt,
+};
 pub use error::{Error, Result};
 pub use ige::{decrypt as ige_decrypt, encrypt as ige_encrypt};
 pub use kdf::{Side, keys, message_key};

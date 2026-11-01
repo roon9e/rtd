@@ -1,5 +1,6 @@
 //! Errors produced by transport obfuscation and proxying.
 
+use crate::secret::SecretMode;
 use core::fmt;
 
 /// Result alias for transport obfuscation operations.
@@ -13,6 +14,17 @@ pub enum Error {
     Io(std::io::Error),
     /// A secret was provided but was shorter than the required 16 bytes.
     InvalidSecretLength(usize),
+    /// An MTProxy secret string was not valid hexadecimal.
+    InvalidSecretHex,
+    /// An MTProxy secret used an unknown obfuscation mode prefix.
+    InvalidSecretPrefix(u8),
+    /// A secret's obfuscation mode does not match the requested transport.
+    SecretModeMismatch {
+        /// The transport that was requested.
+        expected: &'static str,
+        /// The obfuscation mode the secret selects.
+        actual: SecretMode,
+    },
     /// A random obfuscation init could not be produced after repeated attempts.
     InvalidInit,
     /// A TLS record carried an unknown protocol version.
@@ -42,6 +54,17 @@ impl fmt::Display for Error {
             Self::Io(err) => write!(f, "io error: {err}"),
             Self::InvalidSecretLength(len) => {
                 write!(f, "invalid secret size {len}, at least 16 bytes required")
+            }
+            Self::InvalidSecretHex => f.write_str("secret is not a valid hex string"),
+            Self::InvalidSecretPrefix(prefix) => {
+                write!(f, "unknown secret prefix {prefix:#04x}")
+            }
+            Self::SecretModeMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "secret selects the {} mode, which cannot be used for {expected}",
+                    actual.as_str()
+                )
             }
             Self::InvalidInit => f.write_str("failed to generate a valid obfuscation init"),
             Self::UnknownProtocolVersion(version) => {

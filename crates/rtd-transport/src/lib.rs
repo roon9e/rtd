@@ -8,10 +8,15 @@
 //!
 //! Both layers implement [`std::io::Read`] and [`std::io::Write`] so they can
 //! be composed with the transport codecs in `rtd-proto`.
+//!
+//! [`secret`] parses the human MTProxy secret string into its obfuscation mode
+//! (plain, secured `dd`, or FakeTLS `ee`) and key, so a configuration string can
+//! be composed with the layer it selects.
 
 pub mod error;
 pub mod faketls;
 pub mod obfuscated2;
+pub mod secret;
 
 pub use error::{Error, Result};
 pub use faketls::{
@@ -22,3 +27,4 @@ pub use faketls::{
     write_client_hello, write_record, write_server_hello,
 };
 pub use obfuscated2::{Metadata, Obfuscated2};
+pub use secret::{Secret, SecretMode};

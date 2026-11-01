@@ -6,16 +6,18 @@
 
 use rtd_bin::Writer;
 use rtd_tg::{
-    AuthBindTempAuthKey, Bool, Decoder, InvokeWithLayer, MessagesDeleteMessages, Method, Object,
+    AuthBindTempAuthKey, Bool, Decoder, InitConnection, InvokeAfterMsg, InvokeAfterMsgs,
+    InvokeWithLayer, MessagesDeleteMessages, Method, Object,
 };
 use rtd_tlprofile::{
-    Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, admit,
-    admit_default, admit_unprofiled, admit_with_limits, decode_object, lookup_route,
-    resolve_profile, semantic_for_wire_id, wire_id,
+    Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, WrapperKind,
+    admit, admit_default, admit_unprofiled, admit_with_limits, decode_object, lookup_route,
+    resolve_profile, semantic, semantic_for_wire_id, wire_id,
 };
 
 const BIND_ID: u32 = 0xcdd4_2a05;
 const DELETE_ID: u32 = 0xe58e_95d2;
+const INIT_CONNECTION_ID: u32 = 0xc1cd_5ea9;
 
 fn encode_method(method: &Method) -> Vec<u8> {
     let mut writer = rtd_bin::Writer::new();
@@ -35,6 +37,36 @@ fn bind() -> Method {
 fn invoke(layer: i32, query: Method) -> Method {
     Method::InvokeWithLayer(Box::new(InvokeWithLayer {
         layer,
+        query: Box::new(query),
+    }))
+}
+
+fn init_connection(query: Method) -> Method {
+    Method::InitConnection(Box::new(InitConnection {
+        flags: 0,
+        api_id: 2040,
+        device_model: "RTD".to_owned(),
+        system_version: "Linux".to_owned(),
+        app_version: "1.0".to_owned(),
+        system_lang_code: "en".to_owned(),
+        lang_pack: String::new(),
+        lang_code: "en".to_owned(),
+        proxy: None,
+        params: None,
+        query: Box::new(query),
+    }))
+}
+
+fn invoke_after_msg(msg_id: i64, query: Method) -> Method {
+    Method::InvokeAfterMsg(Box::new(InvokeAfterMsg {
+        msg_id,
+        query: Box::new(query),
+    }))
+}
+
+fn invoke_after_msgs(msg_ids: Vec<i64>, query: Method) -> Method {
+    Method::InvokeAfterMsgs(Box::new(InvokeAfterMsgs {
+        msg_ids,
         query: Box::new(query),
     }))
 }
@@ -213,4 +245,117 @@ fn semantic_identity_round_trips() {
     let semantic = semantic_for_wire_id(profile, BIND_ID).unwrap();
     assert_eq!(wire_id(profile, semantic), Some(BIND_ID));
     assert!(lookup_route(profile, DELETE_ID).is_some());
+}
+
+#[test]
+fn init_connection_capture() {
+    let body = encode_method(&invoke(232, init_connection(bind())));
+    let admission = admit(Profile::new(232), &body).expect("admitted");
+
+    let view = admission.view();
+    assert_eq!(view.effective_profile(), Some(Profile::new(232)));
+    assert_eq!(view.explicit_profile(), Some(Profile::new(232)));
+    assert_eq!(view.wrapper_count(), 2);
+
+    let layer = view.wrapper(0).expect("layer wrapper");
+    assert_eq!(layer.kind(), WrapperKind::Layer);
+    assert_eq!(layer.semantic(), semantic::METHOD_INVOKE_WITH_LAYER);
+    assert_eq!(layer.profile(), Some(Profile::new(232)));
+
+    let init = view.wrapper(1).expect("init wrapper");
+    assert_eq!(init.kind(), WrapperKind::InitConnection);
+    assert_eq!(init.wire_id(), INIT_CONNECTION_ID);
+    let client = init.client().expect("client info captured");
+    assert_eq!(client.api_id, 2040);
+    assert_eq!(client.device_model, "RTD");
+    assert_eq!(client.system_version, "Linux");
+    assert_eq!(client.app_version, "1.0");
+    assert_eq!(client.system_lang_code, "en");
+    assert!(client.lang_pack.is_empty());
+    assert_eq!(client.lang_code, "en");
+
+    // The terminal remains the inner method, not the wrapper.
+    assert_eq!(admission.wire_id, BIND_ID);
+    assert_eq!(
+        admission.semantic,
+        semantic_for_wire_id(Profile::new(232), BIND_ID).unwrap()
+    );
+}
+
+#[test]
+fn invoke_after_ordering_key() {
+    let body = encode_method(&invoke_after_msgs(
+        vec![11, 22],
+        invoke_after_msg(33, bind()),
+    ));
+    let admission = admit(Profile::new(232), &body).expect("admitted");
+
+    assert_eq!(admission.wrappers().len(), 2);
+    assert_eq!(admission.wrappers()[0].kind(), WrapperKind::InvokeAfterMsgs);
+    assert_eq!(admission.wrappers()[0].ordering().as_slice(), &[11, 22]);
+    assert_eq!(admission.wrappers()[1].kind(), WrapperKind::InvokeAfterMsg);
+    assert_eq!(admission.wrappers()[1].ordering().as_slice(), &[33]);
+
+    // The call identity accumulates the ordering ids, outermost first.
+    let identity = admission.call_identity();
+    assert_eq!(identity.ordering().as_slice(), &[11, 22, 33]);
+    assert_eq!(identity.semantic(), admission.semantic);
+    assert_eq!(identity.wire_id(), BIND_ID);
+    assert!(!identity.ordering().is_empty());
+}
+
+#[test]
+fn dispatch_result_carries_call_identity() {
+    let body = encode_method(&invoke_after_msg(7, bind()));
+    let admission = admit(Profile::new(232), &body).expect("admitted");
+    let method = admission.semantic;
+
+    let mut dispatcher = Dispatcher::new();
+    dispatcher.register(method, |_admission: &Admission| {
+        Ok(Object::Bool(Box::new(Bool::BoolTrue)))
+    });
+    let result = dispatcher.dispatch(&admission).expect("dispatched");
+
+    assert_eq!(result.identity().semantic(), method);
+    assert_eq!(result.identity().wire_id(), BIND_ID);
+    assert_eq!(result.identity().ordering().as_slice(), &[7]);
+    assert_eq!(
+        result.value().canonical(),
+        &Object::Bool(Box::new(Bool::BoolTrue))
+    );
+
+    let mut writer = Writer::new();
+    result
+        .encode(Profile::new(232), &mut writer)
+        .expect("encoded");
+    assert!(!writer.into_vec().is_empty());
+}
+
+#[test]
+fn fail_closed_behaviors_are_unchanged() {
+    // Unsupported-layer refusal.
+    let body = encode_method(&bind());
+    assert_eq!(
+        admit(Profile::new(231), &body).unwrap_err(),
+        AdmitError::UnsupportedLayer(231)
+    );
+
+    // Conflicting-selector rejection.
+    let body = encode_method(&invoke(232, invoke(231, bind())));
+    assert_eq!(
+        admit(Profile::new(232), &body).unwrap_err(),
+        AdmitError::Conflict(232, 231)
+    );
+
+    // Unrepresentable-value failure.
+    let frozen = FrozenObject::freeze(Object::Bool(Box::new(Bool::BoolTrue))).unwrap();
+    assert_eq!(
+        frozen
+            .encode(Profile::new(231), &mut Writer::new())
+            .unwrap_err(),
+        ProjectionError::Unrepresentable {
+            layer: 231,
+            wire_id: frozen.type_id()
+        }
+    );
 }

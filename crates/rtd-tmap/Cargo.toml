@@ -1,0 +1,16 @@
+[package]
+name = "rtd-tmap"
+description = "Combined wire-id to qualified-name registry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rtd-tg = { path = "../rtd-tg" }
+rtd-mt = { path = "../rtd-mt" }
+rtd-proto = { path = "../rtd-proto" }

@@ -2,23 +2,23 @@
 
 ## 1. Dependencies and scaffolding
 
-- [ ] 1.1 Add `tokio`, `tonic`, `prost` and `tokio-tungstenite` as dependencies of `rtd-server`, `rtd-edge` and `rtd-edge-proto` only, leaving the sans-IO crates' dependency sets unchanged; verify `cargo tree -p rtd-proto -p rtd-mt -p rtd-tlprofile` lists none of them and `cargo build --workspace` succeeds
+- [x] 1.1 Add `tokio`, `tonic`, `prost` and `tokio-tungstenite` as dependencies of `rtd-server`, `rtd-edge` and `rtd-edge-proto` only, leaving the sans-IO crates' dependency sets unchanged; verify `cargo tree -p rtd-proto -p rtd-mt -p rtd-tlprofile` lists none of them and `cargo build --workspace` succeeds
 - [ ] 1.2 Create the `rtd-crypto` `encrypted_message`/`salt` modules, the `rtd-proto` `session` module, and the `rtd-server` module skeleton (`transport`, `session`, `rpc`, `core`), each re-exported from `lib.rs` with crate docs and no lint allowances; verify `cargo build -p rtd-crypto -p rtd-proto -p rtd-server` and `cargo clippy -p rtd-crypto -p rtd-proto -p rtd-server --all-targets -- -D warnings` succeed
-- [ ] 1.3 Re-audit the committed crates against the gramsrv v2 edge dependencies (`iamxvbaba/td/{bin,clock,crypto,exchange,mt,mtproxy,proto,tgerr,tg,tlprofile,tmap,transport}`) and record any further gap as a task before implementing the group it affects; verify every listed package has an rtd owner or a task in this list
+- [x] 1.3 Re-audit the committed crates against the gramsrv v2 edge dependencies (`iamxvbaba/td/{bin,clock,crypto,exchange,mt,mtproxy,proto,tgerr,tg,tlprofile,tmap,transport}`) and record any further gap as a task before implementing the group it affects; verify every listed package has an rtd owner or a task in this list
 
 ## 2. Multi-layer runtime extension (`rtd-tlprofile` and `rtd-codegen`)
 
 The committed runtime covers admission/freeze/dispatch but not the wrapper and call surface the edge needs (D28).
 
-- [ ] 2.1 Extend the generator to emit a wrapper-aware admission surface — capture of initialization-wrapper client/connection info and the invoke-after ordering identifiers, plus the call identity (semantic, wire id, ordering key); verify generation is deterministic and the committed output is refreshed
-- [ ] 2.2 Extend the `rtd-tlprofile` runtime with an admission view (explicit and effective profile plus wrapper metadata) and a dispatch `Result` carrying the admitted call identity; verify initialization-wrapper capture, invoke-after ordering and result-identity tests
-- [ ] 2.3 Re-verify the existing multi-layer behavior is unchanged (`unsupported-layer refusal`, conflicting-selector rejection, fail-closed encoding) with `cargo test -p rtd-tlprofile`, and confirm `cargo run -p rtd-codegen -- verify` passes
+- [x] 2.1 Extend the generator to emit a wrapper-aware admission surface — capture of initialization-wrapper client/connection info and the invoke-after ordering identifiers, plus the call identity (semantic, wire id, ordering key); verify generation is deterministic and the committed output is refreshed
+- [x] 2.2 Extend the `rtd-tlprofile` runtime with an admission view (explicit and effective profile plus wrapper metadata) and a dispatch `Result` carrying the admitted call identity; verify initialization-wrapper capture, invoke-after ordering and result-identity tests
+- [x] 2.3 Re-verify the existing multi-layer behavior is unchanged (`unsupported-layer refusal`, conflicting-selector rejection, fail-closed encoding) with `cargo test -p rtd-tlprofile`, and confirm `cargo run -p rtd-codegen -- verify` passes
 
 ## 3. `rtd-crypto` — encrypted message envelope and server salt
 
-- [ ] 3.1 Implement the encrypted message envelope and inner header (salt, session id, message id, sequence, body) with encrypt/decrypt that recomputes the message key and rejects a mismatch, distinguishing a zero auth-key id as plaintext; verify round-trip and tamper-rejection unit tests
-- [ ] 3.2 Implement server-salt derivation from the exchange nonces by the MTProto rule and expose the inner-header encode/decode; verify a leading-zero-nonce golden and a both-sides-agree test
-- [ ] 3.3 Document the encrypted-message and salt APIs; verify `cargo doc -p rtd-crypto` builds without warnings
+- [x] 3.1 Implement the encrypted message envelope and inner header (salt, session id, message id, sequence, body) with encrypt/decrypt that recomputes the message key and rejects a mismatch, distinguishing a zero auth-key id as plaintext; verify round-trip and tamper-rejection unit tests
+- [x] 3.2 Implement server-salt derivation from the exchange nonces by the MTProto rule and expose the inner-header encode/decode; verify a leading-zero-nonce golden and a both-sides-agree test
+- [x] 3.3 Document the encrypted-message and salt APIs; verify `cargo doc -p rtd-crypto` builds without warnings
 
 ## 4. `rtd-proto` — sans-IO session state machine
 
@@ -29,8 +29,8 @@ The committed runtime covers admission/freeze/dispatch but not the wrapper and c
 
 ## 5. `rtd-transport` and config compatibility
 
-- [ ] 5.1 Add MTProxy secret parsing (human string to obfuscation mode and key) covering plain, secured (`dd`) and FakeTLS (`ee`) secrets; verify parse and wrong-mode rejection tests
-- [ ] 5.2 Add a combined wire-id to name registry over the `rtd-tg`, `rtd-mt` and `rtd-proto` registries (the `td/tmap` equivalent); verify lookups across all three and that an unknown id returns none
+- [x] 5.1 Add MTProxy secret parsing (human string to obfuscation mode and key) covering plain, secured (`dd`) and FakeTLS (`ee`) secrets; verify parse and wrong-mode rejection tests
+- [x] 5.2 Add a combined wire-id to name registry over the `rtd-tg`, `rtd-mt` and `rtd-proto` registries (the `td/tmap` equivalent); verify lookups across all three and that an unknown id returns none
 
 ## 6. `rtd-server` — edge session state and core-backed durable state
 
@@ -61,7 +61,7 @@ The committed runtime covers admission/freeze/dispatch but not the wrapper and c
 ## 10. Core boundary — trait, in-process core and `CoreExecService`-shaped gRPC adapter
 
 - [ ] 10.1 Define the `Core` trait mirroring gramsrv v2's edge-facing handler (admit/dispatch, durable auth keys, layer evidence, session offline) with an in-process implementation over the router, mapping a core failure to a TL error while keeping the session alive; verify in-process dispatch and core-failure tests
-- [ ] 10.2 Reshape `rtd-edge-proto` to mirror gramsrv v2's `coreexec.proto` — package `telesrv.coreexec.v1`, service `CoreExecService`, the method names and `DispatchRequest`/`DispatchResponse`/auth-key/layer-evidence messages with matching field tags, and a protocol-version handshake — importing the `.proto` as a pinned, provenance-recorded input rather than a hand copy; verify prost round-trip, version/capability handshake, and that the pinned provenance digest matches
+- [x] 10.2 Reshape `rtd-edge-proto` to mirror gramsrv v2's `coreexec.proto` — package `telesrv.coreexec.v1`, service `CoreExecService`, the method names and `DispatchRequest`/`DispatchResponse`/auth-key/layer-evidence messages with matching field tags, and a protocol-version handshake — importing the `.proto` as a pinned, provenance-recorded input rather than a hand copy; verify prost round-trip, version/capability handshake, and that the pinned provenance digest matches
 - [ ] 10.4 Verify containment: only `rtd-edge` depends on `rtd-edge-proto`, and no sans-IO crate or `rtd-server` references the contract types; verify with `cargo metadata`/`cargo tree` and a source scan for the contract symbols
 - [ ] 10.3 Implement the tonic gRPC adapter that dials the core's `CoreExecService`; verify a tonic in-process test that an admitted call reaches the core and its result is encoded
 

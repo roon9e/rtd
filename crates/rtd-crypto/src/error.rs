@@ -39,6 +39,21 @@ pub enum Error {
         /// The offending length.
         len: usize,
     },
+    /// An encrypted-message frame was structurally invalid.
+    MalformedMessage {
+        /// Human-readable reason for the rejection.
+        reason: &'static str,
+    },
+    /// A frame carried a zero authorization-key identifier and is therefore a
+    /// plaintext message, not an encrypted one.
+    PlaintextMessage,
+    /// A frame's authorization-key identifier did not match the supplied key.
+    AuthKeyMismatch {
+        /// The fingerprint of the supplied authorization key.
+        expected: [u8; 8],
+        /// The fingerprint carried by the frame.
+        found: [u8; 8],
+    },
 }
 
 impl fmt::Display for Error {
@@ -60,8 +75,28 @@ impl fmt::Display for Error {
                     "data length {len} is not a multiple of the AES block size"
                 )
             }
+            Self::MalformedMessage { reason } => {
+                write!(f, "malformed encrypted message: {reason}")
+            }
+            Self::PlaintextMessage => {
+                f.write_str("frame is a plaintext message, not an encrypted one")
+            }
+            Self::AuthKeyMismatch { expected, found } => {
+                f.write_str("authorization key mismatch: expected ")?;
+                write_id(f, expected)?;
+                f.write_str(", found ")?;
+                write_id(f, found)
+            }
         }
     }
+}
+
+/// Writes a 64-bit identifier as lowercase hexadecimal.
+fn write_id(f: &mut fmt::Formatter<'_>, id: &[u8; 8]) -> fmt::Result {
+    for byte in id {
+        write!(f, "{byte:02x}")?;
+    }
+    Ok(())
 }
 
 impl core::error::Error for Error {}

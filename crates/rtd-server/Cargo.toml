@@ -11,4 +11,30 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+rtd-bin = { path = "../rtd-bin" }
+rtd-crypto = { path = "../rtd-crypto" }
+rtd-error = { path = "../rtd-error" }
+rtd-exchange = { path = "../rtd-exchange" }
+rtd-mt = { path = "../rtd-mt" }
+rtd-proto = { path = "../rtd-proto" }
+rtd-tg = { path = "../rtd-tg" }
+rtd-tlprofile = { path = "../rtd-tlprofile" }
+rtd-transport = { path = "../rtd-transport" }
+rtd-util = { path = "../rtd-util" }
+bytes = "1"
+futures-util = "0.3"
+prost = "0.13"
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "time",
+    "sync",
+    "macros",
+    "signal",
+] }
+tokio-tungstenite = "0.24"
+tonic = "0.12"
 
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "test-util"] }
