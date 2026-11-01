@@ -1,0 +1,13 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock
+
+# OpenSpec local state
+openspec/.openspec/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

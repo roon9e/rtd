@@ -1,0 +1,91 @@
+schema: spec-driven
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+context: |
+  rtd is a from-scratch Rust rewrite of the server-facing core of `td`
+  (github.com/iamxvbaba/td, a fork of gotd/td) so that a multi-DC Telegram-compatible
+  server can be built on it. It is not a transliteration; it is a clean-room,
+  wire-compatible reimplementation.
+
+  Frozen core decisions (do not revisit without a new explicit decision record):
+  - Scope now: server-facing protocol core (bin, proto/codec, crypto, exchange, mt,
+    transport, mtproxy/obfuscated2, tgerr, tmap, clock, canonical tg model, multi-layer
+    dispatcher). Design for a client library later; do not build it yet.
+  - Multi-layer approach: Rust-idiomatic mirror of td's "sparse AOT" design. Keep the
+    semantics (exact-profile admission, stable semantic identity, per-profile encoding,
+    frozen objects, fail-closed on unknown layers, deduped plans) but represent them
+    with Rust enums, generated match tables, zero-copy buffers and codec traits.
+    Never resolve schemas at runtime; never fall back to a canonical transcode bridge.
+  - Layer set: extensible and manifest-driven. Nothing about the number of profiles may
+    be hard-coded. Stage implementation from canonical layer 232, then add 231 -> 225
+    through the same generated path.
+  - Codegen: a NEW Rust generator (standalone xtask-style tool; generated Rust is
+    committed to the repo, not produced by build.rs).
+  - Schema source: hybrid. Bootstrap by importing td's audited _schema/layers files,
+    manifest.json and policy.json, preserving original tdesktop commit/blob/SHA-256
+    provenance; rtd owns policy.json going forward and the import tool must be able to
+    fetch schemas from either td or tdesktop directly.
+  - Server goal: a full multi-DC server runtime in Rust (edge + RPC + session/state
+    routing + DC migration), not just library primitives. Go gramsrv is single-DC today.
+  - Interop/integration: clean-room, wire compatibility plus cross-implementation interop
+    tests as the correctness gate. Additionally, rtd MUST be usable from Go gramsrv as a
+    SIDECAR MTProto EDGE SERVICE over gRPC (the gramsrv v2 Edge/Core split): rtd owns the
+    full edge including multi-layer admission and layer binding, and exchanges TL bytes
+    plus admitted-call metadata with a separate core service. In-process Go<->Rust FFI/cgo
+    is out of scope.
+  - Runtime: tokio.
+  - Layout: cargo workspace split by domain plus a facade `rtd` crate.
+  - License: MIT OR Apache-2.0 (td-derived portions retain their MIT notice).
+  - Rust: edition 2024, MSRV tracks latest stable.
+  - Multi-DC state ownership: a central shared store (PostgreSQL + Redis) shared by all
+    datacenters, which act as edge replicas (the gramsrv v2 shape). Keep storage behind
+    traits so per-DC sharding can be added later without rework.
+  - Cross-DC delivery: hybrid. A `Delivery` abstraction; ship a single-process
+    implementation first, then a durable outbox backend (claim/project/ACK) modelled on
+    gramsrv v2. At-least-once delivery with idempotent per-session projection and
+    per-chat ordering.
+  - Canonical-layer bumps: regeneration mechanics are automated, but a canonical bump is
+    accepted only as its own change with a checked-in decision record and green
+    cross-implementation tests. Never automatic.
+  - Persistence: rtd defines storage traits and ships in-memory implementations now; a
+    first-party PostgreSQL backend is added at the multi-DC/outbox stage.
+  - Multi-DC placement: one fixed primary DC handles login; other DCs return
+    PHONE_MIGRATE_<primary>. The Core (business logic) runs centrally and datacenters are
+    edge-only. Authorization transfer is signed with a shared deployment secret (HMAC over
+    user id, source DC, expiry). The full architecture section lives in the
+    establish-rtd-foundation change's design.md.
+  - VCS/branch model: development happens on `dev`; releases are merged to `main`.
+    GitHub account roon9e; commit email roon9e@users.noreply.github.com.
+  - CI: independent checks (format, clippy, build, test, interop, and a
+    generation-freshness check), modelled on td's CI, running on `dev` and `main`.
+  - Reference repos on this machine: C:\Users\roon9e\Documents\github\td (Go library)
+    and C:\Users\roon9e\Documents\github\gramsrv (Go server, module `telesrv`).
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
