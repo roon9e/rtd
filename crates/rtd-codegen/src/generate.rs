@@ -96,6 +96,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         tlprofile.len(),
         tlprofile.lines().count(),
     );
+    let summary = format!("{summary} {}", table.mode_summary());
     Ok(Generated {
         files: vec![
             (layout.tg, tg),

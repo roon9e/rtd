@@ -83,6 +83,18 @@ impl RouteTable {
             .find(|route| route.layer == layer && &route.semantic == semantic)
             .map(|route| route.wire_id)
     }
+
+    /// A stable per-mode route count for the generation summary.
+    pub(crate) fn mode_summary(&self) -> String {
+        let mut counts = [0usize; 6];
+        for route in &self.routes {
+            counts[mode_for(route.mode) as usize] += 1;
+        }
+        format!(
+            "direct={} retag={} rewrite={} unavailable={} policy={} profile_only={}",
+            counts[0], counts[1], counts[2], counts[3], counts[4], counts[5],
+        )
+    }
 }
 
 /// Classifies one family conversion, mirroring `classifyLayerFamilyAction`.
