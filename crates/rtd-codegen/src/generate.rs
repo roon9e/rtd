@@ -155,6 +155,61 @@ mod tests {
         run_verify(workspace_root()).expect("committed generated sources are fresh");
     }
 
+    /// The rewrite emitter relies on an invariant of the enabled layer set:
+    /// every present-in-both rewrite has a local body identical to canonical
+    /// (same value fields, same order, same body shape) and differs only in the
+    /// nested graph. So a rewrite encoder only has to route nested constructor
+    /// ids through the profile — no field reordering, removal or flag changes.
+    #[test]
+    fn rewrites_are_nested_dirty_only() {
+        use crate::model::FieldKind;
+        use crate::obligations;
+        use crate::routes::{RouteMode, build_route_table};
+
+        let root = workspace_root();
+        let (universe, _) =
+            crate::load::load_universe(&root.join("schema/layers/manifest.json")).unwrap();
+        let policy = crate::schema::load_policy(&root.join("schema/layers/policy.json")).unwrap();
+        let config = crate::schema::load_rtd_config(&root.join("schema/rtd.json")).unwrap();
+        let plan = obligations::analyze(&universe, &policy).unwrap();
+        let table = build_route_table(&universe, &plan, &config.enabled_layers).unwrap();
+
+        let mut rewrites = 0usize;
+        for route in &table.routes {
+            if route.mode != RouteMode::Rewrite {
+                continue;
+            }
+            rewrites += 1;
+            let profile = plan.profile(route.layer).unwrap();
+            let conv = profile.family(&route.semantic).unwrap();
+            let (canonical, profile_def) = (conv.canonical.as_ref(), conv.profile.as_ref());
+            let (Some(canonical), Some(profile_def)) = (canonical, profile_def) else {
+                panic!("rewrite {} has a missing side", route.semantic.as_string());
+            };
+            let names = |definition: &crate::model::Definition| -> Vec<String> {
+                definition
+                    .fields
+                    .iter()
+                    .filter(|field| field.kind == FieldKind::Value)
+                    .map(|field| field.name.clone())
+                    .collect()
+            };
+            assert_eq!(
+                names(canonical),
+                names(profile_def),
+                "rewrite {} reorders or changes fields",
+                route.semantic.as_string()
+            );
+            assert_eq!(
+                canonical.body_shape,
+                profile_def.body_shape,
+                "rewrite {} has a differing local body",
+                route.semantic.as_string()
+            );
+        }
+        assert!(rewrites > 0, "expected at least one rewrite route");
+    }
+
     #[test]
     fn wrapper_metadata_is_emitted() {
         let generated = generate(workspace_root()).expect("generation");
