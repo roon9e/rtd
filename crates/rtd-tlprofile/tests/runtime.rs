@@ -555,6 +555,46 @@ fn freezing_fans_out_to_every_enabled_layer() {
     }
 }
 
+/// A second present-in-both family fans out across the enabled set: layer 225..=228
+/// `chatAdminRights` is a policy route that drops two presence bits, and 229..=232
+/// is canonical. A value with those bits clear round trips through every layer.
+#[test]
+fn policy_drop_family_fans_out_to_every_enabled_layer() {
+    let value = Object::ChatAdminRights(Box::new(ChatAdminRights {
+        flags: 1,
+        change_info: true,
+        post_messages: false,
+        edit_messages: false,
+        delete_messages: false,
+        ban_users: false,
+        invite_users: false,
+        pin_messages: false,
+        add_admins: false,
+        anonymous: false,
+        manage_call: false,
+        other: false,
+        manage_topics: false,
+        post_stories: false,
+        edit_stories: false,
+        delete_stories: false,
+        manage_direct_messages: false,
+        manage_ranks: false,
+        manage_linked_peers: false,
+        manage_welcome_messages: false,
+    }));
+    let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+    for &layer in rtd_tlprofile::PROFILES {
+        let profile = resolve_profile(layer).expect("enabled layer resolves");
+        let mut writer = Writer::new();
+        frozen
+            .encode(profile, &mut writer)
+            .unwrap_or_else(|error| panic!("encode for layer {layer}: {error:?}"));
+        let decoded = decode_object(profile, &writer.into_vec(), Limits::default())
+            .unwrap_or_else(|error| panic!("decode for layer {layer}: {error:?}"));
+        assert_eq!(decoded, value, "layer {layer} did not round trip");
+    }
+}
+
 #[test]
 fn invariant_terminal_needs_no_profile() {
     let body = encode_method(&bind());
