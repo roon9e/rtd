@@ -6,9 +6,9 @@
 
 use rtd_bin::Writer;
 use rtd_tg::{
-    AuthBindTempAuthKey, Bool, ChannelsJoinChannel, Decoder, InitConnection, InputChannel,
-    InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, MessagesDeleteMessages, Method, Object,
-    SendMessageAction, Update,
+    AuthBindTempAuthKey, Bool, ChannelsJoinChannel, ChatAdminRights, Decoder, InitConnection,
+    InputChannel, InputInvoice, InputPeer, InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer,
+    MessagesDeleteMessages, Method, Object, SendMessageAction, TextWithEntities, Update,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, WrapperKind,
@@ -104,6 +104,122 @@ fn rewrite_type_round_trips_on_the_profile() {
 
     let decoded = decode_object(Profile::new(225), &bytes, Limits::default()).expect("decode");
     assert_eq!(decoded, value);
+}
+
+/// A policy route drops fields the older layer lacks. Layer 225
+/// `chatAdminRights` has no `manage_linked_peers`/`manage_welcome_messages`
+/// presence bits, so encoding must recompute the flags word without them and
+/// decoding must rebuild the canonical value with them clear, keeping the
+/// shared bits intact.
+#[test]
+fn policy_drop_projects_presence_bits_on_the_profile() {
+    let value = Object::ChatAdminRights(Box::new(ChatAdminRights {
+        flags: 1,
+        change_info: true,
+        post_messages: false,
+        edit_messages: false,
+        delete_messages: false,
+        ban_users: false,
+        invite_users: false,
+        pin_messages: false,
+        add_admins: false,
+        anonymous: false,
+        manage_call: false,
+        other: false,
+        manage_topics: false,
+        post_stories: false,
+        edit_stories: false,
+        delete_stories: false,
+        manage_direct_messages: false,
+        manage_ranks: false,
+        manage_linked_peers: true,
+        manage_welcome_messages: true,
+    }));
+    let frozen = FrozenObject::freeze(value).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode for layer 225");
+    let bytes = writer.into_vec();
+
+    // The layer-225 wire id is followed by the recomputed flags word, which must
+    // not carry the dropped presence bits.
+    let flags = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
+    assert_eq!(flags & (1 << 19), 0, "manage_linked_peers must be dropped");
+    assert_eq!(
+        flags & (1 << 20),
+        0,
+        "manage_welcome_messages must be dropped"
+    );
+    assert_eq!(flags & 1, 1, "the shared change_info bit is preserved");
+
+    let decoded = decode_object(Profile::new(225), &bytes, Limits::default()).expect("decode");
+    let Object::ChatAdminRights(decoded) = decoded else {
+        panic!("expected chatAdminRights");
+    };
+    assert!(decoded.change_info);
+    assert!(!decoded.manage_linked_peers);
+    assert!(!decoded.manage_welcome_messages);
+    assert_eq!(decoded.flags, 1);
+}
+
+/// A policy route may reject a canonical value that carries a field the older
+/// layer lacks, rather than silently dropping the data. Layer 225
+/// `inputInvoiceStarGiftResale` has neither the `show_name` bit nor the
+/// `message` field, so a value that sets either is refused, while a value that
+/// leaves both clear round trips.
+#[test]
+fn policy_reject_if_present_fails_closed_on_the_profile() {
+    let clean = Object::InputInvoice(Box::new(InputInvoice::InputInvoiceStarGiftResale {
+        flags: 1,
+        ton: true,
+        show_name: false,
+        slug: "gift".to_owned(),
+        to_id: Box::new(InputPeer::InputPeerEmpty),
+        message: None,
+    }));
+    let frozen = FrozenObject::freeze(clean.clone()).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode the representable value");
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    assert_eq!(decoded, clean);
+
+    for (flags, show_name, message) in [
+        (1u32 | 4, true, None),
+        (
+            1u32 | 2,
+            false,
+            Some(Box::new(TextWithEntities {
+                text: "hi".to_owned(),
+                entities: Vec::new(),
+            })),
+        ),
+    ] {
+        let unsupported = FrozenObject::freeze(Object::InputInvoice(Box::new(
+            InputInvoice::InputInvoiceStarGiftResale {
+                flags,
+                ton: true,
+                show_name,
+                slug: "gift".to_owned(),
+                to_id: Box::new(InputPeer::InputPeerEmpty),
+                message,
+            },
+        )))
+        .expect("freeze");
+        let error = unsupported
+            .encode(Profile::new(225), &mut Writer::new())
+            .expect_err("the unsupported field is refused");
+        assert_eq!(
+            error,
+            ProjectionError::Unrepresentable {
+                layer: 225,
+                wire_id: 0xe9b0_c658,
+            }
+        );
+    }
 }
 
 #[test]

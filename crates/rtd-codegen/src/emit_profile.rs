@@ -37,7 +37,7 @@ fn fresh_name(used: &mut BTreeSet<String>, mut name: String, seed: u64) -> Strin
 /// Returns a message when emission fails.
 pub(crate) fn emit(
     universe: &Universe,
-    _plan: &ConversionPlan,
+    plan: &ConversionPlan,
     table: &RouteTable,
     _plans: &PlanSet,
     config: &RtdConfig,
@@ -82,7 +82,7 @@ pub(crate) fn emit(
     emit_invariant(&mut out, universe, table);
     emit_wrappers(&mut out, universe)?;
     emit_runtime(&mut out);
-    emit_profile_codec(&mut out, universe, table)?;
+    emit_profile_codec(&mut out, universe, plan, table)?;
     emit_tests(&mut out);
     Ok(out)
 }
@@ -96,6 +96,7 @@ pub(crate) fn emit(
 fn emit_profile_codec(
     out: &mut String,
     universe: &Universe,
+    plan: &ConversionPlan,
     table: &RouteTable,
 ) -> Result<(), String> {
     use crate::emit::{ident_for_qname, variant_ident};
@@ -122,6 +123,13 @@ fn emit_profile_codec(
             .map(|route| route.semantic_id)
             .ok_or_else(|| format!("no canonical route for {:#010x}", definition.wire_id))
     };
+    let ctx = CodecContext {
+        universe,
+        plan,
+        classes: &classes,
+        bare_ids: &bare_ids,
+        semantic: &semantic,
+    };
 
     let mut class_names: Vec<&String> = class_map.keys().collect();
     class_names.sort();
@@ -140,7 +148,7 @@ fn emit_profile_codec(
             type_local.eq_ignore_ascii_case(ctor_local)
         };
         if is_concrete {
-            emit_struct_codec(out, &ident, ctors[0], &classes, &bare_ids, &semantic)?;
+            emit_struct_codec(out, &ctx, &ident, ctors[0])?;
         } else {
             let variants: Vec<(String, &Definition)> = ctors
                 .iter()
@@ -149,16 +157,16 @@ fn emit_profile_codec(
                     (variant_ident(local), *ctor)
                 })
                 .collect();
-            emit_enum_codec(out, &ident, &variants, &classes, &bare_ids, &semantic)?;
+            emit_enum_codec(out, &ctx, &ident, &variants)?;
         }
     }
     for definition in &object_constructors {
         let ident = ident_for_qname(&definition.key.qname);
-        emit_struct_codec(out, &ident, definition, &classes, &bare_ids, &semantic)?;
+        emit_struct_codec(out, &ctx, &ident, definition)?;
     }
     for definition in &methods {
         let ident = ident_for_qname(&definition.key.qname);
-        emit_struct_codec(out, &ident, definition, &classes, &bare_ids, &semantic)?;
+        emit_struct_codec(out, &ctx, &ident, definition)?;
     }
 
     emit_object_codec(out, &class_map, &object_constructors);
@@ -166,20 +174,529 @@ fn emit_profile_codec(
     Ok(())
 }
 
+/// Shared inputs for emitting one container's profile codec and policy bodies.
+struct CodecContext<'a> {
+    universe: &'a Universe,
+    plan: &'a ConversionPlan,
+    classes: &'a std::collections::BTreeSet<String>,
+    bare_ids: &'a std::collections::BTreeMap<String, (String, u32)>,
+    semantic: &'a dyn Fn(&Definition) -> Result<u64, String>,
+}
+
+/// Per-container parameters for emitting a policy encode function set.
+struct PolicyEncodeSpec<'a> {
+    value_type: &'a str,
+    pattern: &'a str,
+    refutable: bool,
+    fn_base: &'a str,
+}
+
+/// Per-container parameters for emitting a policy decode function set.
+struct PolicyDecodeSpec<'a> {
+    value_type: &'a str,
+    construct: &'a str,
+    fn_base: &'a str,
+}
+
+/// One supported policy layer for a canonical constructor.
+struct PolicyLayer<'a> {
+    layer: i32,
+    profile_def: &'a Definition,
+    obligations: Vec<&'a crate::obligations::Obligation>,
+    /// `profile field name` to `canonical field name`.
+    mapping: std::collections::BTreeMap<String, String>,
+    /// `canonical field name` to `profile field name`.
+    reverse: std::collections::BTreeMap<String, String>,
+}
+
+/// Collects the layers with a purely mechanical policy body, where every body
+/// obligation is a field projection (`drop`) or a presence rejection
+/// (`reject-if-present`). Any layer needing a hook (`adapter`, `project`,
+/// `alias`, `default`, `discard`, `reject`) stays fail-closed.
+fn collect_policy_layers<'a>(
+    universe: &'a Universe,
+    plan: &'a ConversionPlan,
+    definition: &Definition,
+) -> Vec<PolicyLayer<'a>> {
+    use crate::model::FieldKind;
+    use crate::obligations::Availability;
+
+    let mut layers = Vec::new();
+    for layer in plan.profiles.keys().copied() {
+        let Some(conv) = plan
+            .profile(layer)
+            .and_then(|profile| profile.family(&definition.key))
+        else {
+            continue;
+        };
+        if conv.availability != Availability::Present {
+            continue;
+        }
+        // A layer with no body obligations has an identical body and is handled
+        // by `direct`/`rewrite`; only a layer with at least one obligation can
+        // carry a policy body, and only when every obligation is mechanical.
+        let obligations: Vec<&crate::obligations::Obligation> = conv.body_obligations();
+        if obligations.is_empty()
+            || !obligations.iter().all(|obligation| {
+                matches!(
+                    obligation
+                        .resolution
+                        .as_ref()
+                        .map(|resolution| resolution.action.as_str()),
+                    Some("drop" | "reject-if-present")
+                )
+            })
+        {
+            continue;
+        }
+        let Some(profile_def) = universe
+            .schemas
+            .get(&layer)
+            .and_then(|schema| schema.find_key(&definition.key))
+        else {
+            continue;
+        };
+        let mapping: std::collections::BTreeMap<String, String> = conv
+            .fields
+            .iter()
+            .filter(|m| !m.canonical_name.is_empty())
+            .map(|m| (m.profile_name.clone(), m.canonical_name.clone()))
+            .collect();
+        // Every profile value field and presence bit must have a canonical
+        // source; a profile-only field would need a default value, so it stays
+        // fail-closed.
+        if !profile_def
+            .fields
+            .iter()
+            .all(|field| field.kind == FieldKind::FlagsWord || mapping.contains_key(&field.name))
+        {
+            continue;
+        }
+        let reverse: std::collections::BTreeMap<String, String> = mapping
+            .iter()
+            .map(|(profile_name, canonical_name)| (canonical_name.clone(), profile_name.clone()))
+            .collect();
+        // Every canonical field the layer dropped must be optional so the
+        // canonical value can be rebuilt; otherwise it stays fail-closed.
+        let rebuildable = definition.fields.iter().all(|field| {
+            reverse.contains_key(&field.name)
+                || field.kind == FieldKind::FlagsWord
+                || field.condition.is_some()
+        });
+        if !rebuildable {
+            continue;
+        }
+        layers.push(PolicyLayer {
+            layer,
+            profile_def,
+            obligations,
+            mapping,
+            reverse,
+        });
+    }
+    layers
+}
+
+/// Emits the body that writes a canonical value into one policy layer's shape.
+fn emit_policy_layer_body(
+    code: &mut crate::emit_tg::Code,
+    definition: &Definition,
+    types: &[crate::emit_tg::RustType],
+    layer: &PolicyLayer<'_>,
+) -> Result<(), String> {
+    use crate::emit::field_ident;
+    use crate::emit_tg::encode_value;
+    use crate::model::FieldKind;
+
+    for obligation in &layer.obligations {
+        if obligation
+            .resolution
+            .as_ref()
+            .map(|resolution| resolution.action.as_str())
+            != Some("reject-if-present")
+        {
+            continue;
+        }
+        let field = definition
+            .fields
+            .iter()
+            .find(|field| field.name == obligation.field)
+            .ok_or_else(|| format!("policy: no canonical field {}", obligation.field))?;
+        let binding = field_ident(&field.name);
+        let reject = format!(
+            "return Err(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {:#010x} }});",
+            definition.wire_id
+        );
+        match &field.condition {
+            Some(condition) if condition.presence_only => {
+                code.line(&format!("if *{binding} {{ {reject} }}"));
+            }
+            Some(_) => code.line(&format!("if {binding}.is_some() {{ {reject} }}")),
+            None => code.line(&reject),
+        }
+    }
+    for profile_field in &layer.profile_def.fields {
+        if profile_field.kind != FieldKind::FlagsWord {
+            continue;
+        }
+        let word = &profile_field.name;
+        let local = format!("__flags_{word}");
+        code.line(&format!("let mut {local} = 0u32;"));
+        for other in &layer.profile_def.fields {
+            let Some(condition) = &other.condition else {
+                continue;
+            };
+            if &condition.word != word {
+                continue;
+            }
+            let Some(canonical) = layer.mapping.get(&other.name) else {
+                continue;
+            };
+            let Some(field) = definition
+                .fields
+                .iter()
+                .find(|field| &field.name == canonical)
+            else {
+                continue;
+            };
+            let binding = field_ident(canonical);
+            match &field.condition {
+                Some(c) if c.presence_only => code.line(&format!(
+                    "if *{binding} {{ {local} |= 1u32 << {}; }}",
+                    condition.bit
+                )),
+                Some(_) => code.line(&format!(
+                    "if {binding}.is_some() {{ {local} |= 1u32 << {}; }}",
+                    condition.bit
+                )),
+                None => code.line(&format!("{local} |= 1u32 << {};", condition.bit)),
+            }
+        }
+        code.line(&format!("__w.put_u32({local});"));
+    }
+    for profile_field in &layer.profile_def.fields {
+        if profile_field.kind == FieldKind::FlagsWord
+            || profile_field
+                .condition
+                .as_ref()
+                .is_some_and(|condition| condition.presence_only)
+        {
+            continue;
+        }
+        let canonical = layer
+            .mapping
+            .get(&profile_field.name)
+            .ok_or_else(|| format!("policy: profile field {} has no source", profile_field.name))?;
+        let ordinal = definition
+            .fields
+            .iter()
+            .position(|field| &field.name == canonical)
+            .ok_or_else(|| format!("policy: canonical field {canonical} missing"))?;
+        let ty = &types[ordinal];
+        let binding = field_ident(canonical);
+        match &profile_field.condition {
+            None => encode_value(code, ty, &binding, true, true),
+            Some(_) => {
+                code.open(&format!("if let Some(value) = {binding} {{"));
+                encode_value(code, ty, "value", true, true);
+                code.close("}");
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Whether encoding or decoding a value of `ty` recurses through the profile
+/// dispatchers, and so references the enclosing function's `profile` parameter.
+fn type_uses_profile(ty: &crate::emit_tg::RustType) -> bool {
+    use crate::emit_tg::RustType;
+    match ty {
+        RustType::Class(_) | RustType::ClassBare(_, _) | RustType::Object | RustType::Method => {
+            true
+        }
+        RustType::VectorBoxed(element) | RustType::VectorBare(element) => {
+            type_uses_profile(element)
+        }
+        _ => false,
+    }
+}
+
+/// Emits the per-layer `encode_policy_*` functions for one constructor.
+///
+/// `pattern` is the value pattern (a struct path, or a `Class::Variant` path)
+/// and `refutable` selects the `let ... else { unreachable!() };` form used for
+/// enum variants. Only the canonical fields a layer actually reads are bound;
+/// the rest are elided with `..` so no unused binding is generated.
+fn emit_policy_encode_fns(
+    out: &mut String,
+    spec: &PolicyEncodeSpec<'_>,
+    definition: &Definition,
+    types: &[crate::emit_tg::RustType],
+    layers: &[PolicyLayer<'_>],
+) -> Result<(), String> {
+    use crate::emit_tg::Code;
+    use crate::model::FieldKind;
+    let PolicyEncodeSpec {
+        value_type,
+        pattern,
+        refutable,
+        fn_base,
+    } = *spec;
+    for layer in layers {
+        let uses_profile = layer.obligations.iter().any(|obligation| {
+            obligation
+                .resolution
+                .as_ref()
+                .map(|resolution| resolution.action.as_str())
+                == Some("reject-if-present")
+        });
+        let writes_nested = layer.profile_def.fields.iter().any(|profile_field| {
+            if profile_field.kind == FieldKind::FlagsWord
+                || profile_field
+                    .condition
+                    .as_ref()
+                    .is_some_and(|condition| condition.presence_only)
+            {
+                return false;
+            }
+            layer
+                .mapping
+                .get(&profile_field.name)
+                .and_then(|canonical| {
+                    definition
+                        .fields
+                        .iter()
+                        .position(|field| &field.name == canonical)
+                })
+                .is_some_and(|ordinal| type_uses_profile(&types[ordinal]))
+        });
+        let profile_param = if uses_profile || writes_nested {
+            "profile"
+        } else {
+            "_profile"
+        };
+        let mut used: Vec<String> = layer
+            .reverse
+            .keys()
+            .filter(|name| {
+                definition
+                    .fields
+                    .iter()
+                    .find(|field| &&field.name == name)
+                    .is_some_and(|field| field.kind != FieldKind::FlagsWord)
+            })
+            .cloned()
+            .collect();
+        for obligation in &layer.obligations {
+            if obligation
+                .resolution
+                .as_ref()
+                .map(|resolution| resolution.action.as_str())
+                == Some("reject-if-present")
+                && !used.contains(&obligation.field)
+            {
+                used.push(obligation.field.clone());
+            }
+        }
+        used.sort();
+        let bindings: Vec<String> = used
+            .iter()
+            .map(|name| crate::emit::field_ident(name))
+            .collect();
+        let destructure = if definition.fields.is_empty() {
+            pattern.to_owned()
+        } else if bindings.is_empty() {
+            format!("{pattern} {{ .. }}")
+        } else {
+            format!("{pattern} {{ {}, .. }}", bindings.join(", "))
+        };
+        let extract = if refutable {
+            format!("let {destructure} = value else {{ unreachable!() }};")
+        } else {
+            format!("let {destructure} = value;")
+        };
+        let mut code = Code::new();
+        code.open(&format!(
+            "fn encode_policy_{fn_base}_{}({profile_param}: Profile, value: &{value_type}, __w: &mut Writer) -> Result<(), ProjectionError> {{",
+            layer.layer
+        ));
+        code.line(&extract);
+        emit_policy_layer_body(&mut code, definition, types, layer)?;
+        code.line("Ok(())");
+        code.close("}");
+        out.push_str(&code.out);
+        out.push('\n');
+    }
+    Ok(())
+}
+
+/// Emits the per-layer `decode_policy_*` functions for one constructor.
+fn emit_policy_decode_fns(
+    out: &mut String,
+    spec: &PolicyDecodeSpec<'_>,
+    definition: &Definition,
+    types: &[crate::emit_tg::RustType],
+    layers: &[PolicyLayer<'_>],
+) -> Result<(), String> {
+    use crate::emit::field_ident;
+    use crate::emit_tg::{Code, decode_expr};
+    use crate::model::FieldKind;
+    let PolicyDecodeSpec {
+        value_type: qualified,
+        construct,
+        fn_base,
+    } = *spec;
+
+    for layer in layers {
+        let reads_nested = layer.profile_def.fields.iter().any(|profile_field| {
+            if profile_field.kind == FieldKind::FlagsWord
+                || profile_field
+                    .condition
+                    .as_ref()
+                    .is_some_and(|condition| condition.presence_only)
+            {
+                return false;
+            }
+            layer
+                .mapping
+                .get(&profile_field.name)
+                .and_then(|canonical| {
+                    definition
+                        .fields
+                        .iter()
+                        .position(|field| &field.name == canonical)
+                })
+                .is_some_and(|ordinal| type_uses_profile(&types[ordinal]))
+        });
+        let profile_param = if reads_nested { "profile" } else { "_profile" };
+        let mut code = Code::new();
+        code.open(&format!(
+            "fn decode_policy_{fn_base}_{}({profile_param}: Profile, __d: &mut Decoder<'_>) -> Result<{qualified}, AdmitError> {{",
+            layer.layer
+        ));
+        for profile_field in &layer.profile_def.fields {
+            let binding = field_ident(&profile_field.name);
+            if profile_field.kind == FieldKind::FlagsWord {
+                let referenced = layer.profile_def.fields.iter().any(|other| {
+                    other
+                        .condition
+                        .as_ref()
+                        .is_some_and(|condition| condition.word == profile_field.name)
+                });
+                if referenced {
+                    code.line(&format!("let {binding} = __d.take_u32()?;"));
+                } else {
+                    code.line("let _ = __d.take_u32()?;");
+                }
+                continue;
+            }
+            let canonical = layer.mapping.get(&profile_field.name).ok_or_else(|| {
+                format!("policy: profile field {} has no source", profile_field.name)
+            })?;
+            let ordinal = definition
+                .fields
+                .iter()
+                .position(|field| &field.name == canonical)
+                .ok_or_else(|| format!("policy: canonical field {canonical} missing"))?;
+            let ty = &types[ordinal];
+            match &profile_field.condition {
+                None => code.line(&format!(
+                    "let {binding}: {} = {};",
+                    ty.rendered_in(true),
+                    decode_expr(ty, true)
+                )),
+                Some(condition) if condition.presence_only => code.line(&format!(
+                    "let {binding}: bool = {} & (1u32 << {}) != 0;",
+                    field_ident(&condition.word),
+                    condition.bit
+                )),
+                Some(condition) => code.line(&format!(
+                    "let {binding}: Option<{}> = if {} & (1u32 << {}) != 0 {{ Some({}) }} else {{ None }};",
+                    ty.rendered_in(true),
+                    field_ident(&condition.word),
+                    condition.bit,
+                    decode_expr(ty, true)
+                )),
+            }
+        }
+        let mut fields = Vec::new();
+        for field in &definition.fields {
+            let name = field_ident(&field.name);
+            if field.kind == FieldKind::FlagsWord {
+                // Recompute the canonical flags word from the reconstructed
+                // value so the layer's own bit layout never leaks into the
+                // canonical value; dropped fields leave their bit clear.
+                let mut sets: Vec<(String, bool, u8)> = Vec::new();
+                for other in &definition.fields {
+                    let Some(condition) = &other.condition else {
+                        continue;
+                    };
+                    if condition.word != field.name {
+                        continue;
+                    }
+                    let Some(profile_name) = layer.reverse.get(&other.name) else {
+                        continue;
+                    };
+                    sets.push((
+                        field_ident(profile_name),
+                        condition.presence_only,
+                        condition.bit,
+                    ));
+                }
+                if sets.is_empty() {
+                    code.line(&format!("let {name} = 0u32;"));
+                } else {
+                    code.line(&format!("let mut {name} = 0u32;"));
+                    for (binding, presence_only, bit) in sets {
+                        let set = format!("{name} |= 1u32 << {bit};");
+                        if presence_only {
+                            code.line(&format!("if {binding} {{ {set} }}"));
+                        } else {
+                            code.line(&format!("if {binding}.is_some() {{ {set} }}"));
+                        }
+                    }
+                }
+                fields.push(name);
+                continue;
+            }
+            let fallback = match &field.condition {
+                Some(condition) if condition.presence_only => "false".to_owned(),
+                _ => "None".to_owned(),
+            };
+            let expr = layer
+                .reverse
+                .get(&field.name)
+                .map_or_else(|| fallback, |profile_name| field_ident(profile_name));
+            if expr == name {
+                fields.push(name);
+            } else {
+                fields.push(format!("{name}: {expr}"));
+            }
+        }
+        if fields.is_empty() {
+            code.line(&format!("Ok({construct})"));
+        } else {
+            code.line(&format!("Ok({construct} {{ {} }})", fields.join(", ")));
+        }
+        code.close("}");
+        out.push_str(&code.out);
+        out.push('\n');
+    }
+    Ok(())
+}
+
 /// Emits the profile codec for a single-constructor (struct) container.
 fn emit_struct_codec(
     out: &mut String,
+    ctx: &CodecContext<'_>,
     ident: &str,
     definition: &Definition,
-    classes: &std::collections::BTreeSet<String>,
-    bare_ids: &std::collections::BTreeMap<String, (String, u32)>,
-    semantic: &impl Fn(&Definition) -> Result<u64, String>,
 ) -> Result<(), String> {
     use crate::emit::field_ident;
     use crate::emit_tg::{Code, emit_constructor_decode, emit_encode_fields, prepare};
 
-    let types = prepare(definition, classes, bare_ids).map_err(|error| error.0)?;
-    let sid = semantic(definition)?;
+    let types = prepare(definition, ctx.classes, ctx.bare_ids).map_err(|error| error.0)?;
+    let sid = (ctx.semantic)(definition)?;
     let cid = definition.wire_id;
     let bindings: Vec<String> = definition
         .fields
@@ -190,6 +707,7 @@ fn emit_struct_codec(
     let qualified = format!("rtd_tg::{ident}");
     let fn_name = crate::emit::to_snake_case(ident);
     let value_param = if has_fields { "value" } else { "_value" };
+    let layers = collect_policy_layers(ctx.universe, ctx.plan, definition);
 
     let mut code = Code::new();
     code.open(&format!(
@@ -221,6 +739,21 @@ fn emit_struct_codec(
     }
     code.line("Ok(())");
     code.close("}");
+    if !layers.is_empty() {
+        code.open("RouteMode::Policy => {");
+        code.line("__w.put_u32(route.wire_id);");
+        code.open("match profile.layer {");
+        for layer in &layers {
+            code.line(&format!(
+                "{} => encode_policy_{fn_name}_{}(profile, value, __w)?,",
+                layer.layer, layer.layer
+            ));
+        }
+        code.line("_ => return Err(ProjectionError::RouteNotEmitted(route)),");
+        code.close("}");
+        code.line("Ok(())");
+        code.close("}");
+    }
     code.open("_ => {");
     code.line("Err(ProjectionError::RouteNotEmitted(route))");
     code.close("}");
@@ -228,6 +761,18 @@ fn emit_struct_codec(
     code.close("}");
     out.push_str(&code.out);
     out.push('\n');
+    emit_policy_encode_fns(
+        out,
+        &PolicyEncodeSpec {
+            value_type: &qualified,
+            pattern: &qualified,
+            refutable: false,
+            fn_base: &fn_name,
+        },
+        definition,
+        &types,
+        &layers,
+    )?;
 
     let mut code = Code::new();
     code.open(&format!(
@@ -243,6 +788,19 @@ fn emit_struct_codec(
     code.open("RouteMode::Rewrite => {");
     emit_constructor_decode(&mut code, &definition.fields, &types, &qualified, true);
     code.close("}");
+    if !layers.is_empty() {
+        code.open("RouteMode::Policy => {");
+        code.open("match profile.layer {");
+        for layer in &layers {
+            code.line(&format!(
+                "{} => decode_policy_{fn_name}_{}(profile, __d),",
+                layer.layer, layer.layer
+            ));
+        }
+        code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
+        code.close("}");
+        code.close("}");
+    }
     code.open("_ => {");
     code.line("Err(AdmitError::UnsupportedRoute(route))");
     code.close("}");
@@ -250,28 +808,40 @@ fn emit_struct_codec(
     code.close("}");
     out.push_str(&code.out);
     out.push('\n');
+    emit_policy_decode_fns(
+        out,
+        &PolicyDecodeSpec {
+            value_type: &qualified,
+            construct: &qualified,
+            fn_base: &fn_name,
+        },
+        definition,
+        &types,
+        &layers,
+    )?;
     Ok(())
 }
 
 /// Emits the profile codec for a multi-constructor (enum) container.
 fn emit_enum_codec(
     out: &mut String,
+    ctx: &CodecContext<'_>,
     ident: &str,
     variants: &[(String, &Definition)],
-    classes: &std::collections::BTreeSet<String>,
-    bare_ids: &std::collections::BTreeMap<String, (String, u32)>,
-    semantic: &impl Fn(&Definition) -> Result<u64, String>,
 ) -> Result<(), String> {
     use crate::emit::field_ident;
     use crate::emit_tg::{Code, emit_constructor_decode, emit_encode_fields, prepare};
 
     let mut prepared = Vec::new();
+    let mut variant_layers = Vec::new();
     for (variant, ctor) in variants {
-        let types = prepare(ctor, classes, bare_ids).map_err(|error| error.0)?;
-        let sid = semantic(ctor)?;
+        let types = prepare(ctor, ctx.classes, ctx.bare_ids).map_err(|error| error.0)?;
+        let sid = (ctx.semantic)(ctor)?;
         let bindings: Vec<String> = ctor.fields.iter().map(|f| field_ident(&f.name)).collect();
+        variant_layers.push(collect_policy_layers(ctx.universe, ctx.plan, ctor));
         prepared.push((variant.clone(), *ctor, types, sid, bindings));
     }
+    let has_policy = variant_layers.iter().any(|layers| !layers.is_empty());
 
     let qualified = format!("rtd_tg::{ident}");
     let fn_name = crate::emit::to_snake_case(ident);
@@ -280,7 +850,7 @@ fn emit_enum_codec(
         "pub fn encode_{fn_name}_profile(profile: Profile, value: &{qualified}, __w: &mut Writer) -> Result<(), ProjectionError> {{"
     ));
     code.open("match value {");
-    for (variant, ctor, types, sid, bindings) in &prepared {
+    for ((variant, ctor, types, sid, bindings), layers) in prepared.iter().zip(&variant_layers) {
         let cid = ctor.wire_id;
         if ctor.fields.is_empty() {
             code.open(&format!("{qualified}::{variant} => {{"));
@@ -308,6 +878,22 @@ fn emit_enum_codec(
         }
         code.line("Ok(())");
         code.close("}");
+        if !layers.is_empty() {
+            let fn_base = variant_fn_base(&fn_name, variant);
+            code.open("RouteMode::Policy => {");
+            code.line("__w.put_u32(route.wire_id);");
+            code.open("match profile.layer {");
+            for layer in layers {
+                code.line(&format!(
+                    "{} => encode_policy_{fn_base}_{}(profile, value, __w)?,",
+                    layer.layer, layer.layer
+                ));
+            }
+            code.line("_ => return Err(ProjectionError::RouteNotEmitted(route)),");
+            code.close("}");
+            code.line("Ok(())");
+            code.close("}");
+        }
         code.open("_ => {");
         code.line("Err(ProjectionError::RouteNotEmitted(route))");
         code.close("}");
@@ -318,6 +904,26 @@ fn emit_enum_codec(
     code.close("}");
     out.push_str(&code.out);
     out.push('\n');
+    let refutable = prepared.len() > 1;
+    for ((variant, ctor, types, _sid, _bindings), layers) in prepared.iter().zip(&variant_layers) {
+        if layers.is_empty() {
+            continue;
+        }
+        let fn_base = variant_fn_base(&fn_name, variant);
+        let construct = format!("{qualified}::{variant}");
+        emit_policy_encode_fns(
+            out,
+            &PolicyEncodeSpec {
+                value_type: &qualified,
+                pattern: &construct,
+                refutable,
+                fn_base: &fn_base,
+            },
+            ctor,
+            types,
+            layers,
+        )?;
+    }
 
     let mut code = Code::new();
     code.open(&format!(
@@ -346,6 +952,32 @@ fn emit_enum_codec(
     code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
     code.close("}");
     code.close("}");
+    if has_policy {
+        code.open("RouteMode::Policy => {");
+        code.open("match route.semantic.0 {");
+        for ((variant, _ctor, _types, sid, _bindings), layers) in
+            prepared.iter().zip(&variant_layers)
+        {
+            if layers.is_empty() {
+                continue;
+            }
+            let fn_base = variant_fn_base(&fn_name, variant);
+            code.open(&format!("{sid:#018x} => {{"));
+            code.open("match profile.layer {");
+            for layer in layers {
+                code.line(&format!(
+                    "{} => decode_policy_{fn_base}_{}(profile, __d),",
+                    layer.layer, layer.layer
+                ));
+            }
+            code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
+            code.close("}");
+            code.close("}");
+        }
+        code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
+        code.close("}");
+        code.close("}");
+    }
     code.open("_ => {");
     code.line("Err(AdmitError::UnsupportedRoute(route))");
     code.close("}");
@@ -353,7 +985,31 @@ fn emit_enum_codec(
     code.close("}");
     out.push_str(&code.out);
     out.push('\n');
+    for ((variant, ctor, types, _sid, _bindings), layers) in prepared.iter().zip(&variant_layers) {
+        if layers.is_empty() {
+            continue;
+        }
+        let fn_base = variant_fn_base(&fn_name, variant);
+        let construct = format!("{qualified}::{variant}");
+        emit_policy_decode_fns(
+            out,
+            &PolicyDecodeSpec {
+                value_type: &qualified,
+                construct: &construct,
+                fn_base: &fn_base,
+            },
+            ctor,
+            types,
+            layers,
+        )?;
+    }
     Ok(())
+}
+
+/// Builds the policy codec base name for an enum variant: the container's
+/// snake-case name plus the variant's, so per-variant bodies never collide.
+fn variant_fn_base(fn_name: &str, variant: &str) -> String {
+    format!("{fn_name}_{}", crate::emit::to_snake_case(variant))
 }
 
 /// Emits the `Object` profile dispatchers.
