@@ -69,8 +69,8 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 
 ## 7. Edge service contract (foundation for `gramsrv` integration)
 
-- [ ] 7.1 Define the versioned protobuf/gRPC contract for the edge boundary (session identity, admitted-call metadata, canonical request and result as opaque TL bytes, lifecycle and routing events, key/session lookups, error propagation); verify the contract compiles and an admitted-call plus result round-trip test passes
-- [ ] 7.2 Add the `rtd-edge-proto` and `rtd-edge` crate skeletons with generated contract types committed; verify `cargo build -p rtd-edge-proto -p rtd-edge` succeeds and a version-mismatch handshake is rejected in a test
+- [x] 7.1 Define the versioned protobuf/gRPC contract for the edge boundary (session identity, admitted-call metadata, canonical request and result as opaque TL bytes, lifecycle and routing events, key/session lookups, error propagation); verify the contract compiles and an admitted-call plus result round-trip test passes
+- [x] 7.2 Add the `rtd-edge-proto` and `rtd-edge` crate skeletons with generated contract types committed; verify `cargo build -p rtd-edge-proto -p rtd-edge` succeeds and a version-mismatch handshake is rejected in a test
 
 ## 8. Interop harness
 

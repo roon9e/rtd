@@ -1,0 +1,67 @@
+// The gRPC contract between an rtd MTProto edge and a separate core service.
+//
+// The edge owns the full protocol edge (transport, key exchange, sessions,
+// multi-layer admission and layer binding). The core runs business logic. They
+// exchange raw TL bytes plus admitted-call metadata; the core returns canonical
+// result bytes, which the edge encodes for the session's negotiated layer.
+//
+// The contract is versioned: `HelloRequest.contract_version` must equal
+// `CONTRACT_VERSION` (see src/lib.rs). Bump the version on any breaking change
+// to the messages below.
+
+syntax = "proto3";
+
+package rtd.edge.v1;
+
+// Version negotiation. The edge rejects an unsupported version rather than
+// misbehaving.
+message HelloRequest {
+  uint32 contract_version = 1;
+  string core_id = 2;
+}
+
+message HelloResponse {
+  uint32 contract_version = 1;
+  bool accepted = 2;
+  string message = 3;
+}
+
+// Identifies one client session at the edge.
+message SessionIdentity {
+  uint32 dc_id = 1;
+  fixed64 auth_key_id = 2;
+  fixed64 session_id = 3;
+  uint64 user_id = 4;
+}
+
+// One admitted request handed to the core.
+message AdmittedCall {
+  SessionIdentity session = 1;
+  // The category-qualified TL method name, e.g. "messages.sendMessage".
+  string semantic_method = 2;
+  // The session's negotiated layer profile.
+  uint32 profile_layer = 3;
+  // The wire constructor id of the request in that profile.
+  uint32 wire_id = 4;
+  // The canonical TL-encoded request.
+  bytes canonical_request = 5;
+}
+
+// A canonical result returned by the core. The edge encodes it per profile.
+message CallResult {
+  bytes canonical_result = 1;
+}
+
+// A failure returned by the core, surfaced to the client as a TL error.
+message CallError {
+  int32 code = 1;
+  string message = 2;
+}
+
+service EdgeCore {
+  // Version handshake, performed once per connection.
+  rpc Hello(HelloRequest) returns (HelloResponse);
+
+  // Executes one admitted request.
+  rpc Execute(AdmittedCall) returns (CallResult);
+}
