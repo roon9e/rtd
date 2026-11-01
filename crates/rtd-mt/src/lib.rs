@@ -2754,6 +2754,37 @@ impl Object {
         }
     }
 
+    /// Encodes the contained value without its constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        match self {
+            Object::BadMsgNotification(value) => value.encode_body(__w),
+            Object::Client_DH_Inner_Data(value) => value.encode_body(__w),
+            Object::DestroySessionRes(value) => value.encode_body(__w),
+            Object::FutureSalt(value) => value.encode_body(__w),
+            Object::FutureSalts(value) => value.encode_body(__w),
+            Object::Message(value) => value.encode_body(__w),
+            Object::MessageContainer(value) => value.encode_body(__w),
+            Object::MessageCopy(value) => value.encode_body(__w),
+            Object::MsgDetailedInfo(value) => value.encode_body(__w),
+            Object::MsgResendReq(value) => value.encode_body(__w),
+            Object::MsgsAck(value) => value.encode_body(__w),
+            Object::MsgsAllInfo(value) => value.encode_body(__w),
+            Object::MsgsStateInfo(value) => value.encode_body(__w),
+            Object::MsgsStateReq(value) => value.encode_body(__w),
+            Object::NewSession(value) => value.encode_body(__w),
+            Object::P_Q_inner_data(value) => value.encode_body(__w),
+            Object::Pong(value) => value.encode_body(__w),
+            Object::ResPQ(value) => value.encode_body(__w),
+            Object::RpcDropAnswer(value) => value.encode_body(__w),
+            Object::RpcError(value) => value.encode_body(__w),
+            Object::RpcResult(value) => value.encode_body(__w),
+            Object::Server_DH_Params(value) => value.encode_body(__w),
+            Object::Server_DH_inner_data(value) => value.encode_body(__w),
+            Object::Set_client_DH_params_answer(value) => value.encode_body(__w),
+            Object::Gzip_packed(value) => value.encode_body(__w),
+        }
+    }
+
     /// Decodes a boxed value, reading and dispatching on its identifier.
     pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
         let id = __d.take_u32()?;
@@ -2918,6 +2949,22 @@ impl Method {
             Method::Ping_delay_disconnect(value) => value.encode(__w),
             Method::Destroy_session(value) => value.encode(__w),
             Method::Http_wait(value) => value.encode(__w),
+        }
+    }
+
+    /// Encodes the contained method without its constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        match self {
+            Method::Req_pq(value) => value.encode_body(__w),
+            Method::Req_pq_multi(value) => value.encode_body(__w),
+            Method::Req_DH_params(value) => value.encode_body(__w),
+            Method::Set_client_DH_params(value) => value.encode_body(__w),
+            Method::Rpc_drop_answer(value) => value.encode_body(__w),
+            Method::Get_future_salts(value) => value.encode_body(__w),
+            Method::Ping(value) => value.encode_body(__w),
+            Method::Ping_delay_disconnect(value) => value.encode_body(__w),
+            Method::Destroy_session(value) => value.encode_body(__w),
+            Method::Http_wait(value) => value.encode_body(__w),
         }
     }
 

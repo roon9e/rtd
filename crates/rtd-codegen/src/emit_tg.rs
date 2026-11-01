@@ -840,6 +840,19 @@ fn emit_object(
     code.close("}");
     code.close("}");
     code.close("");
+    code.open("/// Encodes the contained value without its constructor identifier.");
+    code.open("pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {");
+    code.open("match self {");
+    for class_qname in &class_names {
+        let ident = ident_for_qname(class_qname);
+        code.line(&format!("Object::{ident}(value) => value.encode_body(__w),"));
+    }
+    for ident in &object_names {
+        code.line(&format!("Object::{ident}(value) => value.encode_body(__w),"));
+    }
+    code.close("}");
+    code.close("}");
+    code.close("");
     code.open("/// Decodes a boxed value, reading and dispatching on its identifier.");
     code.open("pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {");
     code.line("let id = __d.take_u32()?;");
@@ -913,6 +926,16 @@ fn emit_method_enum(code: &mut Code, methods: &[&Definition]) -> Result<(), Emit
     for method in methods {
         let ident = ident_for_qname(&method.key.qname);
         code.line(&format!("Method::{ident}(value) => value.encode(__w),"));
+    }
+    code.close("}");
+    code.close("}");
+    code.close("");
+    code.open("/// Encodes the contained method without its constructor identifier.");
+    code.open("pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {");
+    code.open("match self {");
+    for method in methods {
+        let ident = ident_for_qname(&method.key.qname);
+        code.line(&format!("Method::{ident}(value) => value.encode_body(__w),"));
     }
     code.close("}");
     code.close("}");
