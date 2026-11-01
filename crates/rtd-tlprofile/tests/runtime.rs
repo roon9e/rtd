@@ -11,9 +11,9 @@ use rtd_tg::{
     MessagesDeleteMessages, Method, Object, SendMessageAction, TextWithEntities, Update,
 };
 use rtd_tlprofile::{
-    Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, WrapperKind,
-    admit, admit_default, admit_unprofiled, admit_with_limits, decode_object, lookup_route,
-    resolve_profile, semantic, semantic_for_wire_id, wire_id,
+    Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, RouteMode,
+    WrapperKind, admit, admit_default, admit_unprofiled, admit_with_limits, decode_object,
+    lookup_route, resolve_profile, semantic, semantic_for_wire_id, wire_id,
 };
 
 const BIND_ID: u32 = 0xcdd4_2a05;
@@ -246,6 +246,39 @@ fn retag_method_admits_on_the_profile() {
         admission.semantic,
         semantic_for_wire_id(Profile::new(232), 0x7f6a_1e22).unwrap()
     );
+}
+
+/// A wire id that exists only in an older layer has no canonical value to decode
+/// into, so decoding for that profile must fail closed rather than guess.
+#[test]
+fn profile_only_route_is_refused() {
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| route.profile == 225 && route.mode == RouteMode::ProfileOnly)
+        .copied()
+        .expect("layer 225 has a profile-only route");
+    let error = decode_object(
+        Profile::new(225),
+        &route.wire_id.to_le_bytes(),
+        Limits::default(),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, AdmitError::UnsupportedRoute(found) if found == route),
+        "{error:?}"
+    );
+}
+
+/// A wire id with no route in the profile at all is refused.
+#[test]
+fn unknown_wire_id_is_refused() {
+    let error = decode_object(
+        Profile::new(225),
+        &0xdead_beef_u32.to_le_bytes(),
+        Limits::default(),
+    )
+    .unwrap_err();
+    assert!(matches!(error, AdmitError::Decode(_)), "{error:?}");
 }
 
 #[test]

@@ -38,7 +38,7 @@
 ## 7. Integration verification
 
 - [ ] 7.1 Add per-layer round-trip tests for present-in-both families across the enabled layers and a route-completeness test asserting an explicit action for every `(wire × profile)` pair
-- [ ] 7.2 Verify fail-closed coverage: unsupported layer refused, unavailable route refused, profile-only route refused, unknown hook refused, unrepresentable value refused, and no canonical fallback emitted
+- [ ] 7.2 Verify fail-closed coverage: unsupported layer refused, unavailable route refused, profile-only route refused, unknown hook refused, unrepresentable value refused, and no canonical fallback emitted (covered now: unsupported layer (`unsupported_layer_is_refused`), unrepresentable value (`unrepresentable_value_fails_closed`), profile-only route (`profile_only_route_is_refused`) and an unrouted wire id (`unknown_wire_id_is_refused`); unknown-hook and no-canonical-fallback await the hook call-site emission)
 - [ ] 7.3 Run the full workspace gate (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`) and the generation-freshness check; confirm all are green
 
 ## Workflow follow-up
