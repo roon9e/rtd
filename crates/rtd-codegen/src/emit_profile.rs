@@ -198,6 +198,17 @@ struct PolicyDecodeSpec<'a> {
     fn_base: &'a str,
 }
 
+/// A field-shaped adapter conversion: the canonical field type and the profile
+/// field type differ and a hook maps between them.
+struct FieldHook {
+    /// Canonical field value to the profile field value.
+    encode: &'static str,
+    /// Profile field value to the canonical field value.
+    decode: &'static str,
+    /// The profile field's inner Rust type (written on encode, read on decode).
+    profile_inner: crate::emit_tg::RustType,
+}
+
 /// One supported policy layer for a canonical constructor.
 struct PolicyLayer<'a> {
     layer: i32,
@@ -210,15 +221,117 @@ struct PolicyLayer<'a> {
     /// Canonical mandatory fields the profile cannot supply; rebuilt from a
     /// recorded type default on decode.
     canonical_defaults: std::collections::BTreeSet<String>,
+    /// `canonical field name` to its field adapter conversion.
+    field_hooks: std::collections::BTreeMap<String, FieldHook>,
 }
 
-/// Collects the layers with a purely mechanical policy body, where every body
-/// obligation is a field projection (`drop`), a presence rejection
-/// (`reject-if-present`) or a recorded `default`. Any layer needing a hook
-/// (`adapter`, `project`, `alias`, `discard`, `reject`) stays fail-closed.
+/// Builds the field adapter conversions for a layer, or `None` when any
+/// obligation needs a shape this generator cannot emit yet (result, presence,
+/// discard, vector or projection hooks), so the layer stays fail-closed.
+fn collect_field_hooks(
+    obligations: &[&crate::obligations::Obligation],
+    definition: &Definition,
+    profile_def: &Definition,
+    reverse: &std::collections::BTreeMap<String, String>,
+    classes: &std::collections::BTreeSet<String>,
+    bare_ids: &std::collections::BTreeMap<String, (String, u32)>,
+) -> Option<std::collections::BTreeMap<String, FieldHook>> {
+    use crate::model::FieldKind;
+
+    let mut partial: std::collections::BTreeMap<
+        String,
+        (Option<&'static str>, Option<&'static str>),
+    > = std::collections::BTreeMap::new();
+    for obligation in obligations {
+        let Some(resolution) = &obligation.resolution else {
+            return None;
+        };
+        match resolution.action.as_str() {
+            "drop" | "reject-if-present" | "default" => {}
+            "adapter" => {
+                let convert = rtd_layerhooks_registry::field_convert(&resolution.hook)?;
+                let (canonical, encode, decode) = match obligation.direction {
+                    "canonical-to-profile" => {
+                        (obligation.field.clone(), Some(convert.encode), None)
+                    }
+                    "profile-to-canonical" => {
+                        (obligation.other_field.clone(), None, Some(convert.decode))
+                    }
+                    _ => return None,
+                };
+                let slot = partial.entry(canonical).or_insert((None, None));
+                if let Some(function) = encode {
+                    if slot.0.is_some() {
+                        return None;
+                    }
+                    slot.0 = Some(function);
+                }
+                if let Some(function) = decode {
+                    if slot.1.is_some() {
+                        return None;
+                    }
+                    slot.1 = Some(function);
+                }
+            }
+            _ => return None,
+        }
+    }
+    let mut hooks = std::collections::BTreeMap::new();
+    for (canonical, (encode, decode)) in partial {
+        // Both directions and aligned optionality are required, and the field
+        // must be a plain value on both sides.
+        let (Some(encode), Some(decode)) = (encode, decode) else {
+            return None;
+        };
+        let field = definition
+            .fields
+            .iter()
+            .find(|field| field.name == canonical)?;
+        if field.kind != FieldKind::Value {
+            return None;
+        }
+        let profile_name = reverse.get(&canonical)?;
+        let profile_field = profile_def
+            .fields
+            .iter()
+            .find(|field| &field.name == profile_name)?;
+        if profile_field.kind != FieldKind::Value {
+            return None;
+        }
+        let canonical_optional = field
+            .condition
+            .as_ref()
+            .is_some_and(|condition| !condition.presence_only);
+        let profile_optional = profile_field
+            .condition
+            .as_ref()
+            .is_some_and(|condition| !condition.presence_only);
+        if canonical_optional != profile_optional {
+            return None;
+        }
+        let profile_inner =
+            crate::emit_tg::field_rust_type(profile_field, classes, bare_ids).ok()?;
+        hooks.insert(
+            canonical,
+            FieldHook {
+                encode,
+                decode,
+                profile_inner,
+            },
+        );
+    }
+    Some(hooks)
+}
+
+/// Collects the layers with a mechanical policy body: field projection (`drop`),
+/// presence rejection (`reject-if-present`), a recorded `default`, or a
+/// field-shaped adapter conversion. Any layer needing another shape stays
+/// fail-closed.
 fn collect_policy_layers<'a>(
     universe: &'a Universe,
     plan: &'a ConversionPlan,
+    classes: &std::collections::BTreeSet<String>,
+    bare_ids: &std::collections::BTreeMap<String, (String, u32)>,
     definition: &Definition,
 ) -> Vec<PolicyLayer<'a>> {
     use crate::model::FieldKind;
@@ -237,19 +350,9 @@ fn collect_policy_layers<'a>(
         }
         // A layer with no body obligations has an identical body and is handled
         // by `direct`/`rewrite`; only a layer with at least one obligation can
-        // carry a policy body, and only when every obligation is mechanical.
+        // carry a policy body.
         let obligations: Vec<&crate::obligations::Obligation> = conv.body_obligations();
-        if obligations.is_empty()
-            || !obligations.iter().all(|obligation| {
-                matches!(
-                    obligation
-                        .resolution
-                        .as_ref()
-                        .map(|resolution| resolution.action.as_str()),
-                    Some("drop" | "reject-if-present" | "default")
-                )
-            })
-        {
+        if obligations.is_empty() {
             continue;
         }
         let Some(profile_def) = universe
@@ -293,6 +396,16 @@ fn collect_policy_layers<'a>(
             })
             .map(|obligation| obligation.other_field.clone())
             .collect();
+        let Some(field_hooks) = collect_field_hooks(
+            &obligations,
+            definition,
+            profile_def,
+            &reverse,
+            classes,
+            bare_ids,
+        ) else {
+            continue;
+        };
         // Every canonical field the layer dropped must be optional (or defaulted)
         // so the canonical value can be rebuilt; otherwise it stays fail-closed.
         let rebuildable = definition.fields.iter().all(|field| {
@@ -311,6 +424,7 @@ fn collect_policy_layers<'a>(
             mapping,
             reverse,
             canonical_defaults,
+            field_hooks,
         });
     }
     layers
@@ -413,6 +527,25 @@ fn emit_policy_layer_body(
             .ok_or_else(|| format!("policy: canonical field {canonical} missing"))?;
         let ty = &types[ordinal];
         let binding = field_ident(canonical);
+        if let Some(hook) = layer.field_hooks.get(canonical) {
+            // A field-shaped adapter converts the field's inner value; the
+            // surrounding `Option` is preserved by the generated call site.
+            let encode_fn = hook.encode;
+            let profile_inner = &hook.profile_inner;
+            match &profile_field.condition {
+                None => {
+                    code.line(&format!("let __converted = {encode_fn}({binding})?;"));
+                    encode_value(code, profile_inner, "__converted", false, true);
+                }
+                Some(_) => {
+                    code.open(&format!("if let Some(value) = {binding} {{"));
+                    code.line(&format!("let __converted = {encode_fn}(value)?;"));
+                    encode_value(code, profile_inner, "__converted", false, true);
+                    code.close("}");
+                }
+            }
+            continue;
+        }
         let source_optional = definition.fields[ordinal]
             .condition
             .as_ref()
@@ -456,6 +589,18 @@ fn type_uses_profile(ty: &crate::emit_tg::RustType) -> bool {
             type_uses_profile(element)
         }
         _ => false,
+    }
+}
+
+/// Wraps a hook's unboxed conversion result back into the canonical field's
+/// declared type (boxed for class/object/method fields).
+fn wrap_canonical(ty: &crate::emit_tg::RustType, expr: &str) -> String {
+    use crate::emit_tg::RustType;
+    match ty {
+        RustType::Class(_) | RustType::Object | RustType::Method => {
+            format!("::std::boxed::Box::new({expr})")
+        }
+        _ => expr.to_owned(),
     }
 }
 
@@ -513,15 +658,17 @@ fn emit_policy_encode_fns(
             {
                 return false;
             }
-            layer
-                .mapping
-                .get(&profile_field.name)
-                .and_then(|canonical| {
-                    definition
-                        .fields
-                        .iter()
-                        .position(|field| &field.name == canonical)
-                })
+            let Some(canonical) = layer.mapping.get(&profile_field.name) else {
+                return false;
+            };
+            // A converted field writes the profile type, not the canonical one.
+            if let Some(hook) = layer.field_hooks.get(canonical) {
+                return type_uses_profile(&hook.profile_inner);
+            }
+            definition
+                .fields
+                .iter()
+                .position(|field| &field.name == canonical)
                 .is_some_and(|ordinal| type_uses_profile(&types[ordinal]))
         });
         let profile_param = if uses_profile || writes_nested {
@@ -611,15 +758,17 @@ fn emit_policy_decode_fns(
             {
                 return false;
             }
-            layer
-                .mapping
-                .get(&profile_field.name)
-                .and_then(|canonical| {
-                    definition
-                        .fields
-                        .iter()
-                        .position(|field| &field.name == canonical)
-                })
+            let Some(canonical) = layer.mapping.get(&profile_field.name) else {
+                return false;
+            };
+            // A converted field reads the profile type, not the canonical one.
+            if let Some(hook) = layer.field_hooks.get(canonical) {
+                return type_uses_profile(&hook.profile_inner);
+            }
+            definition
+                .fields
+                .iter()
+                .position(|field| &field.name == canonical)
                 .is_some_and(|ordinal| type_uses_profile(&types[ordinal]))
         });
         let profile_param = if reads_nested { "profile" } else { "_profile" };
@@ -652,12 +801,17 @@ fn emit_policy_decode_fns(
                 .iter()
                 .position(|field| &field.name == canonical)
                 .ok_or_else(|| format!("policy: canonical field {canonical} missing"))?;
-            let ty = &types[ordinal];
+            // The wire carries the profile type; only a converted field's inner
+            // type differs from the canonical one.
+            let read_ty = layer
+                .field_hooks
+                .get(canonical)
+                .map_or(&types[ordinal], |hook| &hook.profile_inner);
             match &profile_field.condition {
                 None => code.line(&format!(
                     "let {binding}: {} = {};",
-                    ty.rendered_in(true),
-                    decode_expr(ty, true)
+                    read_ty.rendered_in(true),
+                    decode_expr(read_ty, true)
                 )),
                 Some(condition) if condition.presence_only => code.line(&format!(
                     "let {binding}: bool = {} & (1u32 << {}) != 0;",
@@ -666,11 +820,41 @@ fn emit_policy_decode_fns(
                 )),
                 Some(condition) => code.line(&format!(
                     "let {binding}: Option<{}> = if {} & (1u32 << {}) != 0 {{ Some({}) }} else {{ None }};",
-                    ty.rendered_in(true),
+                    read_ty.rendered_in(true),
                     field_ident(&condition.word),
                     condition.bit,
-                    decode_expr(ty, true)
+                    decode_expr(read_ty, true)
                 )),
+            }
+        }
+        // Convert field-shaped adapter fields from the profile type to canonical;
+        // the shadowed binding keeps the same name for the rebuild below.
+        for (canonical, hook) in &layer.field_hooks {
+            let profile_name = layer
+                .reverse
+                .get(canonical)
+                .ok_or_else(|| format!("policy: no profile field for {canonical}"))?;
+            let binding = field_ident(profile_name);
+            let ordinal = definition
+                .fields
+                .iter()
+                .position(|field| &field.name == canonical)
+                .ok_or_else(|| format!("policy: canonical field {canonical} missing"))?;
+            let canonical_ty = types[ordinal].rendered_in(true);
+            let decode_fn = hook.decode;
+            let optional = definition.fields[ordinal]
+                .condition
+                .as_ref()
+                .is_some_and(|condition| !condition.presence_only);
+            if optional {
+                let converted = wrap_canonical(&types[ordinal], &format!("{decode_fn}(&value)?"));
+                code.line(&format!(
+                    "let {binding}: Option<{canonical_ty}> = match {binding} {{ Some(value) => Some({converted}), None => None }};"
+                ));
+            } else {
+                let converted =
+                    wrap_canonical(&types[ordinal], &format!("{decode_fn}(&{binding})?"));
+                code.line(&format!("let {binding}: {canonical_ty} = {converted};"));
             }
         }
         let mut fields = Vec::new();
@@ -798,7 +982,13 @@ fn emit_struct_codec(
     let qualified = format!("rtd_tg::{ident}");
     let fn_name = crate::emit::to_snake_case(ident);
     let value_param = if has_fields { "value" } else { "_value" };
-    let layers = collect_policy_layers(ctx.universe, ctx.plan, definition);
+    let layers = collect_policy_layers(
+        ctx.universe,
+        ctx.plan,
+        ctx.classes,
+        ctx.bare_ids,
+        definition,
+    );
 
     let mut code = Code::new();
     code.open(&format!(
@@ -929,7 +1119,13 @@ fn emit_enum_codec(
         let types = prepare(ctor, ctx.classes, ctx.bare_ids).map_err(|error| error.0)?;
         let sid = (ctx.semantic)(ctor)?;
         let bindings: Vec<String> = ctor.fields.iter().map(|f| field_ident(&f.name)).collect();
-        variant_layers.push(collect_policy_layers(ctx.universe, ctx.plan, ctor));
+        variant_layers.push(collect_policy_layers(
+            ctx.universe,
+            ctx.plan,
+            ctx.classes,
+            ctx.bare_ids,
+            ctor,
+        ));
         prepared.push((variant.clone(), *ctor, types, sid, bindings));
     }
     let has_policy = variant_layers.iter().any(|layers| !layers.is_empty());
@@ -1628,6 +1824,8 @@ pub enum AdmitError {
         /// Measured value.
         value: usize,
     },
+    /// A layer conversion hook refused the value.
+    Hook(::rtd_layerhooks::HookError),
 }
 
 impl std::fmt::Display for AdmitError {
@@ -1648,6 +1846,7 @@ impl std::fmt::Display for AdmitError {
             AdmitError::Limit { name, value } => {
                 write!(f, "admission limit {name} exceeded ({value})")
             }
+            AdmitError::Hook(error) => write!(f, "layer conversion failed: {error}"),
         }
     }
 }
@@ -1657,6 +1856,12 @@ impl std::error::Error for AdmitError {}
 impl From<rtd_bin::Error> for AdmitError {
     fn from(error: rtd_bin::Error) -> Self {
         AdmitError::Decode(error)
+    }
+}
+
+impl From<::rtd_layerhooks::HookError> for AdmitError {
+    fn from(error: ::rtd_layerhooks::HookError) -> Self {
+        AdmitError::Hook(error)
     }
 }
 
@@ -2109,6 +2314,8 @@ pub enum ProjectionError {
     },
     /// The route requires per-route codecs not emitted in this build.
     RouteNotEmitted(Route),
+    /// A layer conversion hook refused the value.
+    Hook(::rtd_layerhooks::HookError),
 }
 
 impl std::fmt::Display for ProjectionError {
@@ -2124,11 +2331,18 @@ impl std::fmt::Display for ProjectionError {
             ProjectionError::RouteNotEmitted(route) => {
                 write!(f, "route {} is not emitted in this build", route.mode.as_str())
             }
+            ProjectionError::Hook(error) => write!(f, "layer conversion failed: {error}"),
         }
     }
 }
 
 impl std::error::Error for ProjectionError {}
+
+impl From<::rtd_layerhooks::HookError> for ProjectionError {
+    fn from(error: ::rtd_layerhooks::HookError) -> Self {
+        ProjectionError::Hook(error)
+    }
+}
 
 /// A canonical value frozen once for per-profile encoding.
 #[derive(Debug, Clone)]

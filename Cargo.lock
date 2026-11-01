@@ -1123,6 +1123,7 @@ name = "rtd-tlprofile"
 version = "0.0.0"
 dependencies = [
  "rtd-bin",
+ "rtd-layerhooks",
  "rtd-tg",
  "sha2 0.10.9",
 ]

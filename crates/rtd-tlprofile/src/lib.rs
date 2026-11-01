@@ -125000,6 +125000,8 @@ pub enum AdmitError {
         /// Measured value.
         value: usize,
     },
+    /// A layer conversion hook refused the value.
+    Hook(::rtd_layerhooks::HookError),
 }
 
 impl std::fmt::Display for AdmitError {
@@ -125027,6 +125029,7 @@ impl std::fmt::Display for AdmitError {
             AdmitError::Limit { name, value } => {
                 write!(f, "admission limit {name} exceeded ({value})")
             }
+            AdmitError::Hook(error) => write!(f, "layer conversion failed: {error}"),
         }
     }
 }
@@ -125036,6 +125039,12 @@ impl std::error::Error for AdmitError {}
 impl From<rtd_bin::Error> for AdmitError {
     fn from(error: rtd_bin::Error) -> Self {
         AdmitError::Decode(error)
+    }
+}
+
+impl From<::rtd_layerhooks::HookError> for AdmitError {
+    fn from(error: ::rtd_layerhooks::HookError) -> Self {
+        AdmitError::Hook(error)
     }
 }
 
@@ -125488,6 +125497,8 @@ pub enum ProjectionError {
     },
     /// The route requires per-route codecs not emitted in this build.
     RouteNotEmitted(Route),
+    /// A layer conversion hook refused the value.
+    Hook(::rtd_layerhooks::HookError),
 }
 
 impl std::fmt::Display for ProjectionError {
@@ -125507,11 +125518,18 @@ impl std::fmt::Display for ProjectionError {
                     route.mode.as_str()
                 )
             }
+            ProjectionError::Hook(error) => write!(f, "layer conversion failed: {error}"),
         }
     }
 }
 
 impl std::error::Error for ProjectionError {}
+
+impl From<::rtd_layerhooks::HookError> for ProjectionError {
+    fn from(error: ::rtd_layerhooks::HookError) -> Self {
+        ProjectionError::Hook(error)
+    }
+}
 
 /// A canonical value frozen once for per-profile encoding.
 #[derive(Debug, Clone)]
@@ -130909,8 +130927,110 @@ pub fn encode_bot_verification_profile(
             encode_text_with_entities_profile(profile, description, __w)?;
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                225 => encode_policy_bot_verification_225(profile, value, __w)?,
+                226 => encode_policy_bot_verification_226(profile, value, __w)?,
+                227 => encode_policy_bot_verification_227(profile, value, __w)?,
+                228 => encode_policy_bot_verification_228(profile, value, __w)?,
+                229 => encode_policy_bot_verification_229(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_bot_verification_225(
+    _profile: Profile,
+    value: &rtd_tg::BotVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerification {
+        bot_id,
+        description,
+        icon,
+        ..
+    } = value;
+    __w.put_i64(*bot_id);
+    __w.put_i64(*icon);
+    let __converted = rtd_layerhooks::text::text_encode(description)?;
+    __w.put_string(__converted.as_str());
+    Ok(())
+}
+
+fn encode_policy_bot_verification_226(
+    _profile: Profile,
+    value: &rtd_tg::BotVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerification {
+        bot_id,
+        description,
+        icon,
+        ..
+    } = value;
+    __w.put_i64(*bot_id);
+    __w.put_i64(*icon);
+    let __converted = rtd_layerhooks::text::text_encode(description)?;
+    __w.put_string(__converted.as_str());
+    Ok(())
+}
+
+fn encode_policy_bot_verification_227(
+    _profile: Profile,
+    value: &rtd_tg::BotVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerification {
+        bot_id,
+        description,
+        icon,
+        ..
+    } = value;
+    __w.put_i64(*bot_id);
+    __w.put_i64(*icon);
+    let __converted = rtd_layerhooks::text::text_encode(description)?;
+    __w.put_string(__converted.as_str());
+    Ok(())
+}
+
+fn encode_policy_bot_verification_228(
+    _profile: Profile,
+    value: &rtd_tg::BotVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerification {
+        bot_id,
+        description,
+        icon,
+        ..
+    } = value;
+    __w.put_i64(*bot_id);
+    __w.put_i64(*icon);
+    let __converted = rtd_layerhooks::text::text_encode(description)?;
+    __w.put_string(__converted.as_str());
+    Ok(())
+}
+
+fn encode_policy_bot_verification_229(
+    _profile: Profile,
+    value: &rtd_tg::BotVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerification {
+        bot_id,
+        description,
+        icon,
+        ..
+    } = value;
+    __w.put_i64(*bot_id);
+    __w.put_i64(*icon);
+    let __converted = rtd_layerhooks::text::text_encode(description)?;
+    __w.put_string(__converted.as_str());
+    Ok(())
 }
 
 pub fn decode_bot_verification_profile(
@@ -130946,8 +131066,96 @@ pub fn decode_bot_verification_profile(
                 description,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            225 => decode_policy_bot_verification_225(profile, __d),
+            226 => decode_policy_bot_verification_226(profile, __d),
+            227 => decode_policy_bot_verification_227(profile, __d),
+            228 => decode_policy_bot_verification_228(profile, __d),
+            229 => decode_policy_bot_verification_229(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_bot_verification_225(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerification, AdmitError> {
+    let bot_id: i64 = __d.take_i64()?;
+    let icon: i64 = __d.take_i64()?;
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::boxed::Box<rtd_tg::TextWithEntities> =
+        ::std::boxed::Box::new(rtd_layerhooks::text::text_decode(&description)?);
+    Ok(rtd_tg::BotVerification {
+        bot_id,
+        icon,
+        description,
+    })
+}
+
+fn decode_policy_bot_verification_226(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerification, AdmitError> {
+    let bot_id: i64 = __d.take_i64()?;
+    let icon: i64 = __d.take_i64()?;
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::boxed::Box<rtd_tg::TextWithEntities> =
+        ::std::boxed::Box::new(rtd_layerhooks::text::text_decode(&description)?);
+    Ok(rtd_tg::BotVerification {
+        bot_id,
+        icon,
+        description,
+    })
+}
+
+fn decode_policy_bot_verification_227(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerification, AdmitError> {
+    let bot_id: i64 = __d.take_i64()?;
+    let icon: i64 = __d.take_i64()?;
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::boxed::Box<rtd_tg::TextWithEntities> =
+        ::std::boxed::Box::new(rtd_layerhooks::text::text_decode(&description)?);
+    Ok(rtd_tg::BotVerification {
+        bot_id,
+        icon,
+        description,
+    })
+}
+
+fn decode_policy_bot_verification_228(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerification, AdmitError> {
+    let bot_id: i64 = __d.take_i64()?;
+    let icon: i64 = __d.take_i64()?;
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::boxed::Box<rtd_tg::TextWithEntities> =
+        ::std::boxed::Box::new(rtd_layerhooks::text::text_decode(&description)?);
+    Ok(rtd_tg::BotVerification {
+        bot_id,
+        icon,
+        description,
+    })
+}
+
+fn decode_policy_bot_verification_229(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerification, AdmitError> {
+    let bot_id: i64 = __d.take_i64()?;
+    let icon: i64 = __d.take_i64()?;
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::boxed::Box<rtd_tg::TextWithEntities> =
+        ::std::boxed::Box::new(rtd_layerhooks::text::text_decode(&description)?);
+    Ok(rtd_tg::BotVerification {
+        bot_id,
+        icon,
+        description,
+    })
 }
 
 pub fn encode_bot_verifier_settings_profile(
@@ -131010,8 +131218,165 @@ pub fn encode_bot_verifier_settings_profile(
             }
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                225 => encode_policy_bot_verifier_settings_225(profile, value, __w)?,
+                226 => encode_policy_bot_verifier_settings_226(profile, value, __w)?,
+                227 => encode_policy_bot_verifier_settings_227(profile, value, __w)?,
+                228 => encode_policy_bot_verifier_settings_228(profile, value, __w)?,
+                229 => encode_policy_bot_verifier_settings_229(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_bot_verifier_settings_225(
+    _profile: Profile,
+    value: &rtd_tg::BotVerifierSettings,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerifierSettings {
+        can_modify_custom_description,
+        company,
+        custom_description,
+        icon,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *can_modify_custom_description {
+        __flags_flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    __w.put_u32(__flags_flags);
+    __w.put_i64(*icon);
+    __w.put_string(company.as_str());
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bot_verifier_settings_226(
+    _profile: Profile,
+    value: &rtd_tg::BotVerifierSettings,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerifierSettings {
+        can_modify_custom_description,
+        company,
+        custom_description,
+        icon,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *can_modify_custom_description {
+        __flags_flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    __w.put_u32(__flags_flags);
+    __w.put_i64(*icon);
+    __w.put_string(company.as_str());
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bot_verifier_settings_227(
+    _profile: Profile,
+    value: &rtd_tg::BotVerifierSettings,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerifierSettings {
+        can_modify_custom_description,
+        company,
+        custom_description,
+        icon,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *can_modify_custom_description {
+        __flags_flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    __w.put_u32(__flags_flags);
+    __w.put_i64(*icon);
+    __w.put_string(company.as_str());
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bot_verifier_settings_228(
+    _profile: Profile,
+    value: &rtd_tg::BotVerifierSettings,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerifierSettings {
+        can_modify_custom_description,
+        company,
+        custom_description,
+        icon,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *can_modify_custom_description {
+        __flags_flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    __w.put_u32(__flags_flags);
+    __w.put_i64(*icon);
+    __w.put_string(company.as_str());
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bot_verifier_settings_229(
+    _profile: Profile,
+    value: &rtd_tg::BotVerifierSettings,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotVerifierSettings {
+        can_modify_custom_description,
+        company,
+        custom_description,
+        icon,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *can_modify_custom_description {
+        __flags_flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    __w.put_u32(__flags_flags);
+    __w.put_i64(*icon);
+    __w.put_string(company.as_str());
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
 }
 
 pub fn decode_bot_verifier_settings_profile(
@@ -131056,8 +131421,196 @@ pub fn decode_bot_verifier_settings_profile(
                 custom_description,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            225 => decode_policy_bot_verifier_settings_225(profile, __d),
+            226 => decode_policy_bot_verifier_settings_226(profile, __d),
+            227 => decode_policy_bot_verifier_settings_227(profile, __d),
+            228 => decode_policy_bot_verifier_settings_228(profile, __d),
+            229 => decode_policy_bot_verifier_settings_229(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_bot_verifier_settings_225(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
+    let flags = __d.take_u32()?;
+    let can_modify_custom_description: bool = flags & (1u32 << 1) != 0;
+    let icon: i64 = __d.take_i64()?;
+    let company: ::std::string::String = __d.take_string()?.to_owned();
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if can_modify_custom_description {
+        flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 0;
+    }
+    Ok(rtd_tg::BotVerifierSettings {
+        flags,
+        can_modify_custom_description,
+        icon,
+        company,
+        custom_description,
+    })
+}
+
+fn decode_policy_bot_verifier_settings_226(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
+    let flags = __d.take_u32()?;
+    let can_modify_custom_description: bool = flags & (1u32 << 1) != 0;
+    let icon: i64 = __d.take_i64()?;
+    let company: ::std::string::String = __d.take_string()?.to_owned();
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if can_modify_custom_description {
+        flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 0;
+    }
+    Ok(rtd_tg::BotVerifierSettings {
+        flags,
+        can_modify_custom_description,
+        icon,
+        company,
+        custom_description,
+    })
+}
+
+fn decode_policy_bot_verifier_settings_227(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
+    let flags = __d.take_u32()?;
+    let can_modify_custom_description: bool = flags & (1u32 << 1) != 0;
+    let icon: i64 = __d.take_i64()?;
+    let company: ::std::string::String = __d.take_string()?.to_owned();
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if can_modify_custom_description {
+        flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 0;
+    }
+    Ok(rtd_tg::BotVerifierSettings {
+        flags,
+        can_modify_custom_description,
+        icon,
+        company,
+        custom_description,
+    })
+}
+
+fn decode_policy_bot_verifier_settings_228(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
+    let flags = __d.take_u32()?;
+    let can_modify_custom_description: bool = flags & (1u32 << 1) != 0;
+    let icon: i64 = __d.take_i64()?;
+    let company: ::std::string::String = __d.take_string()?.to_owned();
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if can_modify_custom_description {
+        flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 0;
+    }
+    Ok(rtd_tg::BotVerifierSettings {
+        flags,
+        can_modify_custom_description,
+        icon,
+        company,
+        custom_description,
+    })
+}
+
+fn decode_policy_bot_verifier_settings_229(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
+    let flags = __d.take_u32()?;
+    let can_modify_custom_description: bool = flags & (1u32 << 1) != 0;
+    let icon: i64 = __d.take_i64()?;
+    let company: ::std::string::String = __d.take_string()?.to_owned();
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if can_modify_custom_description {
+        flags |= 1u32 << 1;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 0;
+    }
+    Ok(rtd_tg::BotVerifierSettings {
+        flags,
+        can_modify_custom_description,
+        icon,
+        company,
+        custom_description,
+    })
 }
 
 pub fn encode_business_away_message_profile(
@@ -344736,8 +345289,190 @@ pub fn encode_bots_set_custom_verification_profile(
             }
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                225 => encode_policy_bots_set_custom_verification_225(profile, value, __w)?,
+                226 => encode_policy_bots_set_custom_verification_226(profile, value, __w)?,
+                227 => encode_policy_bots_set_custom_verification_227(profile, value, __w)?,
+                228 => encode_policy_bots_set_custom_verification_228(profile, value, __w)?,
+                229 => encode_policy_bots_set_custom_verification_229(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_bots_set_custom_verification_225(
+    profile: Profile,
+    value: &rtd_tg::BotsSetCustomVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotsSetCustomVerification {
+        bot,
+        custom_description,
+        enabled,
+        peer,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *enabled {
+        __flags_flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 2;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = bot {
+        encode_input_user_profile(profile, value, __w)?;
+    }
+    encode_input_peer_profile(profile, peer, __w)?;
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bots_set_custom_verification_226(
+    profile: Profile,
+    value: &rtd_tg::BotsSetCustomVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotsSetCustomVerification {
+        bot,
+        custom_description,
+        enabled,
+        peer,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *enabled {
+        __flags_flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 2;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = bot {
+        encode_input_user_profile(profile, value, __w)?;
+    }
+    encode_input_peer_profile(profile, peer, __w)?;
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bots_set_custom_verification_227(
+    profile: Profile,
+    value: &rtd_tg::BotsSetCustomVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotsSetCustomVerification {
+        bot,
+        custom_description,
+        enabled,
+        peer,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *enabled {
+        __flags_flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 2;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = bot {
+        encode_input_user_profile(profile, value, __w)?;
+    }
+    encode_input_peer_profile(profile, peer, __w)?;
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bots_set_custom_verification_228(
+    profile: Profile,
+    value: &rtd_tg::BotsSetCustomVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotsSetCustomVerification {
+        bot,
+        custom_description,
+        enabled,
+        peer,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *enabled {
+        __flags_flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 2;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = bot {
+        encode_input_user_profile(profile, value, __w)?;
+    }
+    encode_input_peer_profile(profile, peer, __w)?;
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
+}
+
+fn encode_policy_bots_set_custom_verification_229(
+    profile: Profile,
+    value: &rtd_tg::BotsSetCustomVerification,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotsSetCustomVerification {
+        bot,
+        custom_description,
+        enabled,
+        peer,
+        ..
+    } = value;
+    let mut __flags_flags = 0u32;
+    if *enabled {
+        __flags_flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        __flags_flags |= 1u32 << 2;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = bot {
+        encode_input_user_profile(profile, value, __w)?;
+    }
+    encode_input_peer_profile(profile, peer, __w)?;
+    if let Some(value) = custom_description {
+        let __converted = rtd_layerhooks::text::text_encode(value)?;
+        __w.put_string(__converted.as_str());
+    }
+    Ok(())
 }
 
 pub fn decode_bots_set_custom_verification_profile(
@@ -344804,8 +345539,311 @@ pub fn decode_bots_set_custom_verification_profile(
                 custom_description,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            225 => decode_policy_bots_set_custom_verification_225(profile, __d),
+            226 => decode_policy_bots_set_custom_verification_226(profile, __d),
+            227 => decode_policy_bots_set_custom_verification_227(profile, __d),
+            228 => decode_policy_bots_set_custom_verification_228(profile, __d),
+            229 => decode_policy_bots_set_custom_verification_229(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_bots_set_custom_verification_225(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
+    let flags = __d.take_u32()?;
+    let enabled: bool = flags & (1u32 << 1) != 0;
+    let bot: Option<::std::boxed::Box<rtd_tg::InputUser>> = if flags & (1u32 << 0) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_input_user_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 2) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if enabled {
+        flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 2;
+    }
+    Ok(rtd_tg::BotsSetCustomVerification {
+        flags,
+        enabled,
+        bot,
+        peer,
+        custom_description,
+    })
+}
+
+fn decode_policy_bots_set_custom_verification_226(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
+    let flags = __d.take_u32()?;
+    let enabled: bool = flags & (1u32 << 1) != 0;
+    let bot: Option<::std::boxed::Box<rtd_tg::InputUser>> = if flags & (1u32 << 0) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_input_user_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 2) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if enabled {
+        flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 2;
+    }
+    Ok(rtd_tg::BotsSetCustomVerification {
+        flags,
+        enabled,
+        bot,
+        peer,
+        custom_description,
+    })
+}
+
+fn decode_policy_bots_set_custom_verification_227(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
+    let flags = __d.take_u32()?;
+    let enabled: bool = flags & (1u32 << 1) != 0;
+    let bot: Option<::std::boxed::Box<rtd_tg::InputUser>> = if flags & (1u32 << 0) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_input_user_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 2) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if enabled {
+        flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 2;
+    }
+    Ok(rtd_tg::BotsSetCustomVerification {
+        flags,
+        enabled,
+        bot,
+        peer,
+        custom_description,
+    })
+}
+
+fn decode_policy_bots_set_custom_verification_228(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
+    let flags = __d.take_u32()?;
+    let enabled: bool = flags & (1u32 << 1) != 0;
+    let bot: Option<::std::boxed::Box<rtd_tg::InputUser>> = if flags & (1u32 << 0) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_input_user_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 2) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if enabled {
+        flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 2;
+    }
+    Ok(rtd_tg::BotsSetCustomVerification {
+        flags,
+        enabled,
+        bot,
+        peer,
+        custom_description,
+    })
+}
+
+fn decode_policy_bots_set_custom_verification_229(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
+    let flags = __d.take_u32()?;
+    let enabled: bool = flags & (1u32 << 1) != 0;
+    let bot: Option<::std::boxed::Box<rtd_tg::InputUser>> = if flags & (1u32 << 0) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_input_user_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let custom_description: Option<::std::string::String> = if flags & (1u32 << 2) != 0 {
+        Some(__d.take_string()?.to_owned())
+    } else {
+        None
+    };
+    let custom_description: Option<::std::boxed::Box<rtd_tg::TextWithEntities>> =
+        match custom_description {
+            Some(value) => Some(::std::boxed::Box::new(rtd_layerhooks::text::text_decode(
+                &value,
+            )?)),
+            None => None,
+        };
+    let mut flags = 0u32;
+    if enabled {
+        flags |= 1u32 << 1;
+    }
+    if bot.is_some() {
+        flags |= 1u32 << 0;
+    }
+    if custom_description.is_some() {
+        flags |= 1u32 << 2;
+    }
+    Ok(rtd_tg::BotsSetCustomVerification {
+        flags,
+        enabled,
+        bot,
+        peer,
+        custom_description,
+    })
 }
 
 pub fn encode_bots_get_bot_recommendations_profile(

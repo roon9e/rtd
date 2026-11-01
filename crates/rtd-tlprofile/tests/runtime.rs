@@ -6,9 +6,10 @@
 
 use rtd_bin::Writer;
 use rtd_tg::{
-    AuthBindTempAuthKey, Bool, ChannelsJoinChannel, ChatAdminRights, Decoder, InitConnection,
-    InputChannel, InputInvoice, InputPeer, InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer,
-    MessagesDeleteMessages, Method, Object, SendMessageAction, TextWithEntities, Update,
+    AuthBindTempAuthKey, Bool, BotVerification, ChannelsJoinChannel, ChatAdminRights, Decoder,
+    InitConnection, InputChannel, InputInvoice, InputPeer, InvokeAfterMsg, InvokeAfterMsgs,
+    InvokeWithLayer, MessageEntity, MessagesDeleteMessages, Method, Object, SendMessageAction,
+    TextWithEntities, Update,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, RouteMode,
@@ -246,6 +247,51 @@ fn retag_method_admits_on_the_profile() {
         admission.semantic,
         semantic_for_wire_id(Profile::new(232), 0x7f6a_1e22).unwrap()
     );
+}
+
+/// A field-shaped adapter hook converts one field between its canonical and
+/// older-layer types. Layer 225 `botVerification.description` is a plain
+/// `string`, so a plain canonical `TextWithEntities` round trips.
+#[test]
+fn policy_field_hook_round_trips_text() {
+    let value = Object::BotVerification(Box::new(BotVerification {
+        bot_id: 1,
+        icon: 2,
+        description: Box::new(TextWithEntities {
+            text: "verified".to_owned(),
+            entities: Vec::new(),
+        }),
+    }));
+    let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode for layer 225");
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    assert_eq!(decoded, value);
+}
+
+/// The historical `string` cannot carry entities, so the hook fails closed and
+/// the encoder surfaces it as a conversion failure.
+#[test]
+fn policy_field_hook_fails_closed_on_entities() {
+    let value = Object::BotVerification(Box::new(BotVerification {
+        bot_id: 1,
+        icon: 2,
+        description: Box::new(TextWithEntities {
+            text: "verified".to_owned(),
+            entities: vec![MessageEntity::MessageEntityUnknown {
+                offset: 0,
+                length: 1,
+            }],
+        }),
+    }));
+    let frozen = FrozenObject::freeze(value).expect("freeze");
+    let error = frozen
+        .encode(Profile::new(225), &mut Writer::new())
+        .expect_err("entities are refused");
+    assert!(matches!(error, ProjectionError::Hook(_)), "{error:?}");
 }
 
 /// A `default` obligation substitutes the recorded value for a mandatory target

@@ -173,6 +173,38 @@ pub fn lookup(name: &str) -> Option<&'static HookSpec> {
     HOOKS.iter().find(|spec| spec.name == name)
 }
 
+/// The concrete functions of a field-shaped hook, which converts one field
+/// between its canonical and older-layer types (the surrounding `Option` is
+/// handled by the generated call site).
+#[derive(Debug, Clone, Copy)]
+pub struct FieldConvert {
+    /// Canonical field value to the profile field value.
+    pub encode: &'static str,
+    /// Profile field value to the canonical field value.
+    pub decode: &'static str,
+}
+
+/// The field-conversion functions for a hook, when it is field-shaped.
+///
+/// Hooks that are not field-shaped (result, presence, discard, vector or
+/// projection hooks) return `None`: their call sites need a different emission
+/// shape that is not generated yet, so the layer stays fail-closed.
+#[must_use]
+pub fn field_convert(name: &str) -> Option<FieldConvert> {
+    let convert = match name {
+        // A `TextWithEntities` <-> plain `string` projection: the historical
+        // shape cannot carry entities, so entities fail closed.
+        "layerBotVerificationText"
+        | "layerBotVerifierSettingsText"
+        | "layerBotsSetCustomVerificationText" => FieldConvert {
+            encode: "rtd_layerhooks::text::text_encode",
+            decode: "rtd_layerhooks::text::text_decode",
+        },
+        _ => return None,
+    };
+    Some(convert)
+}
+
 /// The names of the implemented hooks, for the hooks crate to assert against.
 #[must_use]
 pub fn implemented_names() -> Vec<&'static str> {

@@ -12,5 +12,6 @@ workspace = true
 
 [dependencies]
 rtd-bin = { path = "../rtd-bin" }
+rtd-layerhooks = { path = "../rtd-layerhooks" }
 rtd-tg = { path = "../rtd-tg" }
 sha2 = "0.10"
