@@ -30,6 +30,8 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - [x] 3.7 Implement SRP password hashing and proof computation including new-hash creation; verify proof accept/reject
 - [x] 3.8 Implement temporary AES keys, nonce hash, and initial server salt at fixed widths; verify a leading-zero-nonce test
 - [x] 3.9 Route all randomness through a cryptographically secure source and document it; verify no key material appears in `Debug`/`Display` output via a test
+- [ ] 3.10 Implement the client-side auth-key exchange flow (req_pq → resPQ → req_DH_params → set_client_DH_params → dh_gen_ok) over the sans-IO core using the injected time and randomness; verify against a fake server
+- [ ] 3.11 Implement the server-side auth-key exchange flow accepting both permanent and temporary key requests; verify a client-driven exchange completes and produces a matching auth key
 
 ## 4. `rtd-proto` and `rtd-error` — MTProto framing
 
@@ -74,12 +76,15 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - [ ] 8.1 Add a Go helper that uses `td` to emit shared crypto and framing vectors; verify it runs and writes a vector file
 - [ ] 8.2 Add Rust tests that consume the shared vectors; verify a deliberately altered expected value fails the test
 - [ ] 8.3 Add an injectable clock to `rtd-util`; verify a test that advances the clock changes time-dependent behavior without real waiting
+- [ ] 8.4 Add an injectable random source to the protocol core; verify a fixed source produces byte-identical output across runs
+- [ ] 8.5 External-peer gate: obtain and build the official engine's test server (and its C-ABI library where needed), drive it with a minimal rtd client path (transport + codec + obfuscated2 + auth-key exchange + service ping) and require the handshake and a pong to succeed; verify no crate or build step depends on the official engine's source, and record the gate result
 
 ## 9. Integration verification
 
 - [ ] 9.1 Verify codec-level cross-implementation compatibility: bytes produced by the Go `td` helper decode in Rust and bytes produced by Rust decode in Go; the interop test passes
 - [ ] 9.2 Run the full workspace gate (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`) and confirm it is green
 - [ ] 9.3 Add a top-level `README.md` and a short `docs/architecture.md` describing the crate layout, generation workflow, edge-service boundary, and core decisions, and verify the documented regeneration command runs as written
+- [ ] 9.4 Run the official-engine external-peer gate (task 8.5) and the Go `td` interop (task 9.1) as required checks and confirm both are green; if the peer cannot be fetched in CI, provide and run the documented local command
 
 ## Workflow follow-up
 
@@ -90,3 +95,6 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - Realize the durable outbox `Delivery` backend at migration-plan stage 4 (D10).
 - Make the FakeTLS ClientHello byte-accurate to a real Chrome fingerprint (the current template is a minimal, valid TLS handshake that satisfies the HMAC contract but is not a uTLS-identical fingerprint).
 - Re-baseline the multi-DC design (D5, D9, D10, D15, D16) against the maintainer's v2 multi-DC implementation once it is available in a public branch/commit.
+- Decide the two candidate adoptions from the official-engine review: `zeroize` for key material in `rtd-crypto`, and a security-requirement-to-test matrix.
+- Review the sans-IO core boundary (D18) against the official engine's `mtproto-core` module layout and record any further alignment.
+- Install Go (for the `td` vector helper, tasks 8.1/9.1) and confirm the external peer (task 8.5) can be fetched/built in CI.

@@ -35,14 +35,26 @@ on it without inheriting those limits.
   (semantic method, negotiated layer, wire id). rtd owns the full edge — transport,
   key exchange, sessions, **multi-layer admission and layer binding** — so the core
   does not need the multi-layer machinery on the hot path.
+- **Official-engine compatibility, as a hard gate**: rtd tracks
+  `TelegramMessenger/mtproto-engine` — the official Rust MTProto 2.0 engine — as a
+  first-class wire-compatibility target alongside Go `td`. Interoperability with that
+  engine is an **acceptance requirement**, proven by an external-peer harness in
+  milestone 1, not merely a goal.
+- **Sans-IO protocol core**: the protocol crates expose byte-in/byte-out codecs and
+  explicit state machines with **injected** time and randomness, owning no sockets or
+  runtime; only the runtime crates own I/O. This matches the official engine's
+  deterministic design and makes the core testable without a network.
 - **Milestone 1 (this change)** delivers the workspace, the `bin`/`crypto`/`proto`
-  primitives with test vectors, the generator skeleton proven end-to-end on
-  canonical layer 232, and the interop-test harness skeleton.
+  primitives with test vectors, the auth-key exchange flow, the generator skeleton proven
+  end-to-end on canonical layer 232, and the interop harness — including the external
+  peer gate against the official engine's test server.
 - **Out of scope**: the client library (`telegram.Client`, updates engine, auth
   flows, downloader/uploader) — the workspace is structured so it can be added
   later without rework, but it is not built now. Also out of scope: in-process
   Go↔Rust FFI/cgo, and rewriting Go `gramsrv`. `gramsrv` integration is supported
-  only through the sidecar edge service described above.
+  only through the sidecar edge service described above. No source is copied from, and
+  no dependency is taken on, the GPL-2.0 `TelegramMessenger/mtproto-engine`; it is a
+  read-only compatibility reference.
 
 ## Capabilities
 
@@ -67,8 +79,10 @@ on it without inheriting those limits.
 - `edge-service`: the gRPC boundary that lets a separate core service (initially Go
   `gramsrv`) use rtd as its MTProto edge — TL bytes in and out plus admitted-call
   metadata for multi-layer dispatch and per-profile result encoding.
-- `interop-testing`: wire-compatibility verification — cross-implementation
-  interop tests (Go `td` ⇄ Rust `rtd`) and shared cryptographic/protocol vectors.
+- `interop-testing`: wire-compatibility verification — cross-implementation interop
+  tests against Go `td` and the official Rust engine, an external-peer harness, and
+  shared cryptographic/protocol vectors. Official-engine interoperability is a hard
+  acceptance gate.
 
 ### Modified Capabilities
 <!-- None: rtd is a new project with no existing specs. -->
@@ -80,8 +94,11 @@ on it without inheriting those limits.
   `_schema/layers/policy.json` (with tdesktop provenance preserved).
 - **Upstream references** (read-only): `C:\Users\roon9e\Documents\github\td` and
   `C:\Users\roon9e\Documents\github\gramsrv`.
-- **Toolchain**: Rust stable (1.99.x, edition 2024), tokio; Node/OpenSpec for
-  planning artifacts.
+- **External reference (read-only)**: `TelegramMessenger/mtproto-engine` (GPL-2.0) — used
+  only as a compatibility target and behavioural reference, and its published binaries as
+  an external test peer. No source is copied and no dependency is taken.
+- **Toolchain**: Rust stable (1.99.x, edition 2024), tokio; Go (for the `td` vector helper);
+  Node/OpenSpec for planning artifacts.
 - **Licensing**: MIT OR Apache-2.0; `td`/`gotd` MIT notices retained for derived
   material.
 - **Go `gramsrv` integration**: through the sidecar edge service only. `gramsrv` keeps

@@ -145,14 +145,17 @@ decisions for no benefit).
 
 ### D6. Runtime and concurrency
 
-- **tokio** multi-threaded runtime. One task per connection with a dedicated single-writer
-  task per connection that assigns message ids/sequence numbers and serializes writes
-  (equivalent to `gramsrv`'s per-connection outbound actor).
+- **tokio** multi-threaded runtime. Each connection is an **actor**: exactly one task owns
+  it and a dedicated single writer assigns message ids/sequence numbers and serializes
+  writes, so there are no locks on the hot path (equivalent to `gramsrv`'s per-connection
+  outbound actor and to the official engine's session ownership model).
 - Admission budgets via semaphores/token accounting (total connections, per-source,
   concurrent handshakes, aggregate frame bytes).
 - No blocking calls on the runtime; file/DB work is deferred to spawned blocking tasks.
-- Time comes from an injectable clock (`rtd-util`) so message-id, salt and timeout behavior
-  is testable deterministically.
+- Time and randomness are injected into the sans-IO core (D18), so message-id, salt and
+  timeout behavior is testable deterministically.
+- tokio is kept over a hand-rolled mio reactor because the edge boundary needs gRPC/tonic
+  (D14); the actor model supplies the no-lock property a reactor approach would give.
 
 ### D7. Error model
 
@@ -281,6 +284,43 @@ Alternatives: asymmetric signing (rejected — per-DC key management for no gain
 already share a trust domain); store-backed one-time tokens (rejected — extra DB round-trip;
 revocation matters less here).
 
+### D17. Official-engine compatibility target (hard gate)
+
+rtd tracks the official Rust engine `TelegramMessenger/mtproto-engine` as a first-class
+wire-compatibility target alongside Go `td`. **Interoperability with that engine is an
+acceptance requirement for milestone 1**, not merely a goal: the milestone is not accepted
+until interop against that engine passes.
+
+The engine is a **client**, so compatibility is demonstrated by cross-implementation interop
+(our code against its published `mtproto-testserver`, and its client path against our server)
+plus behavioural alignment with its published `docs/protocol-coverage.md`.
+
+**Licensing**: the engine is GPL-2.0, and GPL-2.0-only is incompatible with Apache-2.0. rtd is
+MIT OR Apache-2.0, so rtd copies **no** source from it and takes **no** dependency on it: it is
+read-only. Running its published binaries as an external test peer is permitted (testing, not
+derivative distribution).
+
+Alternatives: depend on `mtproto-core` (rejected — would force rtd and all consumers to GPL and
+break the Apache-2.0 half of our dual license); ignore the engine (rejected — it is the closest
+authoritative Rust MTProto implementation and the best available interop counterpart).
+
+### D18. Sans-IO protocol core with injected time and randomness
+
+The protocol crates (`rtd-bin`, `rtd-crypto`, `rtd-proto`, `rtd-transport`, `rtd-mt`, `rtd-tg`,
+`rtd-tlprofile`) are **sans-IO**: they own no sockets, no runtime, no tasks, and no ambient time
+or randomness. They expose byte-in/byte-out codecs and explicit state machines driven by the
+caller, and time and randomness enter as injected traits rather than OS calls.
+
+Only the runtime crates (`rtd-server`, `rtd-edge`) own I/O: tokio, sockets, timers, and the gRPC
+boundary.
+
+Consequences: the session and RPC state machines are unit-testable with simulated time and
+deterministic randomness and are fuzzable without a network, and the same core can later back a
+client, a server, or a test harness unchanged.
+
+Alternatives: an IO-coupled core (rejected — untestable without sockets, non-deterministic);
+sans-IO for only a subset (rejected — the boundary is cheap and pays off across the whole core).
+
 ## Multi-DC architecture
 
 **Mental model: one authoritative state, many edge replicas.** A client speaks MTProto to
@@ -397,6 +437,16 @@ hazard; corrections are ordered by client msg-id and stale per-layer output is d
   parity), then add DCs one at a time, then enable migration and durable delivery. The Go Core
   is unchanged throughout (D14).
 
+## Candidate adoptions (deferred)
+
+Surfaced while reviewing the official engine; deliberately not committed because their value is
+not yet decided (see the change's decision log):
+
+- **`zeroize` for key material** in `rtd-crypto`: we redact logs but do not wipe key bytes from
+  memory.
+- **A security-requirement-to-test matrix** (the official engine ships `security/requirements.tsv`)
+  mapping each MTProto security guideline to the test that pins it.
+
 ## Risks / Trade-offs
 
 - [Rust-idiomatic redesign diverges from Go in a subtle behavior] → Keep the semantic-ID,
@@ -417,6 +467,12 @@ hazard; corrections are ordered by client msg-id and stale per-layer output is d
   mapped is reported for manual review rather than dropped.
 - [Edition 2024 + latest-stable MSRV reduces who can build rtd] → Accepted: the project
   controls its toolchain; revisit if external Rust consumers appear.
+- [Accidental GPL contamination from the official engine] → Treat it as read-only (D17): no
+  source copied, no dependency taken, and no build path to it; only its published binaries are
+  run as a test peer.
+- [An external-peer gate could block if the official engine's binaries are unavailable or
+  refuse our traffic] → The gate is explicit and reported; failing it names the exact
+  divergence rather than being silently skipped.
 
 ## Migration Plan
 

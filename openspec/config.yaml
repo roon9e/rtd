@@ -34,6 +34,17 @@ context: |
     fetch schemas from either td or tdesktop directly.
   - Server goal: a full multi-DC server runtime in Rust (edge + RPC + session/state
     routing + DC migration), not just library primitives. Go gramsrv is single-DC today.
+  - Compatibility target (HARD GATE): rtd tracks TelegramMessenger/mtproto-engine, the
+    official Rust MTProto 2.0 engine, as a first-class wire-compatibility target alongside
+    Go td. Interoperability with that engine is an acceptance requirement proven by an
+    external-peer harness (running its published test server / C-ABI library as a peer) in
+    milestone 1. It is GPL-2.0: read-only reference; NO source copied, NO dependency taken,
+    to keep rtd MIT OR Apache-2.0. Behaviour also aligns with its docs/protocol-coverage.md.
+  - Architecture: a SANS-IO protocol core (rtd-bin, rtd-crypto, rtd-proto, rtd-transport,
+    rtd-mt, rtd-tg, rtd-tlprofile) that owns no sockets/runtime and takes INJECTED time and
+    randomness; only the runtime crates (rtd-server, rtd-edge) own tokio I/O, timers and the
+    gRPC boundary. Each connection is an actor with a single writer and no locks on the hot
+    path. tokio (not mio) is kept because the edge boundary needs gRPC/tonic.
   - Interop/integration: clean-room, wire compatibility plus cross-implementation interop
     tests as the correctness gate. Additionally, rtd MUST be usable from Go gramsrv as a
     SIDECAR MTProto EDGE SERVICE over gRPC (the gramsrv v2 Edge/Core split): rtd owns the
