@@ -1011,9 +1011,13 @@ version = "0.0.0"
 dependencies = [
  "futures-util",
  "prost",
+ "rtd-bin",
  "rtd-crypto",
  "rtd-edge-proto",
+ "rtd-error",
  "rtd-server",
+ "rtd-tg",
+ "rtd-tlprofile",
  "rtd-util",
  "tokio",
  "tonic",

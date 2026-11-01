@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 rtd-crypto = { path = "../rtd-crypto" }
 rtd-edge-proto = { path = "../rtd-edge-proto" }
+rtd-error = { path = "../rtd-error" }
 rtd-server = { path = "../rtd-server" }
 rtd-util = { path = "../rtd-util" }
 futures-util = "0.3"
@@ -28,3 +29,8 @@ tokio = { version = "1", features = [
     "signal",
 ] }
 tonic = "0.12"
+
+[dev-dependencies]
+rtd-bin = { path = "../rtd-bin" }
+rtd-tg = { path = "../rtd-tg" }
+rtd-tlprofile = { path = "../rtd-tlprofile" }
