@@ -58,6 +58,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         ));
     }
     let plan = obligations::analyze(&universe, &policy)?;
+    check_hook_registry(&plan, rtd_layerhooks_registry::HOOKS)?;
     let unresolved = plan.unresolved();
     if !unresolved.is_empty() {
         let mut message = format!(
@@ -107,6 +108,64 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     })
 }
 
+/// Enforces the hook coverage gate over the reviewed adapter obligations.
+///
+/// Every present-in-both adapter obligation must name a registered hook whose
+/// direction covers the obligation, and every registered hook must be referenced
+/// by at least one such obligation (no stale signature). Hooks whose family
+/// exists only in an older layer (`old-only`) are deferred to the follow-up
+/// `add-legacy-layer-constructors` change and are not registered.
+///
+/// # Errors
+///
+/// Returns a diagnostic naming the first missing, mis-directed or stale hook.
+fn check_hook_registry(
+    plan: &obligations::ConversionPlan,
+    hooks: &[rtd_layerhooks_registry::HookSpec],
+) -> Result<(), String> {
+    use std::collections::BTreeSet;
+
+    let find = |name: &str| hooks.iter().find(|spec| spec.name == name);
+    let mut referenced: BTreeSet<&str> = BTreeSet::new();
+    for obligation in &plan.obligations {
+        if obligation.kind == "old-only" {
+            continue;
+        }
+        let Some(resolution) = &obligation.resolution else {
+            continue;
+        };
+        if resolution.action != "adapter" {
+            continue;
+        }
+        let spec = find(&resolution.hook).ok_or_else(|| {
+            format!(
+                "E_MISSING_HOOK_SIGNATURE: {} resolves to unregistered hook {:?}",
+                obligation.summary(),
+                resolution.hook
+            )
+        })?;
+        if !spec.direction.covers(obligation.direction) {
+            return Err(format!(
+                "E_HOOK_DIRECTION: {} names hook {:?}, which does not cover direction {}",
+                obligation.summary(),
+                spec.name,
+                obligation.direction
+            ));
+        }
+        referenced.insert(spec.name);
+    }
+    for spec in hooks {
+        if !referenced.contains(spec.name) {
+            return Err(format!(
+                "E_STALE_HOOK_SIGNATURE: registered hook {:?} is referenced by no \
+                 present-in-both adapter obligation",
+                spec.name
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Writes generated sources to disk.
 ///
 /// # Errors
@@ -133,10 +192,66 @@ pub(crate) fn run_verify(root: &Path) -> Result<String, String> {
 mod tests {
     use std::path::Path;
 
-    use super::{generate, run_verify};
+    use super::{check_hook_registry, generate, run_verify};
 
     fn workspace_root() -> &'static Path {
         Path::new("../..")
+    }
+
+    /// The reviewed conversion plan for the enabled set.
+    fn reviewed_plan() -> crate::obligations::ConversionPlan {
+        let root = workspace_root();
+        let (universe, _) =
+            crate::load::load_universe(&root.join("schema/layers/manifest.json")).unwrap();
+        let policy = crate::schema::load_policy(&root.join("schema/layers/policy.json")).unwrap();
+        crate::obligations::analyze(&universe, &policy).unwrap()
+    }
+
+    #[test]
+    fn hook_registry_covers_every_present_in_both_adapter_obligation() {
+        let plan = reviewed_plan();
+        check_hook_registry(&plan, rtd_layerhooks_registry::HOOKS)
+            .expect("every present-in-both adapter obligation has a registered hook");
+    }
+
+    #[test]
+    fn hook_registry_fails_on_a_missing_signature() {
+        let plan = reviewed_plan();
+        let error = check_hook_registry(&plan, &[]).unwrap_err();
+        assert!(error.contains("E_MISSING_HOOK_SIGNATURE"), "{error}");
+    }
+
+    #[test]
+    fn hook_registry_fails_on_a_stale_entry() {
+        use rtd_layerhooks_registry::{Direction, HookSpec, Status};
+
+        let plan = reviewed_plan();
+        let mut hooks = rtd_layerhooks_registry::HOOKS.to_vec();
+        hooks.push(HookSpec {
+            name: "layerStaleHook",
+            direction: Direction::Both,
+            status: Status::Pending,
+            signature: "",
+        });
+        let error = check_hook_registry(&plan, &hooks).unwrap_err();
+        assert!(error.contains("E_STALE_HOOK_SIGNATURE"), "{error}");
+    }
+
+    #[test]
+    fn hook_registry_fails_on_a_direction_mismatch() {
+        use rtd_layerhooks_registry::Direction;
+
+        let plan = reviewed_plan();
+        let mut hooks = rtd_layerhooks_registry::HOOKS.to_vec();
+        let spec = hooks
+            .iter_mut()
+            .find(|spec| spec.name == "layerRequireLegacyEphemeralSendPeer")
+            .expect("ephemeral send hook is registered");
+        // The obligation is canonical-to-profile; reversing the direction must
+        // be rejected.
+        spec.direction = Direction::ProfileToCanonical;
+        let error = check_hook_registry(&plan, &hooks).unwrap_err();
+        assert!(error.contains("E_HOOK_DIRECTION"), "{error}");
     }
 
     #[test]

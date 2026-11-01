@@ -12,4 +12,5 @@ publish = false
 workspace = true
 
 [dependencies]
+rtd-layerhooks-registry = { path = "../rtd-layerhooks-registry" }
 sha2 = "0.10"

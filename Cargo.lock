@@ -984,6 +984,7 @@ version = "0.0.0"
 name = "rtd-codegen"
 version = "0.0.0"
 dependencies = [
+ "rtd-layerhooks-registry",
  "sha2 0.10.9",
 ]
 
@@ -1058,8 +1059,13 @@ dependencies = [
 name = "rtd-layerhooks"
 version = "0.0.0"
 dependencies = [
+ "rtd-layerhooks-registry",
  "rtd-tg",
 ]
+
+[[package]]
+name = "rtd-layerhooks-registry"
+version = "0.0.0"
 
 [[package]]
 name = "rtd-mt"

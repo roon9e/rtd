@@ -11,4 +11,5 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+rtd-layerhooks-registry = { path = "../rtd-layerhooks-registry" }
 rtd-tg = { path = "../rtd-tg" }

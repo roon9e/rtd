@@ -26,3 +26,19 @@ pub const IMPLEMENTED_HOOKS: &[&str] = &[
     "layerBotVerifierSettingsText",
     "layerBotsSetCustomVerificationText",
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::IMPLEMENTED_HOOKS;
+
+    /// The hand-written implementations and the shared registry must agree, so a
+    /// newly implemented hook cannot be forgotten in either place.
+    #[test]
+    fn implemented_hooks_match_the_registry() {
+        let mut declared: Vec<&str> = IMPLEMENTED_HOOKS.to_vec();
+        declared.sort_unstable();
+        let mut registered = rtd_layerhooks_registry::implemented_names();
+        registered.sort_unstable();
+        assert_eq!(declared, registered);
+    }
+}
