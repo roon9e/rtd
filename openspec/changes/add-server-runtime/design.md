@@ -17,7 +17,8 @@ See `proposal.md` — Why. What already exists and shapes the approach:
   the committed prost types (`Hello`, `SessionIdentity`, `AdmittedCall`, `CallResult`,
   `CallError`) and a version handshake; `rtd-edge` only reports/validates a version.
 - Frozen decisions that bind this change: D6 (tokio actor, single writer, no locks on the
-  hot path), D12 (storage traits now, Postgres later), D14 (sidecar edge over gRPC), D18
+  hot path), D12 (storage traits — for keys/evidence, superseded here by D22), D14 (sidecar
+edge over gRPC), D18
   (sans-IO core, IO only in `rtd-server`/`rtd-edge`), and D7 (one TL error type). The
   upstream contract is Go `td`/`gramsrv` and the official `mtproto-engine` (read-only).
 
@@ -34,15 +35,16 @@ specs left open.
   binding, and per-profile result encoding.
 - The encrypted session state machine stays **sans-IO and deterministically testable**;
   only the connection actor owns sockets, timers and tasks.
-- A gRPC boundary shaped so Go `gramsrv` can adopt rtd as a sidecar **without** an
-  in-process link, and so the edge runs with an in-process core for tests.
-- Storage behind traits with an in-memory backend, so multi-DC can extend it later.
+- A boundary that mirrors gramsrv v2's `CoreExecService`, so a gramsrv core can front an
+  rtd edge unchanged, and so the edge runs with an in-process core for tests.
+- State ownership matching gramsrv v2: the core owns durable auth keys and layer evidence;
+  the edge holds only transient connection state and a key cache.
 
 **Non-Goals**
 
 - No multi-DC behavior (registry, migration errors, authorization transfer, cross-DC
-  delivery) — that is stage 4. This change keeps keys/sessions `(dc, key_id)`-scoped so
-  stage 4 slots in, but implements exactly one serving DC.
+  delivery) — that is stage 4. This change implements exactly one serving DC; the
+  core-owned key/evidence records stay DC-scoped so stage 4 slots in.
 - No layers 225–231 and no non-direct route bodies — that is the parallel generator
   stage; this change runs on canonical layer 232 with the "other layers will be added
   through the same path" assumption.
@@ -110,38 +112,49 @@ Alternatives: an `enum` of transports (rejected — every new transport edits th
 one accept loop per transport wired independently (rejected — duplicates the actor
 setup and admission accounting).
 
-### D22. Storage traits now, in-memory backend, `(dc, key_id)` scoping
+### D22. Durable state ownership mirrors gramsrv v2: the core owns keys, the edge is transient
 
-`rtd-server` defines `AuthKeyStore` and `SessionStore` traits (store/get/remove/expire)
-and ships an in-memory implementation. Keys and sessions are keyed by datacenter and
-identifier so stage 4 does not reshape call sites. A store failure fails the operation
-closed (never "assume written"), which is the observable requirement in `storage`.
+gramsrv v2's `CoreExecService` owns the durable auth keys (`SaveAuthKey`/`GetAuthKey`) and
+the durable session-layer evidence (`ResolveNegotiatedSessionLayer`, `PublishLayerEvidence`,
+…); the edge keeps only transient per-connection state plus a Redis session registry. rtd
+follows that split: the edge keeps an in-memory **session registry** and an **auth-key
+cache** for the life of a connection, saves a newly created key to the core before
+confirming the exchange, and resolves a key or layer evidence it does not hold by calling
+the core. The core is the source of truth; the edge holds no durable store of its own. A
+core failure fails the operation closed rather than assuming state was written.
 
-Alternatives: concrete hash maps (rejected — couples the edge to one backend and stalls
-the Postgres stage); `async_trait` on the traits (rejected — native `async fn` in traits
-is stable and the workspace forbids unjustified dependencies/lints).
+This overturns the archived decision that "rtd owns auth keys/sessions through storage
+traits" (D12/D14). It is a deliberate reconciliation with the now-readable `v2` branch on
+`origin`.
 
-### D23. The core boundary is a trait; gRPC is one adapter
+Alternatives: keep edge-owned storage traits (rejected — diverges from v2, so a gramsrv
+core adopting rtd would have to give up its own key store); split ownership where the edge
+persists keys and the core persists evidence (rejected — two owners of one auth-key record
+for no benefit).
 
-The edge dispatches admitted calls through a `Core` trait
-(`execute(session, admitted-call) -> CallResult`). Two implementations ship: an
-in-process core (used by the built-in router and by tests) and a tonic gRPC adapter that
-**dials the core** and calls `EdgeCore.Execute`, reusing `rtd-edge-proto`. The contract
-direction is edge → core (the edge runs the client side of `Execute`); lifecycle/routing
-events are surfaced as a server-streaming RPC on the same contract. Core
-unreachability becomes a TL error to the client; the session stays alive.
+### D23. The core boundary is a trait; gRPC mirrors gramsrv v2's `CoreExecService`
 
-Note: this boundary has **no precedent** in either reference. `td` and the engine are
-client-side libraries with no edge/core split, and the local `gramsrv` checkout contains no
-`.proto`/gRPC at all. The direction is taken from the maintainer's stated `gramsrv` v2
-Edge→Core shape (D14/D15), not from code we can read, so it is the one decision here that
-cannot be cross-checked locally.
+The edge dispatches through a `Core` trait, and two implementations ship: an in-process
+core (used by the built-in router and by tests) and a tonic gRPC adapter. This now matches
+gramsrv v2's real boundary, read from the public `origin/v2` branch:
 
-Alternatives: the edge hosting the service and the core dialing in (rejected — inverts
-the request path: the edge is the one that must call out per request, and the core is the
-long-lived business process); defining the boundary only in-process (rejected — the whole
-point is that Go `gramsrv` adopts it over the wire); byte-level HTTP/JSON (rejected —
-`gramsrv` v2's boundary is gRPC, and prost types already exist).
+- the **edge** holds a `CoreExecService` *client*; the **core** *implements*
+  `CoreExecService` (`RegisterCoreExecServiceServer`);
+- **admission runs in the edge**: `GRPCRemote.AdmitLayer` calls the edge-side admitter
+  locally, and only `DispatchAdmitted` crosses the wire as `DispatchRequest`;
+- the core returns `DispatchResponse{ result_wire, rpc_error, post_response_actions }`,
+  which the edge encodes per the session's layer.
+
+`rtd-edge-proto` is therefore reshaped toward that contract: the `CoreExecService` name, a
+`DispatchRequest`/`DispatchResponse` pair, the durable-state messages (auth keys, layer
+evidence, session offline) and an explicit protocol version — so a gramsrv core can front an
+rtd edge unchanged. Core unreachability becomes a TL error to the client; the session stays
+alive.
+
+Alternatives: the edge hosting the service and the core dialing in (rejected — v2 puts the
+client in the edge and the server in the core); a bespoke minimal contract (rejected — it
+would force gramsrv to bridge two shapes); byte-level HTTP/JSON (rejected — v2's boundary is
+gRPC and prost types already exist).
 
 ### D24. Router trait and minimal built-ins
 
@@ -194,8 +207,9 @@ deterministic and light, and keeping the GPL engine off every dependency path.
 - [gRPC contract ossifies] → The contract stays byte-oriented and versioned (D14); the
   committed prost types are the only coupling, and version mismatch is rejected at
   handshake.
-- [Storage trait shape is wrong for Postgres later] → Keep it minimal and
-  `(dc, key_id)`-scoped; the in-memory backend is swappable without touching call sites.
+- [Key/evidence ownership diverges from gramsrv v2] → Mirror v2's `CoreExecService`
+  (D22/D23): the core owns durable state and the edge holds only transient state, so a
+  gramsrv core adopts rtd with no change to its key store.
 - [Two source-of-truth messages (plaintext vs encrypted) drift] → Share the message-id,
   container and salt code; only the envelope differs, and both are covered by goldens.
 
@@ -217,6 +231,8 @@ public behavior changes, and no Go `gramsrv` change is required.
 - WebSocket subprotocol/path and whether LAN-only WS is enabled by default — answerable at
   implementation time without changing the specs.
 - Whether lifecycle/routing events ship as one server-streaming RPC or a small set of
-  unary calls — the contract version can absorb either without affecting the edge.
+  unary calls — gramsrv v2 uses unary calls (`ReportSessionOffline`, the layer-evidence
+  RPCs), so the default is unary; a streaming variant could be added without affecting the
+  edge.
 - Whether to reuse `rtd-exchange`'s `Stream` trait for the handshake inside the edge or
   drive it from the same session state machine — a wiring choice, not a behavior change.

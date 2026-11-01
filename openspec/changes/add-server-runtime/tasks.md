@@ -3,7 +3,7 @@
 ## 1. Dependencies and scaffolding
 
 - [ ] 1.1 Add `tokio`, `tonic`, `prost` and `tokio-tungstenite` as dependencies of `rtd-server`, `rtd-edge` and `rtd-edge-proto` only, leaving the sans-IO crates' dependency sets unchanged; verify `cargo tree -p rtd-proto -p rtd-mt -p rtd-tlprofile` lists none of them and `cargo build --workspace` succeeds
-- [ ] 1.2 Create the `rtd-crypto` `encrypted_message`/`salt` modules, the `rtd-proto` `session` module, and the `rtd-server` module skeleton (`storage`, `transport`, `session`, `rpc`, `core`), each re-exported from `lib.rs` with crate docs and no lint allowances; verify `cargo build -p rtd-crypto -p rtd-proto -p rtd-server` and `cargo clippy -p rtd-crypto -p rtd-proto -p rtd-server --all-targets -- -D warnings` succeed
+- [ ] 1.2 Create the `rtd-crypto` `encrypted_message`/`salt` modules, the `rtd-proto` `session` module, and the `rtd-server` module skeleton (`transport`, `session`, `rpc`, `core`), each re-exported from `lib.rs` with crate docs and no lint allowances; verify `cargo build -p rtd-crypto -p rtd-proto -p rtd-server` and `cargo clippy -p rtd-crypto -p rtd-proto -p rtd-server --all-targets -- -D warnings` succeed
 
 ## 2. `rtd-crypto` — encrypted message envelope and server salt
 
@@ -18,10 +18,10 @@
 - [ ] 3.3 Implement pending-ack tracking and the resend queue (record outbound content messages, answer a resend request, drop on ack); verify ack-answer and resend tests
 - [ ] 3.4 Implement session identity and lifecycle state (session id, salt, layer slot) with clock-driven expiry and disconnect handling; verify a session-expiry test using `ManualClock`
 
-## 4. `rtd-server` — storage traits and in-memory backend
+## 4. `rtd-server` — edge session state and core-backed durable state
 
-- [ ] 4.1 Define `AuthKeyStore` and `SessionStore` traits with `(dc, key_id)` and `(auth_key_id, session_id)` scoping plus temporary-key expiry; verify an implementation of each compiles and doc tests describe the contract
-- [ ] 4.2 Implement the in-memory backend with fail-closed writes; verify store/get/expire/remove tests and a failure-injection test that a failed write does not confirm the operation
+- [ ] 4.1 Implement the transient session registry and the auth-key cache keyed by authorization-key id, with clock-driven eviction on disconnect; verify register/lookup/evict tests
+- [ ] 4.2 Implement durable-state access through the core abstraction (save a newly created key before confirming, fetch a key or layer evidence the edge does not hold), failing closed when the core cannot persist; verify save-before-confirm and fetch-on-unknown tests
 
 ## 5. `rtd-server` — ingress transports
 
@@ -44,11 +44,11 @@
 - [ ] 7.3 Implement the `Router` trait, result-identity binding, error mapping and unknown-method handling; verify custom-router handling, mismatched-result rejection and unknown-method tests
 - [ ] 7.4 Implement the built-ins `help.getConfig` and `help.getNearestDc`; verify each returns the configured datacenter set and the serving datacenter
 
-## 8. Core boundary — trait and gRPC adapter
+## 8. Core boundary — trait, in-process core, and `CoreExecService`-shaped gRPC adapter
 
-- [ ] 8.1 Define the `Core` trait and an in-process implementation over the router, mapping a core failure to a TL error while keeping the session alive; verify in-process execute and core-failure tests
-- [ ] 8.2 Add the call/event messages the boundary needs to `rtd-edge-proto` and bump the contract version if required; verify prost round-trip and version-mismatch rejection tests
-- [ ] 8.3 Implement the tonic gRPC adapter that dials the core's `EdgeCore.Execute`; verify a tonic in-process test that an admitted call reaches the core and its result is encoded
+- [ ] 8.1 Define the `Core` trait mirroring gramsrv v2's edge-facing handler (admit/dispatch, durable auth keys, layer evidence, session offline) with an in-process implementation over the router, mapping a core failure to a TL error while keeping the session alive; verify in-process dispatch and core-failure tests
+- [ ] 8.2 Reshape `rtd-edge-proto` to mirror gramsrv v2's `CoreExecService` (service name, `DispatchRequest`/`DispatchResponse`, auth-key and layer-evidence messages, protocol version); verify prost round-trip and version-mismatch rejection tests
+- [ ] 8.3 Implement the tonic gRPC adapter that dials the core's `CoreExecService`; verify a tonic in-process test that an admitted call reaches the core and its result is encoded
 
 ## 9. `rtd-edge` service binary
 

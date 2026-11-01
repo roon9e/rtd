@@ -13,7 +13,8 @@ what turns the primitives into a runnable, multi-layer MTProto edge that Go `gra
 can adopt as a sidecar without rewriting its core. Everything the edge needs is already
 specified behavior in `server-edge`, `server-rpc`, and `edge-service`; this change
 implements it and adds the pieces those specs left open: the encrypted message envelope,
-the extra ingress transports, storage traits, and the direction of the gRPC boundary.
+the extra ingress transports, the state-ownership split, and the shape of the gRPC
+boundary.
 
 ## What Changes
 
@@ -39,12 +40,14 @@ the extra ingress transports, storage traits, and the direction of the gRPC boun
   unknown-method fallback, handler isolation, a **pluggable router trait**, and a small
   set of **built-in methods** (`help.getConfig`, `help.getNearestDc`, `ping`) to prove
   the path.
-- **Storage traits**: auth-key and session persistence behind traits, with an in-memory
-  backend; keys are durable before the exchange is confirmed; lookups are `(dc, key_id)`-
-  scoped so multi-DC can build on it later.
-- **Edge boundary**: an in-process `Core` trait the edge dispatches through, plus a
-  **tonic gRPC adapter** in which the edge dials the core's `EdgeCore.Execute`, so rtd
-  is usable from Go `gramsrv` as a sidecar edge. `rtd-edge` becomes a runnable service.
+- **State ownership (mirrors gramsrv v2)**: the core durably owns auth keys and
+  session-layer evidence; the edge keeps only transient per-connection state and an
+  auth-key cache, saving a new key to the core before confirming and resolving keys it
+  does not hold from the core.
+- **Edge boundary** (mirrors gramsrv v2's `CoreExecService`): an in-process `Core` trait
+  the edge dispatches through, plus a **tonic gRPC adapter** in which the edge dials the
+  core's `DispatchAdmitted`; multi-layer admission runs in the edge, and durable auth keys
+  and layer evidence live in the core. `rtd-edge` becomes a runnable service.
 - **Verification**: sans-IO session state-machine tests driven by injected time and
   randomness, an in-process end-to-end test (test client ↔ rtd edge ↔ fake core) across
   every ingress transport, and an extension of the official-engine **external-peer gate**
@@ -54,8 +57,8 @@ the extra ingress transports, storage traits, and the direction of the gRPC boun
 
 ### New Capabilities
 
-- `storage`: auth-key and session persistence behind traits, with an in-memory backend,
-  durable-before-confirmation, and `(dc, key_id)`-scoped lookups.
+None. Durable storage is owned by the core and reached over the boundary (mirroring
+gramsrv v2), so this change only modifies existing capabilities.
 
 ### Modified Capabilities
 
@@ -64,17 +67,18 @@ the extra ingress transports, storage traits, and the direction of the gRPC boun
 - `server-edge`: adds the encrypted session layer, WebSocket and FakeTLS/MTProxy ingress,
   the storage-backed session/key lifecycle, and the runtime budgets that serve them.
 - `server-rpc`: adds the pluggable request router and the built-in service methods.
-- `edge-service`: fixes the boundary direction (the edge dials the core) and adds the
-  in-process `Core` trait plus its tonic adapter.
+- `edge-service`: mirrors gramsrv v2's `CoreExecService` — the edge calls the core, the
+  core owns durable auth keys and layer evidence, admission runs in the edge, and an
+  in-process `Core` implementation shares the boundary with the tonic adapter.
 - `interop-testing`: extends the external-peer gate to a complete encrypted session and
   adds the in-process end-to-end test.
 
 ## Impact
 
-- **Crates**: new modules in `rtd-crypto` (encrypted message envelope, server salt) and
+- **Crates**: new modules in `rtd-crypto` (encrypted message envelope, server salt), and
   `rtd-proto` (sans-IO session state), plus `rtd-server` (transport ingress, session actor,
-  service messages, rpc, storage, core); `rtd-edge` becomes a service binary;
-  `rtd-edge-proto` gains the call/event messages it needs; `rtd` facade re-exports the
+  service messages, rpc, core-as-trait); `rtd-edge-proto` is reshaped to mirror gramsrv v2's
+  `CoreExecService`; `rtd-edge` becomes a service binary; the `rtd` facade re-exports the
   runtime surface. Generated crates are untouched (canonical layer 232).
 - **Dependencies**: adds `tokio`, `tonic`, `tokio-tungstenite`/`tungstenite`, and a
   hashing/HTTP helper where needed; keeps `prost`. No GPL dependency; the official engine
