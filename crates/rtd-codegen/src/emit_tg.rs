@@ -322,7 +322,9 @@ pub(crate) fn decode_element(ty: &RustType, profile: bool) -> String {
     match ty {
         RustType::Class(name) => {
             if profile {
-                format!("{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}")
+                format!(
+                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}"
+                )
             } else {
                 format!("{{ __d.enter()?; let value = {name}::decode(__d)?; __d.leave(); value }}")
             }
