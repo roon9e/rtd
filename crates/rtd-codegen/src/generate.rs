@@ -210,6 +210,63 @@ mod tests {
         assert!(rewrites > 0, "expected at least one rewrite route");
     }
 
+    /// The policy emitter cannot reuse the rewrite walker: a policy family's
+    /// profile field set is usually a *reduced* view of canonical (fields are
+    /// dropped for the older layer), so the emitter must walk the target layer's
+    /// fields and pull from canonical, apply `default`s, reject on
+    /// `reject`/`reject-if-present`, and call hooks for `adapter` obligations.
+    #[test]
+    fn policy_families_are_mostly_reduced_field_sets() {
+        use crate::model::FieldKind;
+        use crate::obligations;
+        use crate::routes::{RouteMode, build_route_table};
+        use std::collections::BTreeSet;
+
+        let root = workspace_root();
+        let (universe, _) =
+            crate::load::load_universe(&root.join("schema/layers/manifest.json")).unwrap();
+        let policy = crate::schema::load_policy(&root.join("schema/layers/policy.json")).unwrap();
+        let config = crate::schema::load_rtd_config(&root.join("schema/rtd.json")).unwrap();
+        let plan = obligations::analyze(&universe, &policy).unwrap();
+        let table = build_route_table(&universe, &plan, &config.enabled_layers).unwrap();
+
+        let mut same = 0usize;
+        let mut differ = 0usize;
+        let mut actions: BTreeSet<String> = BTreeSet::new();
+        for route in &table.routes {
+            if route.mode != RouteMode::Policy {
+                continue;
+            }
+            let profile = plan.profile(route.layer).unwrap();
+            let conv = profile.family(&route.semantic).unwrap();
+            for obligation in conv.body_obligations() {
+                if let Some(resolution) = &obligation.resolution {
+                    actions.insert(resolution.action.clone());
+                }
+            }
+            let (Some(canonical), Some(profile_def)) = (&conv.canonical, &conv.profile) else {
+                continue;
+            };
+            let names = |definition: &crate::model::Definition| -> Vec<String> {
+                definition
+                    .fields
+                    .iter()
+                    .filter(|field| field.kind == FieldKind::Value)
+                    .map(|field| field.name.clone())
+                    .collect()
+            };
+            if names(canonical) == names(profile_def) {
+                same += 1;
+            } else {
+                differ += 1;
+            }
+        }
+        assert!(differ > same, "most policy families reduce the field set");
+        assert!(actions.contains("drop"));
+        assert!(actions.contains("adapter"));
+        assert!(actions.contains("reject-if-present"));
+    }
+
     #[test]
     fn wrapper_metadata_is_emitted() {
         let generated = generate(workspace_root()).expect("generation");
