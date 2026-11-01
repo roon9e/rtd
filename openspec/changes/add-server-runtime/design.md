@@ -223,10 +223,28 @@ this change:
 
 Compatibility was verified by reading the drop-in target's source, not assumed.
 
+**Containment.** The gramsrv contract is confined to `rtd-edge-proto` and the `rtd-edge`
+binary. Only `rtd-edge` depends on `rtd-edge-proto`; `rtd-server` (where the `Core` trait
+lives) and every sans-IO crate stay free of it, and the contract types are never referenced
+outside those two crates. So mirroring `CoreExecService` does **not** make rtd incompatible
+as a general `td` library: the proto/codec/crypto/exchange/transport/tg/tlprofile crates
+remain gramsrv-agnostic, and a consumer using rtd as a `td` replacement never links the
+contract. The wrapper/call surface, secret parsing and name-registry fixes mirror `td`'s
+own `tlprofile`/`mtproxy`/`tmap`, so they move rtd *toward* a general `td` library, not away
+from it.
+
+**Pin, don't fork.** gramsrv's `coreexec.proto` is treated as a pinned input with recorded
+provenance (commit + content digest), the same discipline used for `td`'s schemas, so the
+boundary cannot drift silently and can be upgraded deliberately. Only the subset the edge
+uses is reproduced, and rtd's own `Core` trait remains the seam, so a future core can
+satisfy rtd without matching gramsrv.
+
 Alternatives: leave committed crates as-is and adapt inside `rtd-server` (rejected — the
 edge-proto shape cannot be adapted away, and the runtime gap would leak Go-shaped
 workarounds into the edge); copy gramsrv's packages wholesale (rejected — only the boundary
-schema is mirrored, and only the subset in use).
+schema is mirrored, only the subset in use, and only behind the integration crates); define
+a new generic edge contract instead of gramsrv's (deferred — it would not be drop-in with
+the existing gramsrv core, which is the point of D14; the `Core` trait keeps it possible).
 
 ## Risks / Trade-offs
 

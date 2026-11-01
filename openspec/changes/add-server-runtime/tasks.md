@@ -61,7 +61,8 @@ The committed runtime covers admission/freeze/dispatch but not the wrapper and c
 ## 10. Core boundary — trait, in-process core and `CoreExecService`-shaped gRPC adapter
 
 - [ ] 10.1 Define the `Core` trait mirroring gramsrv v2's edge-facing handler (admit/dispatch, durable auth keys, layer evidence, session offline) with an in-process implementation over the router, mapping a core failure to a TL error while keeping the session alive; verify in-process dispatch and core-failure tests
-- [ ] 10.2 Reshape `rtd-edge-proto` to mirror gramsrv v2's `coreexec.proto` — package `telesrv.coreexec.v1`, service `CoreExecService`, the method names and `DispatchRequest`/`DispatchResponse`/auth-key/layer-evidence messages with matching field tags, and a protocol-version handshake; verify prost round-trip and version/capability handshake tests
+- [ ] 10.2 Reshape `rtd-edge-proto` to mirror gramsrv v2's `coreexec.proto` — package `telesrv.coreexec.v1`, service `CoreExecService`, the method names and `DispatchRequest`/`DispatchResponse`/auth-key/layer-evidence messages with matching field tags, and a protocol-version handshake — importing the `.proto` as a pinned, provenance-recorded input rather than a hand copy; verify prost round-trip, version/capability handshake, and that the pinned provenance digest matches
+- [ ] 10.4 Verify containment: only `rtd-edge` depends on `rtd-edge-proto`, and no sans-IO crate or `rtd-server` references the contract types; verify with `cargo metadata`/`cargo tree` and a source scan for the contract symbols
 - [ ] 10.3 Implement the tonic gRPC adapter that dials the core's `CoreExecService`; verify a tonic in-process test that an admitted call reaches the core and its result is encoded
 
 ## 11. `rtd-edge` service binary
