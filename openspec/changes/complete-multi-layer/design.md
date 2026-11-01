@@ -161,6 +161,29 @@ the profile on decode), and `reject-if-present` fails closed only when a marked 
 present. Both are generated field logic; a non-scalar default is a generation error
 because no default can be materialised.
 
+### D41. Non-field hook shapes land as they are emitted, not all at once
+
+The reviewed policy resolves some present-in-both differences to hooks whose call
+site is not a single field. They are emitted incrementally, and any layer whose
+obligation shape is not yet emitted stays fail-closed (never a canonical fallback):
+
+- **field conversion** (`incompatible`, e.g. the bot-verification text family) — emitted:
+  the registry's `field_convert` names the two functions, and the emitter wraps the
+  surrounding `Option` and boxes the canonical class/object/method result.
+- **field requirement** (`required`, e.g. the ephemeral peers) — emitted: `field_require`
+  names the function that returns the value or fails when the mandatory profile field's
+  optional canonical source is absent.
+- **supply** (a mandatory canonical field absent from the profile whose value comes from
+  a hook, e.g. the legacy default keyboard-button type), **discard/capture** (the chat
+  invite query id, captured from a profile-only `webview` field), **project** (conditional
+  element/field drop) and the **vector row adapter** (`layerAdaptLegacyInlineKeyboardRows`,
+  which transitively needs the `ProfileOnly` keyboard buttons) are not emitted yet and are
+  tracked with tasks 3.3/4.1/5.1/5.3/5.4; the two keyboard-entangled ones belong with
+  `add-legacy-layer-constructors`.
+
+This keeps the change shippable and CI-green after each shape while preserving fail-closed
+semantics for the rest.
+
 ## Risks / Trade-offs
 
 - [Very large generated sidecar hurts compile time] → Deduplicate bodies by digest, keep
