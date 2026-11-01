@@ -1,0 +1,15 @@
+[package]
+name = "rtd-edge"
+description = "Sidecar MTProto edge service binary"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
