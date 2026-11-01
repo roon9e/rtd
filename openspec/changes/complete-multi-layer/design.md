@@ -27,10 +27,12 @@ See `proposal.md` — Why. What shapes the approach:
 
 **Goals**
 
-- Layers 225–232 admitted and served exactly; non-direct routes executed per the reviewed
-  conversion; fail-closed only for genuinely unavailable routes.
+- Layers 225–232 admitted; `Present` non-direct routes (retag/rewrite/policy) executed per
+  the reviewed conversion; fail-closed for unavailable routes and, for now, profile-only
+  routes.
 - Generated code stays never-hand-edited; conversion logic that cannot be generated lives
-  in a hand-written crate the generated code calls.
+  in a hand-written crate the generated code calls, driven by a shared hook-signature
+  registry.
 - Deterministic, atomic, budgeted generation over the full enabled set.
 
 **Non-Goals**
@@ -38,6 +40,8 @@ See `proposal.md` — Why. What shapes the approach:
 - No canonical-layer change (232 stays canonical) and no new schema import.
 - No runtime schema interpretation, no byte↔byte canonical transcoder, no canonical
   fallback.
+- `ProfileOnly` constructors (defined only in an older layer) are deferred to the
+  follow-up change `add-legacy-layer-constructors`; this change treats them as unavailable.
 - Not multi-DC, not a client library.
 
 ## Decisions
@@ -101,6 +105,33 @@ sidecar size/line budget grows. The raise is recorded with the measured size and
 Admission, encoding and decoding succeed only when a body/route exists and a required hook
 resolves; unavailable routes and unknown hooks fail closed with explicit errors, never a
 canonical fallback. This keeps the property the server runtime and `gramsrv` rely on.
+
+### D36. A shared hook-signature registry bridges the generator and the hooks
+
+The adapter hooks have concrete field-level signatures, exactly as in `td`'s
+`tlprofile/adapters.go` (for example a keyboard-button hook takes the profile plus the
+legacy field set and returns the canonical value, or the reverse). A single generic trait
+therefore does not fit. A hand-maintained registry maps each hook name to its parameters,
+returns and direction; the generator consumes it to emit calls with concrete argument
+types, and `rtd-layerhooks` implements exactly those functions. Generation fails when a
+coverable obligation has no signature or a signature is unused, extending the existing
+obligation coverage gate.
+
+Alternatives: one generic hook trait over `Object` (rejected — the conversions are
+field-structured and per-type, and a generic trait loses the compile-time field typing that
+makes the ports faithful); generate the hooks from the policy note (rejected — the notes
+describe the difference, not the conversion logic).
+
+### D37. `ProfileOnly` constructors are deferred to a follow-up change
+
+A `ProfileOnly` definition exists only in an older layer; canonical 232 has no variant for
+it — `keyboardButtonRequestPhone` became `keyboardButton` plus `buttonTypeRequestPhone`. A
+route on such a definition has no canonical value to convert from or to, so it needs a
+generated per-profile legacy field codec plus a field-level hook, with no canonical slot.
+That is a distinct and large surface (73 of 249 policy entries and 17 of the 34 hooks), so
+it is deferred to `add-legacy-layer-constructors`; this change treats `ProfileOnly` as
+unavailable (fail closed). Splitting keeps each change self-contained, reviewable and
+CI-green; the earlier single change would have mixed two independent mechanisms.
 
 ## Risks / Trade-offs
 
