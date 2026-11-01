@@ -30,8 +30,8 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - [x] 3.7 Implement SRP password hashing and proof computation including new-hash creation; verify proof accept/reject
 - [x] 3.8 Implement temporary AES keys, nonce hash, and initial server salt at fixed widths; verify a leading-zero-nonce test
 - [x] 3.9 Route all randomness through a cryptographically secure source and document it; verify no key material appears in `Debug`/`Display` output via a test
-- [ ] 3.10 Implement the client-side auth-key exchange flow (req_pq → resPQ → req_DH_params → set_client_DH_params → dh_gen_ok) over the sans-IO core using the injected time and randomness; verify against a fake server
-- [ ] 3.11 Implement the server-side auth-key exchange flow accepting both permanent and temporary key requests; verify a client-driven exchange completes and produces a matching auth key
+- [x] 3.10 Implement the client-side auth-key exchange flow (req_pq → resPQ → req_DH_params → set_client_DH_params → dh_gen_ok) over the sans-IO core using the injected time and randomness; verify against a fake server
+- [x] 3.11 Implement the server-side auth-key exchange flow accepting both permanent and temporary key requests; verify a client-driven exchange completes and produces a matching auth key
 
 ## 4. `rtd-proto` and `rtd-error` — MTProto framing
 

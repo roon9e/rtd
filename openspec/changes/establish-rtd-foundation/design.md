@@ -76,6 +76,7 @@ Crates (grep-friendly, acyclic, generated code isolated for compile times):
 | `rtd-proto` | message ids + replay window, containers, bounded gzip, rpc result, unencrypted messages, transport codecs |
 | `rtd-crypto` | AES-IGE, KDF v1/v2, auth key identity, RSA exchange padding, DH/PQ, SRP, temporary keys |
 | `rtd-transport` | TCP/WebSocket connections, obfuscated2, FakeTLS/MTProxy |
+| `rtd-exchange` | authorization-key exchange flows (client and server) |
 | `rtd-mt` | generated MTProto service (`mt`) schema |
 | `rtd-tg` | generated canonical value model (layer 232 first) |
 | `rtd-tlprofile` | generated profile sidecar + runtime admission/dispatch/freeze |

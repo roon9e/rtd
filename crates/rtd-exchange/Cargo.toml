@@ -1,0 +1,23 @@
+[package]
+name = "rtd-exchange"
+description = "MTProto authorization-key exchange flows"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rtd-bin = { path = "../rtd-bin" }
+rtd-crypto = { path = "../rtd-crypto" }
+rtd-mt = { path = "../rtd-mt" }
+rtd-proto = { path = "../rtd-proto" }
+rtd-util = { path = "../rtd-util" }
+num-bigint = "0.4"
+rsa = "0.9"
+
+[dev-dependencies]
+rand = "0.8"

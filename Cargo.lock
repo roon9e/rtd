@@ -571,6 +571,20 @@ name = "rtd-error"
 version = "0.0.0"
 
 [[package]]
+name = "rtd-exchange"
+version = "0.0.0"
+dependencies = [
+ "num-bigint",
+ "rand",
+ "rsa",
+ "rtd-bin",
+ "rtd-crypto",
+ "rtd-mt",
+ "rtd-proto",
+ "rtd-util",
+]
+
+[[package]]
 name = "rtd-mt"
 version = "0.0.0"
 dependencies = [
