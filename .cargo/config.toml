@@ -1,0 +1,17 @@
+# Build configuration for the rtd workspace.
+
+[build]
+# Cargo already compiles crates in parallel across all cores; this makes the
+# intent explicit (a negative value means "one fewer than the CPU count").
+jobs = -1
+
+# The generated crates are large; lowering dev debuginfo cuts link time and
+# target size without affecting correctness.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.test]
+debug = "line-tables-only"

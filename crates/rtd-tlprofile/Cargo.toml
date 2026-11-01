@@ -11,4 +11,6 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-
+rtd-bin = { path = "../rtd-bin" }
+rtd-tg = { path = "../rtd-tg" }
+sha2 = "0.10"

@@ -1,11 +1,10 @@
 //! Telegram TL error types and parsing.
+#![warn(missing_docs)]
 //!
 //! A Telegram RPC error is an integer code plus a message such as
 //! `FLOOD_WAIT_3`. The message carries a *type* (`FLOOD_WAIT`) and, when the
 //! last underscore-separated component is a number, a numeric *argument*
 //! (`3`). This module reproduces that parsing exactly.
-
-#![allow(clippy::module_name_repetitions)]
 
 use core::fmt;
 use core::time::Duration;

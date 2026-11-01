@@ -29,7 +29,7 @@ const BLOCK: usize = 16;
 ///
 /// Panics if `data.len()` is not a multiple of 16.
 pub fn encrypt(key: &[u8; 32], iv: &[u8; 32], data: &mut [u8]) {
-    let cipher = Aes256::new_from_slice(key).expect("AES-256 accepts a 32-byte key");
+    let cipher = Aes256::new(GenericArray::from_slice(key));
     encrypt_blocks(&cipher, iv, data);
 }
 
@@ -39,7 +39,7 @@ pub fn encrypt(key: &[u8; 32], iv: &[u8; 32], data: &mut [u8]) {
 ///
 /// Panics if `data.len()` is not a multiple of 16.
 pub fn decrypt(key: &[u8; 32], iv: &[u8; 32], data: &mut [u8]) {
-    let cipher = Aes256::new_from_slice(key).expect("AES-256 accepts a 32-byte key");
+    let cipher = Aes256::new(GenericArray::from_slice(key));
     decrypt_blocks(&cipher, iv, data);
 }
 

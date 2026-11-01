@@ -1,4 +1,5 @@
 //! Shared utilities for the sans-IO protocol core.
+#![warn(missing_docs)]
 //!
 //! The protocol crates own no sockets and no runtime, and they must not read
 //! ambient time or randomness. This crate provides the injectable [`Clock`] and

@@ -48,24 +48,24 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 
 ## 5. Schema import and generator skeleton
 
-- [ ] 5.1 Build the import step that pulls `td`'s `_schema/layers/*.tl`, `manifest.json`, and `policy.json` into rtd while preserving each schema's tdesktop repository/commit/blob/SHA-256 provenance; verify SHA-256 verification passes and a modified schema fails the check
-- [ ] 5.2 Implement the Rust TL parser for layer schema files requiring explicit constructor identifiers; verify it parses layer 232 and rejects a fixture line lacking an identifier
-- [ ] 5.3 Implement the manifest and universe model (semantic families, per-layer definitions, shared wire codecs) with digest computation and SHA-256 verification; verify mismatch detection and family grouping tests
-- [ ] 5.4 Implement conversion analysis, obligation digests, and policy loading; verify unreviewed differences and stale policy entries both fail generation
-- [ ] 5.5 Implement route classification (`direct`/`retag`/`rewrite`/`policy`/`profile-only`/`unavailable`) over the full `(wire × profile)` product with a completeness check; verify an explicit action is required for every pair
-- [ ] 5.6 Implement plan emission with digest-based deduplication (body/preflight/result); verify duplicate plans collapse to one emitted unit
-- [ ] 5.7 Generate the canonical value model (`rtd-tg`) for layer 232; verify the generated crate compiles, exposes the layer constant, and provides a wire-id→name registry
-- [ ] 5.8 Generate the profile sidecar (`rtd-tlprofile`) for layer 232; verify it compiles and route-lookup tests pass
-- [ ] 5.9 Implement deterministic, atomic output writes and the source-budget check; verify two runs are byte-identical and that exceeding the budget fails generation
-- [ ] 5.10 Generate the MTProto service schema (`rtd-mt`) from `_schema/mt.tl` (a single, non-layered schema) through the same generator; verify the generated crate compiles and provides the handshake and service types (req_pq, resPQ, req_DH_params, dh_gen_ok, ping/pong, rpc_result, msgs_ack, new_session_created, …) needed by the auth-key exchange
+- [x] 5.1 Build the import step that pulls `td`'s `_schema/layers/*.tl`, `manifest.json`, and `policy.json` into rtd while preserving each schema's tdesktop repository/commit/blob/SHA-256 provenance; verify SHA-256 verification passes and a modified schema fails the check
+- [x] 5.2 Implement the Rust TL parser for layer schema files requiring explicit constructor identifiers; verify it parses layer 232 and rejects a fixture line lacking an identifier
+- [x] 5.3 Implement the manifest and universe model (semantic families, per-layer definitions, shared wire codecs) with digest computation and SHA-256 verification; verify mismatch detection and family grouping tests
+- [x] 5.4 Implement conversion analysis, obligation digests, and policy loading; verify unreviewed differences and stale policy entries both fail generation
+- [x] 5.5 Implement route classification (`direct`/`retag`/`rewrite`/`policy`/`profile-only`/`unavailable`) over the full `(wire × profile)` product with a completeness check; verify an explicit action is required for every pair
+- [x] 5.6 Implement plan emission with digest-based deduplication (body/preflight/result); verify duplicate plans collapse to one emitted unit
+- [x] 5.7 Generate the canonical value model (`rtd-tg`) for layer 232; verify the generated crate compiles, exposes the layer constant, and provides a wire-id→name registry
+- [x] 5.8 Generate the profile sidecar (`rtd-tlprofile`) for layer 232; verify it compiles and route-lookup tests pass
+- [x] 5.9 Implement deterministic, atomic output writes and the source-budget check; verify two runs are byte-identical and that exceeding the budget fails generation
+- [x] 5.10 Generate the MTProto service schema (`rtd-mt`) from `_schema/mt.tl` (a single, non-layered schema) through the same generator; verify the generated crate compiles and provides the handshake and service types (req_pq, resPQ, req_DH_params, dh_gen_ok, ping/pong, rpc_result, msgs_ack, new_session_created, …) needed by the auth-key exchange
 
 ## 6. `rtd-tlprofile` runtime — multi-layer behavior
 
-- [ ] 6.1 Implement a data-driven profile type and resolution with no hard-coded profile count; verify an unsupported layer resolves to "none" and is refused
-- [ ] 6.2 Implement semantic identity lookup and wire-id↔semantic resolution per profile; verify identity is stable when a wire id changes between layers
-- [ ] 6.3 Implement admission (exact, inherited-default, unprofiled) with wrapper parsing and admission limits; verify unsupported-layer refusal, conflicting-selector rejection, and limit enforcement
-- [ ] 6.4 Implement dispatch, per-profile result encoding, and value freezing; verify an unrepresentable value fails closed and freezing enables fan-out to two profiles
-- [ ] 6.5 Implement wire-invariant terminal handling; verify an invariant-only request is admitted without a profile
+- [x] 6.1 Implement a data-driven profile type and resolution with no hard-coded profile count; verify an unsupported layer resolves to "none" and is refused
+- [x] 6.2 Implement semantic identity lookup and wire-id↔semantic resolution per profile; verify identity is stable when a wire id differs between layers
+- [x] 6.3 Implement admission (exact, inherited-default, unprofiled) with wrapper parsing and admission limits; verify unsupported-layer refusal, conflicting-selector rejection, and limit enforcement
+- [x] 6.4 Implement dispatch, per-profile result encoding, and value freezing; verify an unrepresentable value fails closed and freezing enables fan-out to two profiles
+- [x] 6.5 Implement wire-invariant terminal handling; verify an invariant-only request is admitted without a profile
 
 ## 7. Edge service contract (foundation for `gramsrv` integration)
 
@@ -97,5 +97,8 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - Make the FakeTLS ClientHello byte-accurate to a real Chrome fingerprint (the current template is a minimal, valid TLS handshake that satisfies the HMAC contract but is not a uTLS-identical fingerprint).
 - Re-baseline the multi-DC design (D5, D9, D10, D15, D16) against the maintainer's v2 multi-DC implementation once it is available in a public branch/commit.
 - Decide the two candidate adoptions from the official-engine review: `zeroize` for key material in `rtd-crypto`, and a security-requirement-to-test matrix.
+- Emit non-direct route bodies (retag/rewrite/policy/profile-only) so multi-profile fan-out is exercisable beyond the canonical layer.
+- Two generated-code lint allowances remain, both justified and documented: `non_camel_case_types` (distinct TL names differ only by case) and `clippy::large_enum_variant` (class constructors differ widely in size). Revisit only if a naming/collision scheme or variant boxing is later wanted.
+- Emit per-item TL documentation in `rtd-tg`/`rtd-mt` (the `missing_docs` lint is now scoped to hand-written crates, so this is a quality improvement, not a lint fix).
 - Review the sans-IO core boundary (D18) against the official engine's `mtproto-core` module layout and record any further alignment.
 - Install Go (for the `td` vector helper, tasks 8.1/9.1) and confirm the external peer (task 8.5) can be fetched/built in CI.

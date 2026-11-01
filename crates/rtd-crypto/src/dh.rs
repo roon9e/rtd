@@ -137,10 +137,12 @@ pub fn check_prime(p: &BigUint) -> Result<()> {
 
 /// Tests one of the generator congruence conditions.
 fn check_subgroup(p: &BigUint, divider: u64, expected: &[u64]) -> bool {
-    let remainder = (p % BigUint::from(divider))
-        .to_u64()
-        .expect("remainder is smaller than the divider");
-    expected.contains(&remainder)
+    match (p % BigUint::from(divider)).to_u64() {
+        Some(remainder) => expected.contains(&remainder),
+        // The remainder is always smaller than the divider, so this is
+        // unreachable in practice; treat a non-u64 remainder as not matching.
+        None => false,
+    }
 }
 
 /// Miller-Rabin probabilistic primality test with random witnesses.

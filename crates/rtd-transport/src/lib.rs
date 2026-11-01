@@ -1,4 +1,5 @@
 //! Transport connections, obfuscation and proxying.
+#![warn(missing_docs)]
 //!
 //! This crate implements the MTProxy obfuscation layers: [`obfuscated2`], which
 //! wraps a connection in an AES-CTR stream keyed by a 64-byte random init, and

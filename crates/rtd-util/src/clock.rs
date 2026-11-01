@@ -4,7 +4,7 @@
 //! identifiers, salts and timeouts all depend on time, and tests need to
 //! advance it without waiting. Protocol code therefore takes a [`Clock`].
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// A source of the current time.
@@ -57,14 +57,23 @@ impl ManualClock {
     }
 
     /// Advances the clock by `delta`.
+    ///
+    /// A caller holding the lock while panicking leaves it poisoned; the clock
+    /// is a test utility whose value stays usable, so poisoning is recovered
+    /// rather than propagated.
     pub fn advance(&self, delta: Duration) {
-        let mut now = self.now.lock().expect("clock poisoned");
-        *now = now.checked_add(delta).expect("clock overflow");
+        let mut now = self.lock();
+        *now = now.checked_add(delta).unwrap_or(*now);
     }
 
     /// Sets the clock to `time`.
     pub fn set(&self, time: SystemTime) {
-        *self.now.lock().expect("clock poisoned") = time;
+        *self.lock() = time;
+    }
+
+    /// Locks the shared time, recovering from poisoning.
+    fn lock(&self) -> MutexGuard<'_, SystemTime> {
+        self.now.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -76,7 +85,7 @@ impl Default for ManualClock {
 
 impl Clock for ManualClock {
     fn now(&self) -> SystemTime {
-        *self.now.lock().expect("clock poisoned")
+        *self.lock()
     }
 }
 

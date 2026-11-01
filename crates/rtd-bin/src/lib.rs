@@ -1,4 +1,5 @@
 //! TL binary serialization primitives.
+#![warn(missing_docs)]
 //!
 //! This crate implements the byte- and value-level encoding used by MTProto.
 //! It provides two halves with explicit ownership:

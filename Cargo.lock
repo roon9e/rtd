@@ -536,6 +536,9 @@ version = "0.0.0"
 [[package]]
 name = "rtd-codegen"
 version = "0.0.0"
+dependencies = [
+ "sha2 0.10.9",
+]
 
 [[package]]
 name = "rtd-crypto"
@@ -570,6 +573,9 @@ version = "0.0.0"
 [[package]]
 name = "rtd-mt"
 version = "0.0.0"
+dependencies = [
+ "rtd-bin",
+]
 
 [[package]]
 name = "rtd-proto"
@@ -590,10 +596,18 @@ version = "0.0.0"
 [[package]]
 name = "rtd-tg"
 version = "0.0.0"
+dependencies = [
+ "rtd-bin",
+]
 
 [[package]]
 name = "rtd-tlprofile"
 version = "0.0.0"
+dependencies = [
+ "rtd-bin",
+ "rtd-tg",
+ "sha2 0.10.9",
+]
 
 [[package]]
 name = "rtd-transport"

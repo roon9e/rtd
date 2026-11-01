@@ -1,4 +1,5 @@
 //! MTProto message framing and transport codecs.
+#![warn(missing_docs)]
 //!
 //! This crate implements the server-facing protocol core: message identifiers
 //! and replay mitigation, message containers, packed (gzipped) payloads, RPC

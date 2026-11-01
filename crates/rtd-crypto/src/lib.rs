@@ -1,4 +1,5 @@
 //! MTProto cryptography primitives.
+#![warn(missing_docs)]
 //!
 //! This crate implements the server-facing cryptographic core of the MTProto
 //! protocol, mirroring the behaviour of the reference Go implementation in
