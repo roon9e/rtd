@@ -72,10 +72,11 @@ context: |
     edge-only. Authorization transfer is signed with a shared deployment secret (HMAC over
     user id, source DC, expiry). The full architecture section lives in the
     establish-rtd-foundation change's design.md.
-  - VCS/branch model: development happens on `dev`; releases are merged to `main`.
-    GitHub account roon9e; commit email roon9e@users.noreply.github.com.
+  - VCS/branch model: development happens locally and is pushed directly to `main`,
+    the single long-lived branch; there is no separate working branch. GitHub account
+    roon9e; commit email roon9e@users.noreply.github.com.
   - CI: independent checks (format, clippy, build, test, interop, and a
-    generation-freshness check), modelled on td's CI, running on `dev` and `main`.
+    generation-freshness check), modelled on td's CI, running on `main`.
   - Reference repos on this machine: C:\Users\roon9e\Documents\github\td (Go library)
     and C:\Users\roon9e\Documents\github\gramsrv (Go server, module `telesrv`).
 

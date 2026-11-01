@@ -2,11 +2,11 @@
 
 ## Branch model
 
-- **`main`** is the release/default branch. It is always in a releasable state.
-- **`dev`** is the working branch. All development happens here.
-- Releases are made by merging `dev` into `main`; `main` is not committed to directly.
+Development happens locally and is pushed directly to **`main`**, the single
+long-lived branch. `main` is always kept in a releasable state; there is no separate
+working branch.
 
-CI runs on both `dev` and `main` (see `.github/workflows/ci.yml`).
+CI runs on `main` (see `.github/workflows/ci.yml`).
 
 ## Local checks
 
