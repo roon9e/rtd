@@ -21,28 +21,28 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 
 ## 3. `rtd-crypto` — MTProto cryptography
 
-- [ ] 3.1 Implement AES-IGE encryption and decryption; verify against known vectors
-- [ ] 3.2 Implement the MTProto 2.0 key-derivation function (message key, AES key/IV, side-dependent offset); verify client-side and server-side derivations interoperate
-- [ ] 3.3 Implement the auth-key type with 64-bit identifier and auxiliary hash; verify identifiers against known values and that formatting never reveals key bytes
-- [ ] 3.4 Implement the legacy key-derivation function and the temporary-auth-key bind envelope; verify round-trip
-- [ ] 3.5 Implement RSA exchange padding and its inverse plus public/private key parsing; verify round-trip with a generated key pair
-- [ ] 3.6 Implement Diffie-Hellman and composite validation (range checks, prime and half-prime primality, generator conditions, factorization bounds); verify against known vectors and weak-parameter rejection
-- [ ] 3.7 Implement SRP password hashing and proof computation including new-hash creation; verify proof accept/reject
-- [ ] 3.8 Implement temporary AES keys, nonce hash, and initial server salt at fixed widths; verify a leading-zero-nonce test
-- [ ] 3.9 Route all randomness through a cryptographically secure source and document it; verify no key material appears in `Debug`/`Display` output via a test
+- [x] 3.1 Implement AES-IGE encryption and decryption; verify against known vectors
+- [x] 3.2 Implement the MTProto 2.0 key-derivation function (message key, AES key/IV, side-dependent offset); verify client-side and server-side derivations interoperate
+- [x] 3.3 Implement the auth-key type with 64-bit identifier and auxiliary hash; verify identifiers against known values and that formatting never reveals key bytes
+- [x] 3.4 Implement the legacy key-derivation function and the temporary-auth-key bind envelope; verify round-trip
+- [x] 3.5 Implement RSA exchange padding and its inverse plus public/private key parsing; verify round-trip with a generated key pair
+- [x] 3.6 Implement Diffie-Hellman and composite validation (range checks, prime and half-prime primality, generator conditions, factorization bounds); verify against known vectors and weak-parameter rejection
+- [x] 3.7 Implement SRP password hashing and proof computation including new-hash creation; verify proof accept/reject
+- [x] 3.8 Implement temporary AES keys, nonce hash, and initial server salt at fixed widths; verify a leading-zero-nonce test
+- [x] 3.9 Route all randomness through a cryptographically secure source and document it; verify no key material appears in `Debug`/`Display` output via a test
 
 ## 4. `rtd-proto` and `rtd-error` — MTProto framing
 
-- [ ] 4.1 Implement message-id encoding, time/type recovery, and a monotonic generator; verify round-trip and collision-avoidance tests
-- [ ] 4.2 Implement the replay window; verify duplicate and outdated identifiers are rejected
-- [ ] 4.3 Implement message containers with per-element length bounds; verify oversized-element rejection and nested decode
-- [ ] 4.4 Implement bounded decompression with an expansion limit; verify a decompression-bomb is rejected
-- [ ] 4.5 Implement RPC result framing including compressed result payloads; verify request-id mapping
-- [ ] 4.6 Implement unencrypted exchange messages (zero auth-key id) encode/decode; verify round-trip and malformed rejection
-- [ ] 4.7 Implement the abridged, intermediate, padded-intermediate, and full transport codecs with headers, length encodings, padding, checksum/sequence checks, detection, and bounded chunked reads; verify byte-level goldens per codec
-- [ ] 4.8 Implement transport protocol-error parsing (key-not-found, wrong-DC, flood); verify each code is surfaced
-- [ ] 4.9 Implement obfuscated2 and FakeTLS framing with secret-based keys and DC labelling; verify goldens and DC-label extraction
-- [ ] 4.10 Implement the TL error type with code/message and numeric-suffix parsing plus wait-error handling; verify `TYPE_<n>` type/argument extraction and wait parsing
+- [x] 4.1 Implement message-id encoding, time/type recovery, and a monotonic generator; verify round-trip and collision-avoidance tests
+- [x] 4.2 Implement the replay window; verify duplicate and outdated identifiers are rejected
+- [x] 4.3 Implement message containers with per-element length bounds; verify oversized-element rejection and nested decode
+- [x] 4.4 Implement bounded decompression with an expansion limit; verify a decompression-bomb is rejected
+- [x] 4.5 Implement RPC result framing including compressed result payloads; verify request-id mapping
+- [x] 4.6 Implement unencrypted exchange messages (zero auth-key id) encode/decode; verify round-trip and malformed rejection
+- [x] 4.7 Implement the abridged, intermediate, padded-intermediate, and full transport codecs with headers, length encodings, padding, checksum/sequence checks, detection, and bounded chunked reads; verify byte-level goldens per codec
+- [x] 4.8 Implement transport protocol-error parsing (key-not-found, wrong-DC, flood); verify each code is surfaced
+- [x] 4.9 Implement obfuscated2 and FakeTLS framing with secret-based keys and DC labelling; verify goldens and DC-label extraction
+- [x] 4.10 Implement the TL error type with code/message and numeric-suffix parsing plus wait-error handling; verify `TYPE_<n>` type/argument extraction and wait parsing
 
 ## 5. Schema import and generator skeleton
 
@@ -88,3 +88,5 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - Implement the edge service itself (beyond the contract skeleton) in migration-plan stage 3 (D14).
 - Add the first-party PostgreSQL storage backend at the multi-DC/outbox stage (D12).
 - Realize the durable outbox `Delivery` backend at migration-plan stage 4 (D10).
+- Make the FakeTLS ClientHello byte-accurate to a real Chrome fingerprint (the current template is a minimal, valid TLS handshake that satisfies the HMAC contract but is not a uTLS-identical fingerprint).
+- Re-baseline the multi-DC design (D5, D9, D10, D15, D16) against the maintainer's v2 multi-DC implementation once it is available in a public branch/commit.

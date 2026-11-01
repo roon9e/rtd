@@ -11,4 +11,16 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+rtd-bin = { path = "../rtd-bin" }
+aes = "0.8"
+getrandom = "0.2"
+num-bigint = "0.4"
+num-traits = "0.2"
+pbkdf2 = "0.12"
+rsa = "0.9"
+sha1 = "0.10"
+sha2 = "0.10"
 
+[dev-dependencies]
+hex = "0.4"
+rand = "0.8"

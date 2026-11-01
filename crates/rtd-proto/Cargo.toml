@@ -11,4 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-
+rtd-bin = { path = "../rtd-bin" }
+flate2 = "1"
+crc32fast = "1"
+getrandom = "0.4"
