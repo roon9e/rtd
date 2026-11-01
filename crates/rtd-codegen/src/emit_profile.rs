@@ -2189,7 +2189,9 @@ fn admit_impl(
             .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?;
         let route = lookup_route_semantic(profile, canonical_semantic)
             .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?;
-        if !matches!(route.mode, RouteMode::Direct | RouteMode::Retag) {
+        // Direct, retag, rewrite and policy routes are all servable; only a
+        // profile-only or unavailable route fails closed.
+        if matches!(route.mode, RouteMode::ProfileOnly | RouteMode::Unavailable) {
             return Err(AdmitError::UnsupportedRoute(route));
         }
         admitted_profile = Some(profile);

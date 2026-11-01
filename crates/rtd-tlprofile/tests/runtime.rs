@@ -369,6 +369,37 @@ fn unknown_wire_id_is_refused() {
     assert!(matches!(error, AdmitError::Decode(_)), "{error:?}");
 }
 
+/// A policy *method* is admitted: the profile wire id is decoded through the
+/// generated policy codec and the canonical method is resolved, so admission no
+/// longer refuses rewrite/policy terminals.
+#[test]
+fn policy_method_admits_on_the_profile() {
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| {
+            route.profile == 225 && route.semantic == semantic::METHOD_BOTS_SET_CUSTOM_VERIFICATION
+        })
+        .copied()
+        .expect("layer 225 has a bots.setCustomVerification route");
+    assert_eq!(route.mode, RouteMode::Policy);
+
+    let mut writer = Writer::new();
+    writer.put_u32(route.wire_id);
+    writer.put_u32(0); // no bot, enabled = false, no custom_description
+    writer.put_u32(0x7da0_7ec9); // InputPeerSelf
+    let admission = admit(Profile::new(225), &writer.into_vec()).expect("policy method admits");
+    assert_eq!(admission.wire_id, route.wire_id);
+    assert_eq!(
+        admission.semantic,
+        semantic::METHOD_BOTS_SET_CUSTOM_VERIFICATION
+    );
+    let Method::BotsSetCustomVerification(value) = admission.request else {
+        panic!("expected bots.setCustomVerification");
+    };
+    assert!(!value.enabled);
+    assert!(value.custom_description.is_none());
+}
+
 #[test]
 fn unsupported_layer_is_refused() {
     assert!(resolve_profile(232).is_some());

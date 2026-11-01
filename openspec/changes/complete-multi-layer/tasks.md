@@ -32,7 +32,7 @@
 
 ## 6. Runtime execution and fan-out
 
-- [ ] 6.1 Update admission, per-profile encode and decode to execute present-in-both non-direct bodies; verify admission and encoding on a retag, a rewrite and a policy route, and fail-closed on an unavailable and a profile-only route
+- [ ] 6.1 Update admission, per-profile encode and decode to execute present-in-both non-direct bodies; verify admission and encoding on a retag, a rewrite and a policy route, and fail-closed on an unavailable and a profile-only route (admission now serves retag, rewrite and policy terminals, refusing only profile-only/unavailable routes, with `policy_method_admits_on_the_profile`; encode/decode cover all three; profile-only and unrouted refusals are tested; the `unavailable` construct has no routes in the enabled set)
 - [ ] 6.2 Verify multi-profile fan-out: freeze one canonical value and encode it for each enabled layer with a present-in-both route, confirming each output is valid for its layer
 
 ## 7. Integration verification

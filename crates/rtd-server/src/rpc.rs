@@ -85,6 +85,7 @@ pub fn map_admit_error(error: &AdmitError) -> RtdError {
         AdmitError::UnsupportedTerminal(_) => unknown_method_error(),
         AdmitError::UnsupportedRoute(_) => RtdError::new(CODE_INTERNAL, "ROUTE_UNAVAILABLE"),
         AdmitError::Limit { .. } => RtdError::new(CODE_BAD_REQUEST, "REQUEST_LIMIT_EXCEEDED"),
+        AdmitError::Hook(_) => RtdError::new(CODE_BAD_REQUEST, "LAYER_CONVERSION_FAILED"),
     }
 }
 
