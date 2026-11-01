@@ -662,10 +662,10 @@ mod tests {
     #[test]
     fn fail_closed_unsupported_layer() {
         let mut binding = LayerBinding::new(canonical());
-        assert!(binding.correct(231, &OrderingKey::default()).is_err());
+        assert!(binding.correct(224, &OrderingKey::default()).is_err());
 
         let bad = Method::InvokeWithLayer(Box::new(InvokeWithLayer {
-            layer: 231,
+            layer: 224,
             query: Box::new(Method::HelpGetConfig(Box::new(HelpGetConfig))),
         }));
         let error = admit_default(canonical(), &encode_method(&bad)).expect_err("admit fails");
