@@ -529,6 +529,32 @@ fn freezing_fans_out_to_multiple_profiles() {
     assert_eq!(frozen.canonical(), &Object::Bool(Box::new(Bool::BoolFalse)));
 }
 
+/// One frozen canonical value fans out to every enabled layer that has a route
+/// for it: each layer's encoding decodes back to the same value. `botVerification`
+/// is canonical in 230..=232 and a field-hook policy route in 225..=229.
+#[test]
+fn freezing_fans_out_to_every_enabled_layer() {
+    let value = Object::BotVerification(Box::new(BotVerification {
+        bot_id: 1,
+        icon: 2,
+        description: Box::new(TextWithEntities {
+            text: "verified".to_owned(),
+            entities: Vec::new(),
+        }),
+    }));
+    let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+    for &layer in rtd_tlprofile::PROFILES {
+        let profile = resolve_profile(layer).expect("enabled layer resolves");
+        let mut writer = Writer::new();
+        frozen
+            .encode(profile, &mut writer)
+            .unwrap_or_else(|error| panic!("encode for layer {layer}: {error:?}"));
+        let decoded = decode_object(profile, &writer.into_vec(), Limits::default())
+            .unwrap_or_else(|error| panic!("decode for layer {layer}: {error:?}"));
+        assert_eq!(decoded, value, "layer {layer} did not round trip");
+    }
+}
+
 #[test]
 fn invariant_terminal_needs_no_profile() {
     let body = encode_method(&bind());

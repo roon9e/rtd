@@ -406,6 +406,36 @@ mod tests {
         assert!(actions.contains("reject-if-present"));
     }
 
+    /// Route completeness: every definition present in an enabled layer has an
+    /// explicit `(profile, wire id)` route, so no represented pair is silently
+    /// absent (a definition the layer lacks is deliberately unrouted, which is
+    /// its explicit "unavailable" action).
+    #[test]
+    fn every_present_definition_has_a_route_in_its_layer() {
+        use super::obligations;
+        use crate::routes::build_route_table;
+
+        let root = workspace_root();
+        let (universe, _) =
+            crate::load::load_universe(&root.join("schema/layers/manifest.json")).unwrap();
+        let policy = crate::schema::load_policy(&root.join("schema/layers/policy.json")).unwrap();
+        let config = crate::schema::load_rtd_config(&root.join("schema/rtd.json")).unwrap();
+        let plan = obligations::analyze(&universe, &policy).unwrap();
+        let table = build_route_table(&universe, &plan, &config.enabled_layers).unwrap();
+
+        for &layer in &config.enabled_layers {
+            let schema = &universe.schemas[&layer];
+            for definition in &schema.definitions {
+                assert!(
+                    table.lookup(layer, definition.wire_id).is_some(),
+                    "layer {layer} definition {} wire {:#010x} has no route",
+                    definition.key.as_string(),
+                    definition.wire_id
+                );
+            }
+        }
+    }
+
     #[test]
     fn wrapper_metadata_is_emitted() {
         let generated = generate(workspace_root()).expect("generation");

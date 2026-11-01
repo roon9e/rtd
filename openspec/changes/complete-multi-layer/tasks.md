@@ -33,11 +33,11 @@
 ## 6. Runtime execution and fan-out
 
 - [ ] 6.1 Update admission, per-profile encode and decode to execute present-in-both non-direct bodies; verify admission and encoding on a retag, a rewrite and a policy route, and fail-closed on an unavailable and a profile-only route (admission now serves retag, rewrite and policy terminals, refusing only profile-only/unavailable routes, with `policy_method_admits_on_the_profile`; encode/decode cover all three; profile-only and unrouted refusals are tested; the `unavailable` construct has no routes in the enabled set)
-- [ ] 6.2 Verify multi-profile fan-out: freeze one canonical value and encode it for each enabled layer with a present-in-both route, confirming each output is valid for its layer
+- [x] 6.2 Verify multi-profile fan-out: freeze one canonical value and encode it for each enabled layer with a present-in-both route, confirming each output is valid for its layer (`freezing_fans_out_to_every_enabled_layer` round-trips one frozen `botVerification` through all eight enabled layers, canonical in 230..=232 and a field-hook policy route in 225..=229)
 
 ## 7. Integration verification
 
-- [ ] 7.1 Add per-layer round-trip tests for present-in-both families across the enabled layers and a route-completeness test asserting an explicit action for every `(wire × profile)` pair
+- [ ] 7.1 Add per-layer round-trip tests for present-in-both families across the enabled layers and a route-completeness test asserting an explicit action for every `(wire × profile)` pair (round-trip across all enabled layers via `freezing_fans_out_to_every_enabled_layer` and the per-route policy tests; route completeness via `every_present_definition_has_a_route_in_its_layer`, matching the build-time invariant that a definition the layer lacks is deliberately unrouted — its explicit unavailable action)
 - [ ] 7.2 Verify fail-closed coverage: unsupported layer refused, unavailable route refused, profile-only route refused, unknown hook refused, unrepresentable value refused, and no canonical fallback emitted (covered now: unsupported layer (`unsupported_layer_is_refused`), unrepresentable value (`unrepresentable_value_fails_closed`), profile-only route (`profile_only_route_is_refused`) and an unrouted wire id (`unknown_wire_id_is_refused`); unknown-hook and no-canonical-fallback await the hook call-site emission)
 - [ ] 7.3 Run the full workspace gate (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`) and the generation-freshness check; confirm all are green
 
