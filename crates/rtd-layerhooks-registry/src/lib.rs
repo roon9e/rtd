@@ -126,6 +126,22 @@ pub const HOOKS: &[HookSpec] = &[
         signature: "layerDefaultLegacyKeyboardButtonTypeDecode(_ LayerProfile, value *KeyboardButton) (ButtonType, error)",
     },
     HookSpec {
+        name: "layerProjectEphemeralBotCommand",
+        direction: Direction::CanonicalToProfile,
+        // The projection drops an ephemeral command from a vector; the exact
+        // call-site shape is pinned with the policy emission (task 3.3).
+        status: Status::Deferred,
+        signature: "layerProjectEphemeralBotCommandProject(profile, value *BotCommand, ephemeral bool) (*BotCommand, bool, error)",
+    },
+    HookSpec {
+        name: "layerProjectLegacyDefaultKeyboardButton",
+        direction: Direction::CanonicalToProfile,
+        // Projects a default-typed keyboard button's `type` away; pinned with the
+        // policy emission (task 3.3).
+        status: Status::Deferred,
+        signature: "layerProjectLegacyDefaultKeyboardButtonProject(profile, value *KeyboardButton, buttonType ButtonType) (*KeyboardButton, bool, error)",
+    },
+    HookSpec {
         name: "layerRequireCapturedChatInviteJoinQueryID",
         direction: Direction::ProfileToCanonical,
         status: Status::Implemented,

@@ -108,13 +108,14 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     })
 }
 
-/// Enforces the hook coverage gate over the reviewed adapter obligations.
+/// Enforces the hook coverage gate over the reviewed hook-backed obligations.
 ///
-/// Every present-in-both adapter obligation must name a registered hook whose
-/// direction covers the obligation, and every registered hook must be referenced
-/// by at least one such obligation (no stale signature). Hooks whose family
-/// exists only in an older layer (`old-only`) are deferred to the follow-up
-/// `add-legacy-layer-constructors` change and are not registered.
+/// Every present-in-both obligation whose action requires a hook (`adapter` or
+/// `project`) must name a registered hook whose direction covers the obligation,
+/// and every registered hook must be referenced by at least one such obligation
+/// (no stale signature). Hooks whose family exists only in an older layer
+/// (`old-only`) are deferred to the follow-up `add-legacy-layer-constructors`
+/// change and are not registered.
 ///
 /// # Errors
 ///
@@ -134,7 +135,7 @@ fn check_hook_registry(
         let Some(resolution) = &obligation.resolution else {
             continue;
         };
-        if resolution.action != "adapter" {
+        if !matches!(resolution.action.as_str(), "adapter" | "project") {
             continue;
         }
         let spec = find(&resolution.hook).ok_or_else(|| {
@@ -216,10 +217,10 @@ mod tests {
     }
 
     #[test]
-    fn hook_registry_covers_every_present_in_both_adapter_obligation() {
+    fn hook_registry_covers_every_present_in_both_hook_backed_obligation() {
         let plan = reviewed_plan();
         check_hook_registry(&plan, rtd_layerhooks_registry::HOOKS)
-            .expect("every present-in-both adapter obligation has a registered hook");
+            .expect("every present-in-both hook-backed obligation has a registered hook");
     }
 
     #[test]
