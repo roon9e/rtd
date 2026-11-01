@@ -32,7 +32,7 @@ impl std::fmt::Display for EmitError {
     }
 }
 
-struct Code {
+pub(crate) struct Code {
     out: String,
     indent: usize,
 }
@@ -70,7 +70,7 @@ impl Code {
 
 /// Maps a TL type to its Rust type and codec strategy.
 #[derive(Debug, Clone)]
-enum RustType {
+pub(crate) enum RustType {
     U32,
     I32,
     I64,
@@ -92,7 +92,7 @@ enum RustType {
 }
 
 impl RustType {
-    fn rendered(&self) -> String {
+    pub(crate) fn rendered(&self) -> String {
         match self {
             RustType::U32 => "u32".to_owned(),
             RustType::I32 => "i32".to_owned(),
@@ -124,7 +124,7 @@ impl RustType {
     }
 }
 
-fn map_type(
+pub(crate) fn map_type(
     reference: &TypeRef,
     classes: &BTreeSet<String>,
     bare_ids: &BTreeMap<String, (String, u32)>,
@@ -183,7 +183,13 @@ fn map_type(
 /// `self.x` for a struct field, or a match binding (`x`) otherwise. When
 /// `by_ref` is set, `place` is already a reference and scalar values are
 /// dereferenced rather than borrowed.
-fn encode_value(code: &mut Code, ty: &RustType, place: &str, by_ref: bool) {
+pub(crate) fn encode_value(
+    code: &mut Code,
+    ty: &RustType,
+    place: &str,
+    by_ref: bool,
+    profile: bool,
+) {
     let scalar = |code: &mut Code, method: &str| {
         if by_ref {
             code.line(&format!("__w.{method}(*{place});"));
@@ -201,26 +207,56 @@ fn encode_value(code: &mut Code, ty: &RustType, place: &str, by_ref: bool) {
         RustType::Bool => scalar(code, "put_bool"),
         RustType::String => code.line(&format!("__w.put_string({place}.as_str());")),
         RustType::Bytes => code.line(&format!("__w.put_bytes({place}.as_slice());")),
-        RustType::Class(_) => code.line(&format!("{place}.encode(__w);")),
-        RustType::ClassBare(_, _) => code.line(&format!("{place}.encode_body(__w);")),
-        RustType::Object => code.line(&format!("{place}.encode(__w);")),
-        RustType::Method => code.line(&format!("{place}.encode(__w);")),
+        RustType::Class(name) => {
+            if profile {
+                code.line(&format!(
+                    "encode_{name}_profile(profile, ::std::convert::AsRef::as_ref({place}), __w)?;"
+                ));
+            } else {
+                code.line(&format!("{place}.encode(__w);"));
+            }
+        }
+        RustType::ClassBare(name, _) => {
+            if profile {
+                code.line(&format!("encode_{name}_profile(profile, &{place}, __w)?;"));
+            } else {
+                code.line(&format!("{place}.encode_body(__w);"));
+            }
+        }
+        RustType::Object => {
+            if profile {
+                code.line(&format!(
+                    "encode_object_profile(profile, ::std::convert::AsRef::as_ref({place}), __w)?;"
+                ));
+            } else {
+                code.line(&format!("{place}.encode(__w);"));
+            }
+        }
+        RustType::Method => {
+            if profile {
+                code.line(&format!(
+                    "encode_method_profile(profile, ::std::convert::AsRef::as_ref({place}), __w)?;"
+                ));
+            } else {
+                code.line(&format!("{place}.encode(__w);"));
+            }
+        }
         RustType::VectorBoxed(element) => {
             code.line(&format!("__w.put_vector_header({place}.len());"));
             code.open(&format!("for item in {place}.iter() {{"));
-            encode_value(code, element, "item", true);
+            encode_value(code, element, "item", true, profile);
             code.close("}");
         }
         RustType::VectorBare(element) => {
             code.line(&format!("__w.put_i32({place}.len() as i32);"));
             code.open(&format!("for item in {place}.iter() {{"));
-            encode_value(code, element, "item", true);
+            encode_value(code, element, "item", true, profile);
             code.close("}");
         }
     }
 }
 
-fn decode_expr(ty: &RustType) -> String {
+pub(crate) fn decode_expr(ty: &RustType, profile: bool) -> String {
     match ty {
         RustType::U32 => "__d.take_u32()?".to_owned(),
         RustType::I32 => "__d.take_i32()?".to_owned(),
@@ -231,22 +267,50 @@ fn decode_expr(ty: &RustType) -> String {
         RustType::String => "__d.take_string()?.to_owned()".to_owned(),
         RustType::Bytes => "__d.take_bytes()?.to_vec()".to_owned(),
         RustType::Bool => "__d.take_bool()?".to_owned(),
-        RustType::Class(name) => format!(
-            "{{ __d.enter()?; let value = {name}::decode(__d)?; __d.leave(); ::std::boxed::Box::new(value) }}"
-        ),
-        RustType::ClassBare(name, id) => format!(
-            "{{ __d.enter()?; let value = {name}::decode_with_id(__d, {id:#010x})?; __d.leave(); value }}"
-        ),
-        RustType::Object => "{ __d.enter()?; let value = Object::decode(__d)?; __d.leave(); ::std::boxed::Box::new(value) }".to_owned(),
-        RustType::Method => "{ __d.enter()?; let value = Method::decode(__d)?; __d.leave(); ::std::boxed::Box::new(value) }".to_owned(),
+        RustType::Class(name) => {
+            if profile {
+                format!(
+                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); ::std::boxed::Box::new(value) }}"
+                )
+            } else {
+                format!(
+                    "{{ __d.enter()?; let value = {name}::decode(__d)?; __d.leave(); ::std::boxed::Box::new(value) }}"
+                )
+            }
+        }
+        RustType::ClassBare(name, id) => {
+            if profile {
+                format!(
+                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}"
+                )
+            } else {
+                format!(
+                    "{{ __d.enter()?; let value = {name}::decode_with_id(__d, {id:#010x})?; __d.leave(); value }}"
+                )
+            }
+        }
+        RustType::Object => {
+            if profile {
+                "{ __d.enter()?; let value = decode_object_profile(profile, __d)?; __d.leave(); ::std::boxed::Box::new(value) }".to_owned()
+            } else {
+                "{ __d.enter()?; let value = Object::decode(__d)?; __d.leave(); ::std::boxed::Box::new(value) }".to_owned()
+            }
+        }
+        RustType::Method => {
+            if profile {
+                "{ __d.enter()?; let value = decode_method_profile(profile, __d)?; __d.leave(); ::std::boxed::Box::new(value) }".to_owned()
+            } else {
+                "{ __d.enter()?; let value = Method::decode(__d)?; __d.leave(); ::std::boxed::Box::new(value) }".to_owned()
+            }
+        }
         RustType::VectorBoxed(element) => {
-            let element = decode_element(element);
+            let element = decode_element(element, profile);
             format!(
                 "{{ let n = __d.take_vector_header()?; let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n)); for _ in 0..n {{ items.push({element}); }} items }}"
             )
         }
         RustType::VectorBare(element) => {
-            let element = decode_element(element);
+            let element = decode_element(element, profile);
             format!(
                 "{{ let n = __d.take_bare_vector_len()?; let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n)); for _ in 0..n {{ items.push({element}); }} items }}"
             )
@@ -254,25 +318,45 @@ fn decode_expr(ty: &RustType) -> String {
     }
 }
 
-fn decode_element(ty: &RustType) -> String {
+pub(crate) fn decode_element(ty: &RustType, profile: bool) -> String {
     match ty {
         RustType::Class(name) => {
-            format!("{{ __d.enter()?; let value = {name}::decode(__d)?; __d.leave(); value }}")
+            if profile {
+                format!("{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}")
+            } else {
+                format!("{{ __d.enter()?; let value = {name}::decode(__d)?; __d.leave(); value }}")
+            }
         }
-        RustType::ClassBare(name, id) => format!(
-            "{{ __d.enter()?; let value = {name}::decode_with_id(__d, {id:#010x})?; __d.leave(); value }}"
-        ),
+        RustType::ClassBare(name, id) => {
+            if profile {
+                format!(
+                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}"
+                )
+            } else {
+                format!(
+                    "{{ __d.enter()?; let value = {name}::decode_with_id(__d, {id:#010x})?; __d.leave(); value }}"
+                )
+            }
+        }
         RustType::Object => {
-            "{ __d.enter()?; let value = Object::decode(__d)?; __d.leave(); value }".to_owned()
+            if profile {
+                "{ __d.enter()?; let value = decode_object_profile(profile, __d)?; __d.leave(); value }".to_owned()
+            } else {
+                "{ __d.enter()?; let value = Object::decode(__d)?; __d.leave(); value }".to_owned()
+            }
         }
         RustType::Method => {
-            "{ __d.enter()?; let value = Method::decode(__d)?; __d.leave(); value }".to_owned()
+            if profile {
+                "{ __d.enter()?; let value = decode_method_profile(profile, __d)?; __d.leave(); value }".to_owned()
+            } else {
+                "{ __d.enter()?; let value = Method::decode(__d)?; __d.leave(); value }".to_owned()
+            }
         }
-        other => decode_expr(other),
+        other => decode_expr(other, profile),
     }
 }
 
-fn field_rust_type(
+pub(crate) fn field_rust_type(
     field: &Field,
     classes: &BTreeSet<String>,
     bare_ids: &BTreeMap<String, (String, u32)>,
@@ -283,7 +367,7 @@ fn field_rust_type(
     map_type(&field.ty, classes, bare_ids)
 }
 
-fn flags_mask(fields: &[Field], word: &str) -> u32 {
+pub(crate) fn flags_mask(fields: &[Field], word: &str) -> u32 {
     let mut mask = 0u32;
     for field in fields {
         if let Some(condition) = &field.condition
@@ -295,7 +379,13 @@ fn flags_mask(fields: &[Field], word: &str) -> u32 {
     mask
 }
 
-fn emit_constructor_decode(code: &mut Code, fields: &[Field], types: &[RustType], construct: &str) {
+pub(crate) fn emit_constructor_decode(
+    code: &mut Code,
+    fields: &[Field],
+    types: &[RustType],
+    construct: &str,
+    profile: bool,
+) {
     for (index, field) in fields.iter().enumerate() {
         let binding = field_ident(&field.name);
         let ty = &types[index];
@@ -304,7 +394,11 @@ fn emit_constructor_decode(code: &mut Code, fields: &[Field], types: &[RustType]
             continue;
         }
         match &field.condition {
-            None => code.line(&format!("let {binding}: {} = {};", ty.rendered(), decode_expr(ty))),
+            None => code.line(&format!(
+                "let {binding}: {} = {};",
+                ty.rendered(),
+                decode_expr(ty, profile)
+            )),
             Some(condition) if condition.presence_only => code.line(&format!(
                 "let {binding}: bool = {} & (1u32 << {}) != 0;",
                 field_ident(&condition.word),
@@ -315,7 +409,7 @@ fn emit_constructor_decode(code: &mut Code, fields: &[Field], types: &[RustType]
                 ty.rendered(),
                 field_ident(&condition.word),
                 condition.bit,
-                decode_expr(ty)
+                decode_expr(ty, profile)
             )),
         }
     }
@@ -345,7 +439,7 @@ fn emit_variant_fields(code: &mut Code, fields: &[Field], types: &[RustType], is
     }
 }
 
-fn prepare(
+pub(crate) fn prepare(
     definition: &Definition,
     classes: &BTreeSet<String>,
     bare_ids: &BTreeMap<String, (String, u32)>,
@@ -357,20 +451,18 @@ fn prepare(
         .collect()
 }
 
-/// Emits the full `rtd-tg` source for one canonical schema.
-///
-/// # Errors
-///
-/// Returns an error when a type cannot be mapped or generated names collide.
-pub(crate) fn emit(schema: &crate::model::SchemaModel) -> Result<String, EmitError> {
+/// A schema's class map, class set and bare-constructor map.
+pub(crate) type ClassContext<'a> = (
+    BTreeMap<String, Vec<&'a Definition>>,
+    BTreeSet<String>,
+    BTreeMap<String, (String, u32)>,
+);
+
+/// Computes the class map, class set and bare-constructor map for a schema.
+pub(crate) fn class_context(schema: &crate::model::SchemaModel) -> ClassContext<'_> {
     let mut class_map: BTreeMap<String, Vec<&Definition>> = BTreeMap::new();
-    let mut object_constructors: Vec<&Definition> = Vec::new();
     for definition in &schema.definitions {
-        if definition.key.category != Category::Type {
-            continue;
-        }
-        if definition.result.qname == "Object" {
-            object_constructors.push(definition);
+        if definition.key.category != Category::Type || definition.result.qname == "Object" {
             continue;
         }
         class_map
@@ -379,14 +471,6 @@ pub(crate) fn emit(schema: &crate::model::SchemaModel) -> Result<String, EmitErr
             .push(definition);
     }
     let classes: BTreeSet<String> = class_map.keys().map(|name| ident_for_qname(name)).collect();
-    let methods: Vec<&Definition> = schema
-        .definitions
-        .iter()
-        .filter(|definition| definition.key.category == Category::Function)
-        .collect();
-
-    // A class with exactly one constructor can be referenced bare, either by
-    // its class name or by the constructor name.
     let mut bare_ids: BTreeMap<String, (String, u32)> = BTreeMap::new();
     for (qname, constructors) in &class_map {
         if constructors.len() == 1 {
@@ -398,6 +482,31 @@ pub(crate) fn emit(schema: &crate::model::SchemaModel) -> Result<String, EmitErr
             );
         }
     }
+    (class_map, classes, bare_ids)
+}
+
+/// Emits the full `rtd-tg` source for one canonical schema.
+///
+/// # Errors
+///
+/// Returns an error when a type cannot be mapped or generated names collide.
+pub(crate) fn emit(schema: &crate::model::SchemaModel) -> Result<String, EmitError> {
+    let object_constructors: Vec<&Definition> = schema
+        .definitions
+        .iter()
+        .filter(|definition| {
+            definition.key.category == Category::Type && definition.result.qname == "Object"
+        })
+        .collect();
+    let methods: Vec<&Definition> = schema
+        .definitions
+        .iter()
+        .filter(|definition| definition.key.category == Category::Function)
+        .collect();
+
+    // A class with exactly one constructor can be referenced bare, either by
+    // its class name or by the constructor name.
+    let (class_map, classes, bare_ids) = class_context(schema);
 
     // Detect identifier collisions early and deterministically.
     let mut used: BTreeMap<String, String> = BTreeMap::new();
@@ -573,7 +682,7 @@ fn emit_class_enum(
                 bindings.join(", ")
             ));
             code.line(&format!("__w.put_u32({:#010x});", constructor.wire_id));
-            emit_encode_fields(code, &constructor.fields, types, false);
+            emit_encode_fields(code, &constructor.fields, types, false, false);
             code.close("}");
         }
     }
@@ -598,7 +707,7 @@ fn emit_class_enum(
                 "{class_ident}::{variant} {{ {} }} => {{",
                 bindings.join(", ")
             ));
-            emit_encode_fields(code, &constructor.fields, types, false);
+            emit_encode_fields(code, &constructor.fields, types, false, false);
             code.close("}");
         }
     }
@@ -623,6 +732,7 @@ fn emit_class_enum(
             &constructor.fields,
             types,
             &format!("{class_ident}::{variant}"),
+            false,
         );
         code.close("}");
     }
@@ -671,14 +781,14 @@ fn emit_struct(
     code.open("pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {");
     code.line(&format!("__w.put_u32({:#010x});", method.wire_id));
     if !method.fields.is_empty() {
-        emit_encode_fields(code, &method.fields, &types, true);
+        emit_encode_fields(code, &method.fields, &types, true, false);
     }
     code.close("}");
     code.close("");
     code.open("/// Encodes the fields without the constructor identifier.");
     code.open("pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {");
     if !method.fields.is_empty() {
-        emit_encode_fields(code, &method.fields, &types, true);
+        emit_encode_fields(code, &method.fields, &types, true, false);
     }
     code.close("}");
     code.close("");
@@ -693,7 +803,7 @@ fn emit_struct(
     if method.fields.is_empty() {
         code.line(&format!("Ok({ident})"));
     } else {
-        emit_constructor_decode(code, &method.fields, &types, ident);
+        emit_constructor_decode(code, &method.fields, &types, ident, false);
     }
     code.close("}");
     code.close("");
@@ -709,7 +819,13 @@ fn emit_struct(
 
 /// Emits field encoding. `is_struct` selects `self.<field>` access; otherwise
 /// the match-arm bindings are used directly.
-fn emit_encode_fields(code: &mut Code, fields: &[Field], types: &[RustType], is_struct: bool) {
+pub(crate) fn emit_encode_fields(
+    code: &mut Code,
+    fields: &[Field],
+    types: &[RustType],
+    is_struct: bool,
+    profile: bool,
+) {
     // Struct fields are reached through `self`; match-arm bindings are already
     // references, so scalar fields must be dereferenced there.
     let by_ref = !is_struct;
@@ -769,7 +885,7 @@ fn emit_encode_fields(code: &mut Code, fields: &[Field], types: &[RustType], is_
         }
         let ty = &types[index];
         match &field.condition {
-            None => encode_value(code, ty, &place(field), by_ref),
+            None => encode_value(code, ty, &place(field), by_ref, profile),
             Some(condition) if condition.presence_only => {
                 let _ = condition;
             }
@@ -781,7 +897,7 @@ fn emit_encode_fields(code: &mut Code, fields: &[Field], types: &[RustType], is_
                     place(field)
                 };
                 code.open(&format!("if let Some(value) = {option_place} {{"));
-                encode_value(code, ty, "value", true);
+                encode_value(code, ty, "value", true, profile);
                 code.close("}");
             }
         }
