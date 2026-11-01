@@ -133,6 +133,34 @@ it is deferred to `add-legacy-layer-constructors`; this change treats `ProfileOn
 unavailable (fail closed). Splitting keeps each change self-contained, reviewable and
 CI-green; the earlier single change would have mixed two independent mechanisms.
 
+### D38. Policy bodies are isolated per `(container-or-variant, layer)`
+
+A container's profile codec keeps a small stack frame: its `Policy` arm is only a
+`match profile.layer` that calls one generated `encode_policy_*` / `decode_policy_*`
+function per supported layer, and an enum container dispatches by `route.semantic.0`
+then layer. Inlining the policy bodies into the shared container codecs bloated the
+`Update`-sized functions enough that even *rewrite* routes overflowed the default 2 MB
+stack, so isolation is mandatory, not stylistic. Each body binds only the canonical
+fields it reads (`..` elided otherwise) and names its `profile`/`_profile` parameter
+according to need, so no unused-binding or unused-parameter allowance is required.
+
+### D39. Encode recomputes the layer's flags word; decode recomputes canonical's
+
+Encoding a canonical value into an older layer writes the layer's flags word recomputed
+from the canonical value's presence bits (bit numbers from the *profile* field's
+condition, presence from the canonical binding's shape). Decoding reads the layer's
+fields and rebuilds the canonical value, recomputing the canonical flags word from the
+reconstructed profile fields' shape, so the layer's bit layout never leaks into the
+canonical value.
+
+### D40. `default` and `reject-if-present` are generated, not hooked
+
+`default` substitutes a recorded scalar default when a mandatory target field's source is
+absent (canonical optional -> profile mandatory on encode; canonical mandatory absent from
+the profile on decode), and `reject-if-present` fails closed only when a marked field is
+present. Both are generated field logic; a non-scalar default is a generation error
+because no default can be materialised.
+
 ## Risks / Trade-offs
 
 - [Very large generated sidecar hurts compile time] → Deduplicate bodies by digest, keep
