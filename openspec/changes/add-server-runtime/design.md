@@ -26,6 +26,11 @@ Everything the edge must do is already a requirement in `server-edge`, `server-r
 `edge-service`; this change implements them and the deltas in `specs/` add what those
 specs left open.
 
+An audit of the **already-committed** crates against what the gramsrv edge depends on
+(`internal/mtprotoedge` on `origin/v2`) found gaps that must be fixed here for the edge to
+be a drop-in replacement: the committed `rtd-edge-proto` shape, the `rtd-tlprofile` runtime
+surface, MTProxy secret parsing, and the `td/tmap` name registry. D28 records the fixes.
+
 ## Goals / Non-Goals
 
 **Goals**
@@ -192,6 +197,36 @@ multi-layer machinery is introduced here.
 `rtd-server`/`rtd-edge` add `tokio` and `tonic`/`prost`; WebSocket ingress adds
 `tokio-tungstenite`. The sans-IO crates' dependency sets are unchanged, keeping the core
 deterministic and light, and keeping the GPL engine off every dependency path.
+
+### D28. Aligning already-committed crates with the drop-in target
+
+An audit against gramsrv v2's edge dependencies (the `td` packages used by
+`internal/mtprotoedge`) found committed work that is not yet drop-in compatible, fixed in
+this change:
+
+- **`rtd-edge-proto`** is committed as `EdgeCore.Hello/Execute`; it must mirror gramsrv
+  v2's `internal/coreexec/coreexecpb/coreexec.proto`. gRPC method paths are
+  `/<package>.<service>/<method>`, so drop-in requires the same package
+  (`telesrv.coreexec.v1`), service (`CoreExecService`), method names and field tags; we
+  reproduce the subset the edge uses. gramsrv is the project's own service, so reproducing
+  its contract schema is a deliberate choice, recorded here rather than an accidental copy.
+- **`rtd-tlprofile`** exposes admission (frozen/default/unprofiled), route lookup, semantic
+  mapping, `FrozenObject` freeze/encode and a semantic `Dispatcher`, but the edge RPC layer
+  also needs the wrapper surface: initialization-wrapper client/connection info, the
+  invoke-after ordering identifiers, a call identity, and a dispatch `Result`. The
+  generator and runtime are extended for these; existing admission/freeze behavior is
+  unchanged.
+- **`rtd-transport`** takes the proxy secret as raw bytes but does not parse the human
+  MTProxy secret string (mode prefixes `dd`/`ee`); that parsing is added for edge config.
+- **`td/tmap`** (a wire-id→name map merged from the tg/mt/proto maps) has no rtd
+  equivalent; a combined registry is added over the generated per-crate registries.
+
+Compatibility was verified by reading the drop-in target's source, not assumed.
+
+Alternatives: leave committed crates as-is and adapt inside `rtd-server` (rejected — the
+edge-proto shape cannot be adapted away, and the runtime gap would leak Go-shaped
+workarounds into the edge); copy gramsrv's packages wholesale (rejected — only the boundary
+schema is mirrored, and only the subset in use).
 
 ## Risks / Trade-offs
 

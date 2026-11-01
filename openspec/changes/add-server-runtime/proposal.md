@@ -18,6 +18,11 @@ boundary.
 
 ## What Changes
 
+- **Aligning already-committed crates** so the edge is a true drop-in replacement
+  (audited against gramsrv's `origin/v2` edge dependencies): reshape `rtd-edge-proto` to
+  mirror `CoreExecService`, extend the generated `rtd-tlprofile` runtime with the
+  wrapper/call-identity/result surface the edge needs, add MTProxy secret parsing to
+  `rtd-transport`, and add a combined wire-id name registry (the `td/tmap` equivalent).
 - **Encrypted MTProto 2.0 session framing**: the `auth_key_id`-keyed envelope with a
   message key and AES-IGE payload, server-salt derivation and update, and session
   identity. (Today only the plaintext exchange messages exist.)
