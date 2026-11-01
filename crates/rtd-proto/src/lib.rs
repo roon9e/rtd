@@ -3,8 +3,9 @@
 //!
 //! This crate implements the server-facing protocol core: message identifiers
 //! and replay mitigation, message containers, packed (gzipped) payloads, RPC
-//! result framing, plaintext messages, and the abridged, intermediate,
-//! padded-intermediate and full transport codecs.
+//! result framing, plaintext messages, the abridged, intermediate,
+//! padded-intermediate and full transport codecs, and the sans-IO encrypted
+//! session state machine ([`session`]).
 //!
 //! Wire constants and byte layout match the reference `td` implementation
 //! exactly. All multi-byte integers on the wire are little-endian.
@@ -15,6 +16,7 @@ pub mod error;
 pub mod gzip;
 pub mod message_id;
 pub mod rpc_result;
+pub mod session;
 pub mod unencrypted;
 
 pub use codec::{
@@ -31,4 +33,9 @@ pub use message_id::{
     MessageId, MessageIdBuf, MessageIdGen, MessageType, new_message_id, new_message_id_time,
 };
 pub use rpc_result::{RPC_RESULT_TYPE_ID, RpcResult};
+pub use session::{
+    DEFAULT_IDLE_TIMEOUT, DisconnectReason, Inbound, LayerSlot, MAX_MESSAGE_AGE, MAX_MESSAGE_SKEW,
+    MAX_PENDING_CONTENT, MessageClass, MessageSeq, OutboundMessage, REPLAY_WINDOW, Session,
+    SessionError, SessionIdentity, SessionState,
+};
 pub use unencrypted::UnencryptedMessage;

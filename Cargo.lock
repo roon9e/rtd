@@ -1061,6 +1061,7 @@ dependencies = [
  "flate2",
  "hex",
  "rtd-bin",
+ "rtd-crypto",
  "rtd-util",
  "serde_json",
 ]

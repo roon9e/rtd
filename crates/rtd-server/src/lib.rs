@@ -5,10 +5,12 @@
 //!
 //! - [`ingress`] — inbound transport detection and unwrapping.
 //! - [`session`] — the transient session registry and auth-key cache.
+//! - [`actor`] — the per-connection actor, service messages and admission budgets.
 //! - [`rpc`] — invocation-wrapper handling, per-session layer binding and dispatch.
 //! - [`core`] — the core-boundary trait and its in-process implementation.
 #![warn(missing_docs)]
 
+pub mod actor;
 pub mod core;
 pub mod ingress;
 pub mod rpc;

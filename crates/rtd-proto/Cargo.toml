@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 rtd-bin = { path = "../rtd-bin" }
+rtd-crypto = { path = "../rtd-crypto" }
 rtd-util = { path = "../rtd-util" }
 flate2 = "1"
 crc32fast = "1"

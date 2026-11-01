@@ -251,8 +251,11 @@ impl MessageIdBuf {
 
     /// Consumes `new_id`, returning `false` if the message must be discarded.
     pub fn consume(&mut self, new_id: i64) -> bool {
+        // The minimum must start above every possible identifier so that the
+        // scan finds the true lowest stored value even after the initial
+        // zero-filled slots have all been replaced.
         let mut min_idx = 0;
-        let mut min_id = 0_i64;
+        let mut min_id = i64::MAX;
         for (i, &id) in self.buf.iter().enumerate() {
             if id == new_id {
                 // Equal to a stored value.
@@ -271,6 +274,16 @@ impl MessageIdBuf {
         // Message is accepted: replace the lowest stored identifier.
         self.buf[min_idx] = new_id;
         true
+    }
+
+    /// Reports whether `id` is currently stored in the window.
+    ///
+    /// This distinguishes a duplicate retransmission (the identifier is already
+    /// present and should be tolerated) from an identifier that is merely lower
+    /// than every stored value and therefore falls outside the window.
+    #[must_use]
+    pub fn contains(&self, id: i64) -> bool {
+        self.buf.contains(&id)
     }
 
     /// Returns the configured window size.
@@ -397,6 +410,30 @@ mod tests {
         assert!(!buf.consume(-1));
         assert_eq!(buf.len(), 10);
         assert!(!buf.is_empty());
+    }
+
+    #[test]
+    fn replay_window_reports_membership() {
+        let mut buf = MessageIdBuf::new(4);
+        // The zero-initialized window already stores zero.
+        assert!(buf.contains(0));
+        assert!(!buf.contains(7));
+        assert!(buf.consume(7));
+        assert!(buf.contains(7));
+        assert!(!buf.consume(7));
+        assert!(buf.contains(7));
+    }
+
+    #[test]
+    fn replay_window_rejects_positive_identifier_below_it() {
+        let mut buf = MessageIdBuf::new(4);
+        for id in 10..=20 {
+            assert!(buf.consume(id), "id {id} should be accepted");
+        }
+        // The window now holds the four highest identifiers, so a positive
+        // identifier lower than all of them is rejected rather than slid in.
+        assert!(!buf.consume(9));
+        assert!(buf.consume(21));
     }
 
     #[test]
