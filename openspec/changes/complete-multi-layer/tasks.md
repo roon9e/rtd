@@ -17,7 +17,7 @@
 - [x] 3.2 Emit retag as the profile wire id plus the canonical body, and rewrite as a per-profile field-mapped codec recursing into dirty sub-families; verify a rewrite round-trip on a present-in-both family
 - [ ] 3.3 Emit policy call sites using the registry's concrete signatures for present-in-both obligations; verify a policy route invokes its hook
 - [x] 3.4 Raise the declared profile-sidecar size/line budget to fit the emitted bodies, recording the measured size and the reason; verify `generate` succeeds within budget and `verify` passes (measured 12,455,790 bytes / 379,876 lines; the mechanical per-`(container-or-variant, layer)` policy bodies are isolated into their own functions rather than inlined, which keeps container frames small and fits the existing 16 MiB / 400k budget, so no raise was required; `generate` and `verify` both pass)
-- [ ] 3.5 Verify deterministic and atomic output: two consecutive generations are byte-identical, and a simulated failure leaves prior output intact
+- [x] 3.5 Verify deterministic and atomic output: two consecutive generations are byte-identical (`generate.rs::generation_is_deterministic`), and a simulated failure leaves prior output intact (`output.rs::write_atomic_failure_leaves_prior_output_intact`, plus commit/no-staging and `verify` fresh/stale/missing tests)
 
 ## 4. Mechanical conversions
 

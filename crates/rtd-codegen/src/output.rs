@@ -98,7 +98,24 @@ pub(crate) fn verify(files: &[(std::path::PathBuf, String)]) -> Result<(), Strin
 
 #[cfg(test)]
 mod tests {
-    use super::Budget;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::{Budget, temp_path, verify, write_atomic};
+
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    /// A fresh, process-unique scratch directory that the caller owns.
+    fn scratch() -> PathBuf {
+        let mut dir = std::env::temp_dir();
+        dir.push(format!(
+            "rtd-codegen-output-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).expect("scratch directory");
+        dir
+    }
 
     #[test]
     fn budget_rejects_oversized() {
@@ -117,5 +134,68 @@ mod tests {
             max_lines: 1,
         };
         assert!(budget.check(&["a\nb".to_owned()]).is_err());
+    }
+
+    #[test]
+    fn write_atomic_commits_every_file_and_leaves_no_staging() {
+        let dir = scratch();
+        let first = dir.join("first.rs");
+        let nested = dir.join("nested/deep/second.rs");
+        let files = vec![
+            (first.clone(), "first".to_owned()),
+            (nested.clone(), "second".to_owned()),
+        ];
+        write_atomic(&files).expect("atomic write");
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "first");
+        assert_eq!(std::fs::read_to_string(&nested).unwrap(), "second");
+        assert!(!temp_path(&first).exists(), "staging file was not removed");
+        assert!(!temp_path(&nested).exists(), "staging file was not removed");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_atomic_failure_leaves_prior_output_intact() {
+        let dir = scratch();
+        let kept = dir.join("kept.rs");
+        std::fs::write(&kept, "old").expect("seed prior output");
+        // The second target's parent is a regular file, so staging it fails
+        // after the first file has been staged but before any commit.
+        let blocker = dir.join("blocker");
+        std::fs::write(&blocker, "x").expect("seed blocker");
+        let files = vec![
+            (kept.clone(), "new".to_owned()),
+            (blocker.join("nested.rs"), "boom".to_owned()),
+        ];
+        assert!(write_atomic(&files).is_err(), "staging must fail");
+        assert_eq!(
+            std::fs::read_to_string(&kept).unwrap(),
+            "old",
+            "prior output must survive a failed write"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn verify_reports_fresh_stale_and_missing() {
+        let dir = scratch();
+        let fresh = dir.join("fresh.rs");
+        let stale = dir.join("stale.rs");
+        let missing = dir.join("missing.rs");
+        let files = vec![
+            (fresh.clone(), "same".to_owned()),
+            (stale.clone(), "expected".to_owned()),
+            (missing.clone(), "absent".to_owned()),
+        ];
+        std::fs::write(&fresh, "same").unwrap();
+        std::fs::write(&stale, "changed").unwrap();
+        let error = verify(&files).unwrap_err();
+        assert!(error.contains("stale.rs differs"), "{error}");
+        assert!(error.contains("missing.rs is missing"), "{error}");
+        assert!(!error.contains("fresh.rs"), "{error}");
+
+        std::fs::write(&stale, "expected").unwrap();
+        std::fs::write(&missing, "absent").unwrap();
+        verify(&files).expect("all files now match");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
