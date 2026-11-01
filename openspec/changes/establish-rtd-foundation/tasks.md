@@ -57,6 +57,7 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - [ ] 5.7 Generate the canonical value model (`rtd-tg`) for layer 232; verify the generated crate compiles, exposes the layer constant, and provides a wire-id→name registry
 - [ ] 5.8 Generate the profile sidecar (`rtd-tlprofile`) for layer 232; verify it compiles and route-lookup tests pass
 - [ ] 5.9 Implement deterministic, atomic output writes and the source-budget check; verify two runs are byte-identical and that exceeding the budget fails generation
+- [ ] 5.10 Generate the MTProto service schema (`rtd-mt`) from `_schema/mt.tl` (a single, non-layered schema) through the same generator; verify the generated crate compiles and provides the handshake and service types (req_pq, resPQ, req_DH_params, dh_gen_ok, ping/pong, rpc_result, msgs_ack, new_session_created, …) needed by the auth-key exchange
 
 ## 6. `rtd-tlprofile` runtime — multi-layer behavior
 

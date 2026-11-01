@@ -109,6 +109,11 @@ compile-time isolation of generated code).
   across profiles/wire ids is emitted once.
 - Output is written **atomically and deterministically**; a declared size/line budget is
   enforced for the profile sidecar.
+- **Staged rollout**: an *enabled-layers* list (defaulting to the canonical layer only)
+  selects which manifest layers are generated, so the full machinery is proven on 232 before
+  231→225 are added. The manifest always holds the complete reviewed set.
+- The same generator emits the single, non-layered MTProto service schema (`rtd-mt`) in
+  addition to the layered Telegram model and its profile sidecar.
 
 ### D4. Hybrid schema source: bootstrap from `td`, own it going forward
 
