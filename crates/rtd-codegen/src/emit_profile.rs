@@ -207,12 +207,15 @@ struct PolicyLayer<'a> {
     mapping: std::collections::BTreeMap<String, String>,
     /// `canonical field name` to `profile field name`.
     reverse: std::collections::BTreeMap<String, String>,
+    /// Canonical mandatory fields the profile cannot supply; rebuilt from a
+    /// recorded type default on decode.
+    canonical_defaults: std::collections::BTreeSet<String>,
 }
 
 /// Collects the layers with a purely mechanical policy body, where every body
-/// obligation is a field projection (`drop`) or a presence rejection
-/// (`reject-if-present`). Any layer needing a hook (`adapter`, `project`,
-/// `alias`, `default`, `discard`, `reject`) stays fail-closed.
+/// obligation is a field projection (`drop`), a presence rejection
+/// (`reject-if-present`) or a recorded `default`. Any layer needing a hook
+/// (`adapter`, `project`, `alias`, `discard`, `reject`) stays fail-closed.
 fn collect_policy_layers<'a>(
     universe: &'a Universe,
     plan: &'a ConversionPlan,
@@ -243,7 +246,7 @@ fn collect_policy_layers<'a>(
                         .resolution
                         .as_ref()
                         .map(|resolution| resolution.action.as_str()),
-                    Some("drop" | "reject-if-present")
+                    Some("drop" | "reject-if-present" | "default")
                 )
             })
         {
@@ -276,12 +279,27 @@ fn collect_policy_layers<'a>(
             .iter()
             .map(|(profile_name, canonical_name)| (canonical_name.clone(), profile_name.clone()))
             .collect();
-        // Every canonical field the layer dropped must be optional so the
-        // canonical value can be rebuilt; otherwise it stays fail-closed.
+        // Canonical mandatory fields the profile lacks are rebuilt from a
+        // recorded type default (`profile-to-canonical` `default` obligations).
+        let canonical_defaults: std::collections::BTreeSet<String> = obligations
+            .iter()
+            .filter(|obligation| {
+                obligation
+                    .resolution
+                    .as_ref()
+                    .map(|resolution| resolution.action.as_str())
+                    == Some("default")
+                    && obligation.direction == "profile-to-canonical"
+            })
+            .map(|obligation| obligation.other_field.clone())
+            .collect();
+        // Every canonical field the layer dropped must be optional (or defaulted)
+        // so the canonical value can be rebuilt; otherwise it stays fail-closed.
         let rebuildable = definition.fields.iter().all(|field| {
             reverse.contains_key(&field.name)
                 || field.kind == FieldKind::FlagsWord
                 || field.condition.is_some()
+                || canonical_defaults.contains(&field.name)
         });
         if !rebuildable {
             continue;
@@ -292,6 +310,7 @@ fn collect_policy_layers<'a>(
             obligations,
             mapping,
             reverse,
+            canonical_defaults,
         });
     }
     layers
@@ -394,7 +413,26 @@ fn emit_policy_layer_body(
             .ok_or_else(|| format!("policy: canonical field {canonical} missing"))?;
         let ty = &types[ordinal];
         let binding = field_ident(canonical);
+        let source_optional = definition.fields[ordinal]
+            .condition
+            .as_ref()
+            .is_some_and(|condition| !condition.presence_only);
         match &profile_field.condition {
+            None if source_optional => {
+                // The profile field is mandatory but canonical may omit it; the
+                // reviewed `default` substitutes the absent value.
+                let default = default_expr(ty).ok_or_else(|| {
+                    format!(
+                        "policy: canonical field {canonical} has no scalar default for {}",
+                        definition.key.as_string()
+                    )
+                })?;
+                code.open(&format!("if let Some(value) = {binding} {{"));
+                encode_value(code, ty, "value", true, true);
+                code.close("} else {");
+                encode_value(code, ty, &default, false, true);
+                code.close("}");
+            }
             None => encode_value(code, ty, &binding, true, true),
             Some(_) => {
                 code.open(&format!("if let Some(value) = {binding} {{"));
@@ -419,6 +457,22 @@ fn type_uses_profile(ty: &crate::emit_tg::RustType) -> bool {
         }
         _ => false,
     }
+}
+
+/// The expression a class default substitutes for an absent scalar value, or
+/// `None` when the type has no representable default (so the layer fails closed).
+fn default_expr(ty: &crate::emit_tg::RustType) -> Option<String> {
+    use crate::emit_tg::RustType;
+    Some(match ty {
+        RustType::U32 => "0u32".to_owned(),
+        RustType::I32 => "0i32".to_owned(),
+        RustType::I64 => "0i64".to_owned(),
+        RustType::F64 => "0.0f64".to_owned(),
+        RustType::Bool => "false".to_owned(),
+        RustType::String => "::std::string::String::new()".to_owned(),
+        RustType::Bytes => "::std::vec::Vec::new()".to_owned(),
+        _ => return None,
+    })
 }
 
 /// Emits the per-layer `encode_policy_*` functions for one constructor.
@@ -620,13 +674,15 @@ fn emit_policy_decode_fns(
             }
         }
         let mut fields = Vec::new();
-        for field in &definition.fields {
+        for (index, field) in definition.fields.iter().enumerate() {
             let name = field_ident(&field.name);
             if field.kind == FieldKind::FlagsWord {
                 // Recompute the canonical flags word from the reconstructed
                 // value so the layer's own bit layout never leaks into the
                 // canonical value; dropped fields leave their bit clear.
-                let mut sets: Vec<(String, bool, u8)> = Vec::new();
+                // The bit comes from the canonical field's condition; the
+                // presence test from the reconstructed profile field's shape.
+                let mut sets: Vec<(String, Option<bool>, u8)> = Vec::new();
                 for other in &definition.fields {
                     let Some(condition) = &other.condition else {
                         continue;
@@ -637,41 +693,76 @@ fn emit_policy_decode_fns(
                     let Some(profile_name) = layer.reverse.get(&other.name) else {
                         continue;
                     };
-                    sets.push((
-                        field_ident(profile_name),
-                        condition.presence_only,
-                        condition.bit,
-                    ));
+                    let shape = layer
+                        .profile_def
+                        .fields
+                        .iter()
+                        .find(|profile| &profile.name == profile_name)
+                        .and_then(|profile| profile.condition.as_ref())
+                        .map(|condition| condition.presence_only);
+                    sets.push((field_ident(profile_name), shape, condition.bit));
                 }
                 if sets.is_empty() {
                     code.line(&format!("let {name} = 0u32;"));
                 } else {
                     code.line(&format!("let mut {name} = 0u32;"));
-                    for (binding, presence_only, bit) in sets {
+                    for (binding, shape, bit) in sets {
                         let set = format!("{name} |= 1u32 << {bit};");
-                        if presence_only {
-                            code.line(&format!("if {binding} {{ {set} }}"));
-                        } else {
-                            code.line(&format!("if {binding}.is_some() {{ {set} }}"));
+                        match shape {
+                            None => code.line(&set),
+                            Some(true) => code.line(&format!("if {binding} {{ {set} }}")),
+                            Some(false) => {
+                                code.line(&format!("if {binding}.is_some() {{ {set} }}"));
+                            }
                         }
                     }
                 }
                 fields.push(name);
                 continue;
             }
+            let ty = &types[index];
+            let canonical_optional = field
+                .condition
+                .as_ref()
+                .is_some_and(|condition| !condition.presence_only);
+            if let Some(profile_name) = layer.reverse.get(&field.name) {
+                let binding = field_ident(profile_name);
+                let profile_mandatory = layer
+                    .profile_def
+                    .fields
+                    .iter()
+                    .find(|profile| &profile.name == profile_name)
+                    .is_some_and(|profile| profile.condition.is_none());
+                // A canonical optional field fed by a mandatory profile field is
+                // always present after the `default` substitution.
+                let expr = if canonical_optional && profile_mandatory {
+                    format!("Some({binding})")
+                } else {
+                    binding
+                };
+                if expr == name {
+                    fields.push(name);
+                } else {
+                    fields.push(format!("{name}: {expr}"));
+                }
+                continue;
+            }
+            if layer.canonical_defaults.contains(&field.name) {
+                let default = default_expr(ty).ok_or_else(|| {
+                    format!(
+                        "policy: canonical field {} has no scalar default for {}",
+                        field.name,
+                        definition.key.as_string()
+                    )
+                })?;
+                fields.push(format!("{name}: {default}"));
+                continue;
+            }
             let fallback = match &field.condition {
                 Some(condition) if condition.presence_only => "false".to_owned(),
                 _ => "None".to_owned(),
             };
-            let expr = layer
-                .reverse
-                .get(&field.name)
-                .map_or_else(|| fallback, |profile_name| field_ident(profile_name));
-            if expr == name {
-                fields.push(name);
-            } else {
-                fields.push(format!("{name}: {expr}"));
-            }
+            fields.push(format!("{name}: {fallback}"));
         }
         if fields.is_empty() {
             code.line(&format!("Ok({construct})"));
@@ -846,10 +937,13 @@ fn emit_enum_codec(
     let qualified = format!("rtd_tg::{ident}");
     let fn_name = crate::emit::to_snake_case(ident);
     let mut code = Code::new();
+    // The value parameter is named `__value`: a variant field may be called
+    // `value`, and the match arm binds it for the whole arm body, which would
+    // otherwise shadow the enum used by the policy dispatch.
     code.open(&format!(
-        "pub fn encode_{fn_name}_profile(profile: Profile, value: &{qualified}, __w: &mut Writer) -> Result<(), ProjectionError> {{"
+        "pub fn encode_{fn_name}_profile(profile: Profile, __value: &{qualified}, __w: &mut Writer) -> Result<(), ProjectionError> {{"
     ));
-    code.open("match value {");
+    code.open("match __value {");
     for ((variant, ctor, types, sid, bindings), layers) in prepared.iter().zip(&variant_layers) {
         let cid = ctor.wire_id;
         if ctor.fields.is_empty() {
@@ -885,7 +979,7 @@ fn emit_enum_codec(
             code.open("match profile.layer {");
             for layer in layers {
                 code.line(&format!(
-                    "{} => encode_policy_{fn_base}_{}(profile, value, __w)?,",
+                    "{} => encode_policy_{fn_base}_{}(profile, __value, __w)?,",
                     layer.layer, layer.layer
                 ));
             }

@@ -248,6 +248,48 @@ fn retag_method_admits_on_the_profile() {
     );
 }
 
+/// A `default` obligation substitutes the recorded value for a mandatory target
+/// field whose source side omits it. Layer 225 `auth.sentCodePaymentRequired` has
+/// no `premium_days`, so decoding rebuilds the canonical value with the default.
+#[test]
+fn policy_default_fills_a_missing_canonical_field() {
+    use rtd_tg::AuthSentCode;
+
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| {
+            route.profile == 225 && route.semantic == semantic::TYPE_AUTH_SENT_CODE_PAYMENT_REQUIRED
+        })
+        .copied()
+        .expect("layer 225 has a sentCodePaymentRequired route");
+    assert_eq!(route.mode, RouteMode::Policy);
+
+    let mut writer = Writer::new();
+    writer.put_u32(route.wire_id);
+    writer.put_string("store");
+    writer.put_string("hash");
+    writer.put_string("");
+    writer.put_string("");
+    writer.put_string("USD");
+    writer.put_i64(7);
+
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    let Object::AuthSentCode(value) = decoded else {
+        panic!("expected authSentCode");
+    };
+    let AuthSentCode::SentCodePaymentRequired {
+        premium_days,
+        amount,
+        ..
+    } = *value
+    else {
+        panic!("expected sentCodePaymentRequired");
+    };
+    assert_eq!(premium_days, 0);
+    assert_eq!(amount, 7);
+}
+
 /// A wire id that exists only in an older layer has no canonical value to decode
 /// into, so decoding for that profile must fail closed rather than guess.
 #[test]

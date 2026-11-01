@@ -21,7 +21,7 @@
 
 ## 4. Mechanical conversions
 
-- [ ] 4.1 Apply the mechanical classes (`drop`, `reject`, `reject-if-present`, `default`, `project`) from generated field logic; verify one test per class including reject-if-present absent-versus-present
+- [ ] 4.1 Apply the mechanical classes (`drop`, `reject`, `reject-if-present`, `default`, `project`) from generated field logic; verify one test per class including reject-if-present absent-versus-present (done: `drop` and `reject-if-present` in the policy emitter, with `policy_drop_projects_presence_bits_on_the_profile` and `policy_reject_if_present_fails_closed_on_the_profile` (present-versus-absent); `default` now substitutes the recorded scalar default on both directions, with `policy_default_fills_a_missing_canonical_field`; `reject` fails closed by absence; `project` needs the hook call-site emission)
 
 ## 5. Present-in-both adapter hooks
 

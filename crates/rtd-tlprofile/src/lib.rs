@@ -125908,10 +125908,10 @@ pub fn decode_account_days_ttl_profile(
 
 pub fn encode_ai_compose_tone_profile(
     profile: Profile,
-    value: &rtd_tg::AiComposeTone,
+    __value: &rtd_tg::AiComposeTone,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AiComposeTone::AiComposeTone {
             flags,
             creator,
@@ -126589,10 +126589,10 @@ pub fn decode_attach_menu_bot_icon_color_profile(
 
 pub fn encode_attach_menu_bots_profile(
     profile: Profile,
-    value: &rtd_tg::AttachMenuBots,
+    __value: &rtd_tg::AttachMenuBots,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AttachMenuBots::AttachMenuBots { hash, bots, users } => {
             let route = lookup_route_semantic(profile, SemanticId(0xa23f3ae431522678)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -126796,10 +126796,10 @@ pub fn decode_attach_menu_bots_bot_profile(
 
 pub fn encode_attach_menu_peer_type_profile(
     profile: Profile,
-    value: &rtd_tg::AttachMenuPeerType,
+    __value: &rtd_tg::AttachMenuPeerType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AttachMenuPeerType::AttachMenuPeerTypeBotPM => {
             let route = lookup_route_semantic(profile, SemanticId(0x09cf4bbe77d478b5)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -127889,10 +127889,10 @@ pub fn decode_bank_card_open_url_profile(
 
 pub fn encode_base_theme_profile(
     profile: Profile,
-    value: &rtd_tg::BaseTheme,
+    __value: &rtd_tg::BaseTheme,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::BaseTheme::BaseThemeArctic => {
             let route = lookup_route_semantic(profile, SemanticId(0x4796af54dcc20ece)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -128111,10 +128111,10 @@ pub fn decode_birthday_profile(
 
 pub fn encode_bool_profile(
     profile: Profile,
-    value: &rtd_tg::Bool,
+    __value: &rtd_tg::Bool,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Bool::BoolFalse => {
             let route = lookup_route_semantic(profile, SemanticId(0xdff6775f487e6deb)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -128389,10 +128389,10 @@ pub fn decode_boost_profile(
 
 pub fn encode_bot_app_profile(
     profile: Profile,
-    value: &rtd_tg::BotApp,
+    __value: &rtd_tg::BotApp,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::BotApp::BotApp {
             flags,
             id,
@@ -128904,10 +128904,10 @@ pub fn decode_bot_command_profile(
 
 pub fn encode_bot_command_scope_profile(
     profile: Profile,
-    value: &rtd_tg::BotCommandScope,
+    __value: &rtd_tg::BotCommandScope,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::BotCommandScope::BotCommandScopeChatAdmins => {
             let route = lookup_route_semantic(profile, SemanticId(0xe03f65111d2ccb88)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -129441,10 +129441,10 @@ pub fn decode_bot_info_profile(
 
 pub fn encode_bot_inline_message_profile(
     profile: Profile,
-    value: &rtd_tg::BotInlineMessage,
+    __value: &rtd_tg::BotInlineMessage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::BotInlineMessage::BotInlineMessageMediaAuto {
             flags,
             invert_media,
@@ -130369,10 +130369,10 @@ pub fn decode_bot_inline_message_profile(
 
 pub fn encode_bot_inline_result_profile(
     profile: Profile,
-    value: &rtd_tg::BotInlineResult,
+    __value: &rtd_tg::BotInlineResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::BotInlineResult::BotInlineMediaResult {
             flags,
             id,
@@ -130714,10 +130714,10 @@ pub fn decode_bot_inline_result_profile(
 
 pub fn encode_bot_menu_button_profile(
     profile: Profile,
-    value: &rtd_tg::BotMenuButton,
+    __value: &rtd_tg::BotMenuButton,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::BotMenuButton::BotMenuButton { text, url } => {
             let route = lookup_route_semantic(profile, SemanticId(0x1d4ebd69c920b488)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -131165,10 +131165,10 @@ pub fn decode_business_away_message_profile(
 
 pub fn encode_business_away_message_schedule_profile(
     profile: Profile,
-    value: &rtd_tg::BusinessAwayMessageSchedule,
+    __value: &rtd_tg::BusinessAwayMessageSchedule,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::BusinessAwayMessageSchedule::BusinessAwayMessageScheduleAlways => {
             let route = lookup_route_semantic(profile, SemanticId(0x5c713c4f5aab61ef)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -132371,10 +132371,10 @@ pub fn decode_business_work_hours_profile(
 
 pub fn encode_button_type_profile(
     profile: Profile,
-    value: &rtd_tg::ButtonType,
+    __value: &rtd_tg::ButtonType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ButtonType::ButtonTypeDefault => {
             let route = lookup_route_semantic(profile, SemanticId(0xba1aee9a7af2cd97)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -132919,10 +132919,10 @@ pub fn decode_channel_admin_log_event_profile(
 
 pub fn encode_channel_admin_log_event_action_profile(
     profile: Profile,
-    value: &rtd_tg::ChannelAdminLogEventAction,
+    __value: &rtd_tg::ChannelAdminLogEventAction,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChannelAdminLogEventAction::ChannelAdminLogEventActionChangeAbout { prev_value, new_value } => {
             let route = lookup_route_semantic(profile, SemanticId(0xfbb02bde27a81fc9)).ok_or(ProjectionError::Unrepresentable { layer: profile.layer, wire_id: 0x55188a2e })?;
             match route.mode {
@@ -134948,10 +134948,10 @@ pub fn decode_channel_admin_log_events_filter_profile(
 
 pub fn encode_channel_location_profile(
     profile: Profile,
-    value: &rtd_tg::ChannelLocation,
+    __value: &rtd_tg::ChannelLocation,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChannelLocation::ChannelLocation { geo_point, address } => {
             let route = lookup_route_semantic(profile, SemanticId(0xf085da1b86e5ea86)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -135035,10 +135035,10 @@ pub fn decode_channel_location_profile(
 
 pub fn encode_channel_messages_filter_profile(
     profile: Profile,
-    value: &rtd_tg::ChannelMessagesFilter,
+    __value: &rtd_tg::ChannelMessagesFilter,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChannelMessagesFilter::ChannelMessagesFilter {
             flags,
             exclude_new_messages,
@@ -135152,10 +135152,10 @@ pub fn decode_channel_messages_filter_profile(
 
 pub fn encode_channel_participant_profile(
     profile: Profile,
-    value: &rtd_tg::ChannelParticipant,
+    __value: &rtd_tg::ChannelParticipant,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChannelParticipant::ChannelParticipant {
             flags,
             user_id,
@@ -135666,10 +135666,10 @@ pub fn decode_channel_participant_profile(
 
 pub fn encode_channel_participants_filter_profile(
     profile: Profile,
-    value: &rtd_tg::ChannelParticipantsFilter,
+    __value: &rtd_tg::ChannelParticipantsFilter,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChannelParticipantsFilter::ChannelParticipantsAdmins => {
             let route = lookup_route_semantic(profile, SemanticId(0xe85531254e8ef47e)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -135930,10 +135930,10 @@ pub fn decode_channel_participants_filter_profile(
 
 pub fn encode_chat_profile(
     profile: Profile,
-    value: &rtd_tg::Chat,
+    __value: &rtd_tg::Chat,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Chat::Channel {
             flags,
             creator,
@@ -136438,13 +136438,13 @@ pub fn encode_chat_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_chat_channel_225(profile, value, __w)?,
-                        226 => encode_policy_chat_channel_226(profile, value, __w)?,
-                        227 => encode_policy_chat_channel_227(profile, value, __w)?,
-                        228 => encode_policy_chat_channel_228(profile, value, __w)?,
-                        229 => encode_policy_chat_channel_229(profile, value, __w)?,
-                        230 => encode_policy_chat_channel_230(profile, value, __w)?,
-                        231 => encode_policy_chat_channel_231(profile, value, __w)?,
+                        225 => encode_policy_chat_channel_225(profile, __value, __w)?,
+                        226 => encode_policy_chat_channel_226(profile, __value, __w)?,
+                        227 => encode_policy_chat_channel_227(profile, __value, __w)?,
+                        228 => encode_policy_chat_channel_228(profile, __value, __w)?,
+                        229 => encode_policy_chat_channel_229(profile, __value, __w)?,
+                        230 => encode_policy_chat_channel_230(profile, __value, __w)?,
+                        231 => encode_policy_chat_channel_231(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -144253,10 +144253,10 @@ fn decode_policy_chat_banned_rights_227(
 
 pub fn encode_chat_full_profile(
     profile: Profile,
-    value: &rtd_tg::ChatFull,
+    __value: &rtd_tg::ChatFull,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatFull::ChannelFull {
             flags,
             can_view_participants,
@@ -144980,13 +144980,13 @@ pub fn encode_chat_full_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_chat_full_channel_full_225(profile, value, __w)?,
-                        226 => encode_policy_chat_full_channel_full_226(profile, value, __w)?,
-                        227 => encode_policy_chat_full_channel_full_227(profile, value, __w)?,
-                        228 => encode_policy_chat_full_channel_full_228(profile, value, __w)?,
-                        229 => encode_policy_chat_full_channel_full_229(profile, value, __w)?,
-                        230 => encode_policy_chat_full_channel_full_230(profile, value, __w)?,
-                        231 => encode_policy_chat_full_channel_full_231(profile, value, __w)?,
+                        225 => encode_policy_chat_full_channel_full_225(profile, __value, __w)?,
+                        226 => encode_policy_chat_full_channel_full_226(profile, __value, __w)?,
+                        227 => encode_policy_chat_full_channel_full_227(profile, __value, __w)?,
+                        228 => encode_policy_chat_full_channel_full_228(profile, __value, __w)?,
+                        229 => encode_policy_chat_full_channel_full_229(profile, __value, __w)?,
+                        230 => encode_policy_chat_full_channel_full_230(profile, __value, __w)?,
+                        231 => encode_policy_chat_full_channel_full_231(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -145240,10 +145240,10 @@ pub fn encode_chat_full_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_chat_full_chat_full_225(profile, value, __w)?,
-                        226 => encode_policy_chat_full_chat_full_226(profile, value, __w)?,
-                        227 => encode_policy_chat_full_chat_full_227(profile, value, __w)?,
-                        228 => encode_policy_chat_full_chat_full_228(profile, value, __w)?,
+                        225 => encode_policy_chat_full_chat_full_225(profile, __value, __w)?,
+                        226 => encode_policy_chat_full_chat_full_226(profile, __value, __w)?,
+                        227 => encode_policy_chat_full_chat_full_227(profile, __value, __w)?,
+                        228 => encode_policy_chat_full_chat_full_228(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -154606,10 +154606,10 @@ fn decode_policy_chat_full_chat_full_228(
 
 pub fn encode_chat_invite_profile(
     profile: Profile,
-    value: &rtd_tg::ChatInvite,
+    __value: &rtd_tg::ChatInvite,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatInvite::ChatInvite {
             flags,
             channel,
@@ -155165,10 +155165,10 @@ pub fn decode_chat_onlines_profile(
 
 pub fn encode_chat_participant_profile(
     profile: Profile,
-    value: &rtd_tg::ChatParticipant,
+    __value: &rtd_tg::ChatParticipant,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatParticipant::ChatParticipant {
             flags,
             user_id,
@@ -155381,10 +155381,10 @@ pub fn decode_chat_participant_profile(
 
 pub fn encode_chat_participants_profile(
     profile: Profile,
-    value: &rtd_tg::ChatParticipants,
+    __value: &rtd_tg::ChatParticipants,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatParticipants::ChatParticipants {
             chat_id,
             participants,
@@ -155536,10 +155536,10 @@ pub fn decode_chat_participants_profile(
 
 pub fn encode_chat_photo_profile(
     profile: Profile,
-    value: &rtd_tg::ChatPhoto,
+    __value: &rtd_tg::ChatPhoto,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatPhoto::ChatPhoto {
             flags,
             has_video,
@@ -155656,10 +155656,10 @@ pub fn decode_chat_photo_profile(
 
 pub fn encode_chat_reactions_profile(
     profile: Profile,
-    value: &rtd_tg::ChatReactions,
+    __value: &rtd_tg::ChatReactions,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatReactions::ChatReactionsAll {
             flags,
             allow_custom,
@@ -155793,10 +155793,10 @@ pub fn decode_chat_reactions_profile(
 
 pub fn encode_chat_theme_profile(
     profile: Profile,
-    value: &rtd_tg::ChatTheme,
+    __value: &rtd_tg::ChatTheme,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatTheme::ChatTheme { emoticon } => {
             let route = lookup_route_semantic(profile, SemanticId(0x86ff04048c287d51)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -157695,10 +157695,10 @@ pub fn decode_default_history_ttl_profile(
 
 pub fn encode_dialog_profile(
     profile: Profile,
-    value: &rtd_tg::Dialog,
+    __value: &rtd_tg::Dialog,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Dialog::Dialog {
             flags,
             pinned,
@@ -158079,10 +158079,10 @@ pub fn decode_dialog_profile(
 
 pub fn encode_dialog_filter_profile(
     profile: Profile,
-    value: &rtd_tg::DialogFilter,
+    __value: &rtd_tg::DialogFilter,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::DialogFilter::DialogFilter {
             flags,
             contacts,
@@ -158604,10 +158604,10 @@ pub fn decode_dialog_filter_suggested_profile(
 
 pub fn encode_dialog_peer_profile(
     profile: Profile,
-    value: &rtd_tg::DialogPeer,
+    __value: &rtd_tg::DialogPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::DialogPeer::DialogPeer { peer } => {
             let route = lookup_route_semantic(profile, SemanticId(0x4345927a1fca6eae)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -158829,10 +158829,10 @@ pub fn decode_disallowed_gifts_settings_profile(
 
 pub fn encode_document_profile(
     profile: Profile,
-    value: &rtd_tg::Document,
+    __value: &rtd_tg::Document,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Document::Document {
             flags,
             id,
@@ -159061,10 +159061,10 @@ pub fn decode_document_profile(
 
 pub fn encode_document_attribute_profile(
     profile: Profile,
-    value: &rtd_tg::DocumentAttribute,
+    __value: &rtd_tg::DocumentAttribute,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::DocumentAttribute::DocumentAttributeAnimated => {
             let route = lookup_route_semantic(profile, SemanticId(0x028ae74fcb3218b3)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -159614,10 +159614,10 @@ pub fn decode_double_profile(
 
 pub fn encode_draft_message_profile(
     profile: Profile,
-    value: &rtd_tg::DraftMessage,
+    __value: &rtd_tg::DraftMessage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::DraftMessage::DraftMessage {
             flags,
             no_webpage,
@@ -159747,8 +159747,12 @@ pub fn encode_draft_message_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_draft_message_draft_message_225(profile, value, __w)?,
-                        226 => encode_policy_draft_message_draft_message_226(profile, value, __w)?,
+                        225 => {
+                            encode_policy_draft_message_draft_message_225(profile, __value, __w)?
+                        }
+                        226 => {
+                            encode_policy_draft_message_draft_message_226(profile, __value, __w)?
+                        }
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -160292,10 +160296,10 @@ fn decode_policy_draft_message_draft_message_226(
 
 pub fn encode_email_verification_profile(
     profile: Profile,
-    value: &rtd_tg::EmailVerification,
+    __value: &rtd_tg::EmailVerification,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EmailVerification::EmailVerificationApple { token } => {
             let route = lookup_route_semantic(profile, SemanticId(0x1f38e7007b9a6278)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -160398,10 +160402,10 @@ pub fn decode_email_verification_profile(
 
 pub fn encode_email_verify_purpose_profile(
     profile: Profile,
-    value: &rtd_tg::EmailVerifyPurpose,
+    __value: &rtd_tg::EmailVerifyPurpose,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EmailVerifyPurpose::EmailVerifyPurposeLoginChange => {
             let route = lookup_route_semantic(profile, SemanticId(0x6f9396bf787df261)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -160503,10 +160507,10 @@ pub fn decode_email_verify_purpose_profile(
 
 pub fn encode_emoji_group_profile(
     profile: Profile,
-    value: &rtd_tg::EmojiGroup,
+    __value: &rtd_tg::EmojiGroup,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EmojiGroup::EmojiGroup {
             title,
             icon_emoji_id,
@@ -160672,10 +160676,10 @@ pub fn decode_emoji_group_profile(
 
 pub fn encode_emoji_keyword_profile(
     profile: Profile,
-    value: &rtd_tg::EmojiKeyword,
+    __value: &rtd_tg::EmojiKeyword,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EmojiKeyword::EmojiKeyword { keyword, emoticons } => {
             let route = lookup_route_semantic(profile, SemanticId(0x4211d577f08c4aeb)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -160934,10 +160938,10 @@ pub fn decode_emoji_language_profile(
 
 pub fn encode_emoji_list_profile(
     profile: Profile,
-    value: &rtd_tg::EmojiList,
+    __value: &rtd_tg::EmojiList,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EmojiList::EmojiList { hash, document_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0xf8df26be59af5589)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -161026,10 +161030,10 @@ pub fn decode_emoji_list_profile(
 
 pub fn encode_emoji_status_profile(
     profile: Profile,
-    value: &rtd_tg::EmojiStatus,
+    __value: &rtd_tg::EmojiStatus,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EmojiStatus::EmojiStatus {
             flags,
             document_id,
@@ -161333,10 +161337,10 @@ pub fn decode_emoji_url_profile(
 
 pub fn encode_encrypted_chat_profile(
     profile: Profile,
-    value: &rtd_tg::EncryptedChat,
+    __value: &rtd_tg::EncryptedChat,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EncryptedChat::EncryptedChat {
             id,
             access_hash,
@@ -161622,10 +161626,10 @@ pub fn decode_encrypted_chat_profile(
 
 pub fn encode_encrypted_file_profile(
     profile: Profile,
-    value: &rtd_tg::EncryptedFile,
+    __value: &rtd_tg::EncryptedFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EncryptedFile::EncryptedFile {
             id,
             access_hash,
@@ -161722,10 +161726,10 @@ pub fn decode_encrypted_file_profile(
 
 pub fn encode_encrypted_message_profile(
     profile: Profile,
-    value: &rtd_tg::EncryptedMessage,
+    __value: &rtd_tg::EncryptedMessage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EncryptedMessage::EncryptedMessage {
             random_id,
             chat_id,
@@ -162292,10 +162296,10 @@ pub fn decode_error_profile(
 
 pub fn encode_exported_chat_invite_profile(
     profile: Profile,
-    value: &rtd_tg::ExportedChatInvite,
+    __value: &rtd_tg::ExportedChatInvite,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ExportedChatInvite::ChatInviteExported {
             flags,
             revoked,
@@ -163312,10 +163316,10 @@ pub fn decode_folder_peer_profile(
 
 pub fn encode_forum_topic_profile(
     profile: Profile,
-    value: &rtd_tg::ForumTopic,
+    __value: &rtd_tg::ForumTopic,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ForumTopic::ForumTopic {
             flags,
             my,
@@ -163796,10 +163800,10 @@ pub fn decode_game_profile(
 
 pub fn encode_geo_point_profile(
     profile: Profile,
-    value: &rtd_tg::GeoPoint,
+    __value: &rtd_tg::GeoPoint,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::GeoPoint::GeoPoint {
             flags,
             long,
@@ -164205,10 +164209,10 @@ pub fn decode_global_privacy_settings_profile(
 
 pub fn encode_group_call_profile(
     profile: Profile,
-    value: &rtd_tg::GroupCall,
+    __value: &rtd_tg::GroupCall,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::GroupCall::GroupCall {
             flags,
             join_muted,
@@ -165689,10 +165693,10 @@ pub fn decode_inline_bot_web_view_profile(
 
 pub fn encode_inline_button_type_profile(
     profile: Profile,
-    value: &rtd_tg::InlineButtonType,
+    __value: &rtd_tg::InlineButtonType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InlineButtonType::InlineButtonTypeBuy => {
             let route = lookup_route_semantic(profile, SemanticId(0x614a6941466fcb18)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -166197,10 +166201,10 @@ pub fn decode_inline_button_type_profile(
 
 pub fn encode_inline_query_peer_type_profile(
     profile: Profile,
-    value: &rtd_tg::InlineQueryPeerType,
+    __value: &rtd_tg::InlineQueryPeerType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InlineQueryPeerType::InlineQueryPeerTypeBotPM => {
             let route = lookup_route_semantic(profile, SemanticId(0x5b41e1e474028ebf)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -166348,10 +166352,10 @@ pub fn decode_inline_query_peer_type_profile(
 
 pub fn encode_input_ai_compose_tone_profile(
     profile: Profile,
-    value: &rtd_tg::InputAiComposeTone,
+    __value: &rtd_tg::InputAiComposeTone,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputAiComposeTone::InputAiComposeToneDefault { tone } => {
             let route = lookup_route_semantic(profile, SemanticId(0xd1f5bf9df6cf2438)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -166565,10 +166569,10 @@ pub fn decode_input_app_event_profile(
 
 pub fn encode_input_bot_app_profile(
     profile: Profile,
-    value: &rtd_tg::InputBotApp,
+    __value: &rtd_tg::InputBotApp,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputBotApp::InputBotAppID { id, access_hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x7af7a64cbb82f389)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -166660,10 +166664,10 @@ pub fn decode_input_bot_app_profile(
 
 pub fn encode_input_bot_inline_message_profile(
     profile: Profile,
-    value: &rtd_tg::InputBotInlineMessage,
+    __value: &rtd_tg::InputBotInlineMessage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputBotInlineMessage::InputBotInlineMessageGame {
             flags,
             reply_markup,
@@ -167660,10 +167664,10 @@ pub fn decode_input_bot_inline_message_profile(
 
 pub fn encode_input_bot_inline_message_id_profile(
     profile: Profile,
-    value: &rtd_tg::InputBotInlineMessageID,
+    __value: &rtd_tg::InputBotInlineMessageID,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputBotInlineMessageID::InputBotInlineMessageID {
             dc_id,
             id,
@@ -167776,10 +167780,10 @@ pub fn decode_input_bot_inline_message_id_profile(
 
 pub fn encode_input_bot_inline_result_profile(
     profile: Profile,
-    value: &rtd_tg::InputBotInlineResult,
+    __value: &rtd_tg::InputBotInlineResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputBotInlineResult::InputBotInlineResult {
             flags,
             id,
@@ -168945,10 +168949,10 @@ pub fn decode_input_business_recipients_profile(
 
 pub fn encode_input_channel_profile(
     profile: Profile,
-    value: &rtd_tg::InputChannel,
+    __value: &rtd_tg::InputChannel,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputChannel::InputChannel {
             channel_id,
             access_hash,
@@ -169077,10 +169081,10 @@ pub fn decode_input_channel_profile(
 
 pub fn encode_input_chat_photo_profile(
     profile: Profile,
-    value: &rtd_tg::InputChatPhoto,
+    __value: &rtd_tg::InputChatPhoto,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputChatPhoto::InputChatPhoto { id } => {
             let route = lookup_route_semantic(profile, SemanticId(0x971f5fae08e8dc17)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -169295,10 +169299,10 @@ pub fn decode_input_chat_photo_profile(
 
 pub fn encode_input_chat_theme_profile(
     profile: Profile,
-    value: &rtd_tg::InputChatTheme,
+    __value: &rtd_tg::InputChatTheme,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputChatTheme::InputChatTheme { emoticon } => {
             let route = lookup_route_semantic(profile, SemanticId(0x54de8124d3759a45)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -169396,10 +169400,10 @@ pub fn decode_input_chat_theme_profile(
 
 pub fn encode_input_chatlist_profile(
     profile: Profile,
-    value: &rtd_tg::InputChatlist,
+    __value: &rtd_tg::InputChatlist,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputChatlist::InputChatlistDialogFilter { filter_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0xa43c2882bc63ea48)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -169452,10 +169456,10 @@ pub fn decode_input_chatlist_profile(
 
 pub fn encode_input_check_password_srp_profile(
     profile: Profile,
-    value: &rtd_tg::InputCheckPasswordSRP,
+    __value: &rtd_tg::InputCheckPasswordSRP,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputCheckPasswordSRP::InputCheckPasswordEmpty => {
             let route = lookup_route_semantic(profile, SemanticId(0x9a646e426239b0f3)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -169588,10 +169592,10 @@ pub fn decode_input_client_proxy_profile(
 
 pub fn encode_input_collectible_profile(
     profile: Profile,
-    value: &rtd_tg::InputCollectible,
+    __value: &rtd_tg::InputCollectible,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputCollectible::InputCollectiblePhone { phone } => {
             let route = lookup_route_semantic(profile, SemanticId(0xe5d951da7ae75222)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -169669,10 +169673,10 @@ pub fn decode_input_collectible_profile(
 
 pub fn encode_input_contact_profile(
     profile: Profile,
-    value: &rtd_tg::InputContact,
+    __value: &rtd_tg::InputContact,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputContact::InputPhoneContact {
             flags,
             client_id,
@@ -169779,10 +169783,10 @@ pub fn decode_input_contact_profile(
 
 pub fn encode_input_dialog_peer_profile(
     profile: Profile,
-    value: &rtd_tg::InputDialogPeer,
+    __value: &rtd_tg::InputDialogPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputDialogPeer::InputDialogPeer { peer } => {
             let route = lookup_route_semantic(profile, SemanticId(0x52b58c7847ea7aef)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -169901,10 +169905,10 @@ pub fn decode_input_dialog_peer_profile(
 
 pub fn encode_input_document_profile(
     profile: Profile,
-    value: &rtd_tg::InputDocument,
+    __value: &rtd_tg::InputDocument,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputDocument::InputDocument {
             id,
             access_hash,
@@ -170054,10 +170058,10 @@ pub fn decode_input_encrypted_chat_profile(
 
 pub fn encode_input_encrypted_file_profile(
     profile: Profile,
-    value: &rtd_tg::InputEncryptedFile,
+    __value: &rtd_tg::InputEncryptedFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputEncryptedFile::InputEncryptedFile { id, access_hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x94845ef5e1f502b1)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -170216,10 +170220,10 @@ pub fn decode_input_encrypted_file_profile(
 
 pub fn encode_input_file_profile(
     profile: Profile,
-    value: &rtd_tg::InputFile,
+    __value: &rtd_tg::InputFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputFile::InputFile {
             id,
             parts,
@@ -170355,10 +170359,10 @@ pub fn decode_input_file_profile(
 
 pub fn encode_input_file_location_profile(
     profile: Profile,
-    value: &rtd_tg::InputFileLocation,
+    __value: &rtd_tg::InputFileLocation,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputFileLocation::InputDocumentFileLocation {
             id,
             access_hash,
@@ -171014,10 +171018,10 @@ pub fn decode_input_folder_peer_profile(
 
 pub fn encode_input_game_profile(
     profile: Profile,
-    value: &rtd_tg::InputGame,
+    __value: &rtd_tg::InputGame,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputGame::InputGameID { id, access_hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x50bb2ff33807c677)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -171109,10 +171113,10 @@ pub fn decode_input_game_profile(
 
 pub fn encode_input_geo_point_profile(
     profile: Profile,
-    value: &rtd_tg::InputGeoPoint,
+    __value: &rtd_tg::InputGeoPoint,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputGeoPoint::InputGeoPoint {
             flags,
             lat,
@@ -171220,10 +171224,10 @@ pub fn decode_input_geo_point_profile(
 
 pub fn encode_input_group_call_profile(
     profile: Profile,
-    value: &rtd_tg::InputGroupCall,
+    __value: &rtd_tg::InputGroupCall,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputGroupCall::InputGroupCall { id, access_hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x30f7371882faf77e)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -171329,10 +171333,10 @@ pub fn decode_input_group_call_profile(
 
 pub fn encode_input_invoice_profile(
     profile: Profile,
-    value: &rtd_tg::InputInvoice,
+    __value: &rtd_tg::InputInvoice,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputInvoice::InputInvoiceBusinessBotTransferStars { bot, stars } => {
             let route = lookup_route_semantic(profile, SemanticId(0x8d181d6ae5d48355)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -171741,16 +171745,16 @@ pub fn encode_input_invoice_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_input_invoice_input_invoice_star_gift_resale_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_input_invoice_input_invoice_star_gift_resale_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         227 => encode_policy_input_invoice_input_invoice_star_gift_resale_227(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         228 => encode_policy_input_invoice_input_invoice_star_gift_resale_228(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -172441,10 +172445,10 @@ fn decode_policy_input_invoice_input_invoice_star_gift_resale_228(
 
 pub fn encode_input_media_profile(
     profile: Profile,
-    value: &rtd_tg::InputMedia,
+    __value: &rtd_tg::InputMedia,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputMedia::InputMediaContact {
             phone_number,
             first_name,
@@ -174222,10 +174226,10 @@ pub fn decode_input_media_profile(
 
 pub fn encode_input_message_profile(
     profile: Profile,
-    value: &rtd_tg::InputMessage,
+    __value: &rtd_tg::InputMessage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputMessage::InputMessageCallbackQuery { id, query_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0x6b29e6b4f5a110d3)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -174438,10 +174442,10 @@ pub fn decode_input_message_read_metric_profile(
 
 pub fn encode_input_notify_peer_profile(
     profile: Profile,
-    value: &rtd_tg::InputNotifyPeer,
+    __value: &rtd_tg::InputNotifyPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputNotifyPeer::InputNotifyBroadcasts => {
             let route = lookup_route_semantic(profile, SemanticId(0x69df7624706f91a3)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -174631,10 +174635,10 @@ pub fn decode_input_notify_peer_profile(
 
 pub fn encode_input_passkey_credential_profile(
     profile: Profile,
-    value: &rtd_tg::InputPasskeyCredential,
+    __value: &rtd_tg::InputPasskeyCredential,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputPasskeyCredential::InputPasskeyCredentialPublicKey {
             id,
             raw_id,
@@ -174711,10 +174715,10 @@ pub fn decode_input_passkey_credential_profile(
 
 pub fn encode_input_passkey_response_profile(
     profile: Profile,
-    value: &rtd_tg::InputPasskeyResponse,
+    __value: &rtd_tg::InputPasskeyResponse,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputPasskeyResponse::InputPasskeyResponseLogin {
             client_data,
             authenticator_data,
@@ -174836,10 +174840,10 @@ pub fn decode_input_passkey_response_profile(
 
 pub fn encode_input_payment_credentials_profile(
     profile: Profile,
-    value: &rtd_tg::InputPaymentCredentials,
+    __value: &rtd_tg::InputPaymentCredentials,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputPaymentCredentials::InputPaymentCredentials { flags, save, data } => {
             let route = lookup_route_semantic(profile, SemanticId(0x8b4e80a42d27221b)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -175021,10 +175025,10 @@ pub fn decode_input_payment_credentials_profile(
 
 pub fn encode_input_peer_profile(
     profile: Profile,
-    value: &rtd_tg::InputPeer,
+    __value: &rtd_tg::InputPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputPeer::InputPeerChannel {
             channel_id,
             access_hash,
@@ -175552,10 +175556,10 @@ pub fn decode_input_phone_call_profile(
 
 pub fn encode_input_photo_profile(
     profile: Profile,
-    value: &rtd_tg::InputPhoto,
+    __value: &rtd_tg::InputPhoto,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputPhoto::InputPhoto {
             id,
             access_hash,
@@ -175642,10 +175646,10 @@ pub fn decode_input_photo_profile(
 
 pub fn encode_input_privacy_key_profile(
     profile: Profile,
-    value: &rtd_tg::InputPrivacyKey,
+    __value: &rtd_tg::InputPrivacyKey,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputPrivacyKey::InputPrivacyKeyAbout => {
             let route = lookup_route_semantic(profile, SemanticId(0x7f47e41af16f4c79)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -175953,10 +175957,10 @@ pub fn decode_input_privacy_key_profile(
 
 pub fn encode_input_privacy_rule_profile(
     profile: Profile,
-    value: &rtd_tg::InputPrivacyRule,
+    __value: &rtd_tg::InputPrivacyRule,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputPrivacyRule::InputPrivacyValueAllowAll => {
             let route = lookup_route_semantic(profile, SemanticId(0xbb826f55f3534f37)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -176312,10 +176316,10 @@ pub fn decode_input_privacy_rule_profile(
 
 pub fn encode_input_quick_reply_shortcut_profile(
     profile: Profile,
-    value: &rtd_tg::InputQuickReplyShortcut,
+    __value: &rtd_tg::InputQuickReplyShortcut,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputQuickReplyShortcut::InputQuickReplyShortcut { shortcut } => {
             let route = lookup_route_semantic(profile, SemanticId(0x76118f344a90d836)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -176395,10 +176399,10 @@ pub fn decode_input_quick_reply_shortcut_profile(
 
 pub fn encode_input_reply_to_profile(
     profile: Profile,
-    value: &rtd_tg::InputReplyTo,
+    __value: &rtd_tg::InputReplyTo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputReplyTo::InputReplyToEphemeralMessage { id } => {
             let route = lookup_route_semantic(profile, SemanticId(0xe193ea8861f038d3)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -176578,25 +176582,25 @@ pub fn encode_input_reply_to_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_input_reply_to_input_reply_to_message_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_input_reply_to_input_reply_to_message_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         227 => encode_policy_input_reply_to_input_reply_to_message_227(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         228 => encode_policy_input_reply_to_input_reply_to_message_228(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         229 => encode_policy_input_reply_to_input_reply_to_message_229(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         230 => encode_policy_input_reply_to_input_reply_to_message_230(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         231 => encode_policy_input_reply_to_input_reply_to_message_231(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -178211,10 +178215,10 @@ fn decode_policy_input_reply_to_input_reply_to_message_231(
 
 pub fn encode_input_rich_file_profile(
     profile: Profile,
-    value: &rtd_tg::InputRichFile,
+    __value: &rtd_tg::InputRichFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputRichFile::InputRichFileDocument { id, document } => {
             let route = lookup_route_semantic(profile, SemanticId(0x779798c1c51e9100)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -178314,10 +178318,10 @@ pub fn decode_input_rich_file_profile(
 
 pub fn encode_input_rich_message_profile(
     profile: Profile,
-    value: &rtd_tg::InputRichMessage,
+    __value: &rtd_tg::InputRichMessage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputRichMessage::InputRichMessage {
             flags,
             rtl,
@@ -178738,10 +178742,10 @@ pub fn decode_input_rich_message_profile(
 
 pub fn encode_input_saved_star_gift_profile(
     profile: Profile,
-    value: &rtd_tg::InputSavedStarGift,
+    __value: &rtd_tg::InputSavedStarGift,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputSavedStarGift::InputSavedStarGiftChat { peer, saved_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0x18d6a0312f10df04)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -178855,10 +178859,10 @@ pub fn decode_input_saved_star_gift_profile(
 
 pub fn encode_input_secure_file_profile(
     profile: Profile,
-    value: &rtd_tg::InputSecureFile,
+    __value: &rtd_tg::InputSecureFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputSecureFile::InputSecureFile { id, access_hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x7f36fb65b7293a48)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -179394,10 +179398,10 @@ pub fn decode_input_single_media_profile(
 
 pub fn encode_input_star_gift_auction_profile(
     profile: Profile,
-    value: &rtd_tg::InputStarGiftAuction,
+    __value: &rtd_tg::InputStarGiftAuction,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputStarGiftAuction::InputStarGiftAuction { gift_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0xfe02fa8b6080b167)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -179538,10 +179542,10 @@ pub fn decode_input_stars_transaction_profile(
 
 pub fn encode_input_sticker_set_profile(
     profile: Profile,
-    value: &rtd_tg::InputStickerSet,
+    __value: &rtd_tg::InputStickerSet,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputStickerSet::InputStickerSetAnimatedEmoji => {
             let route = lookup_route_semantic(profile, SemanticId(0xb582357b4b528489)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -179963,10 +179967,10 @@ pub fn decode_input_sticker_set_item_profile(
 
 pub fn encode_input_stickered_media_profile(
     profile: Profile,
-    value: &rtd_tg::InputStickeredMedia,
+    __value: &rtd_tg::InputStickeredMedia,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputStickeredMedia::InputStickeredMediaDocument { id } => {
             let route = lookup_route_semantic(profile, SemanticId(0xaf650574ca83eada)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -180060,10 +180064,10 @@ pub fn decode_input_stickered_media_profile(
 
 pub fn encode_input_store_payment_purpose_profile(
     profile: Profile,
-    value: &rtd_tg::InputStorePaymentPurpose,
+    __value: &rtd_tg::InputStorePaymentPurpose,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputStorePaymentPurpose::InputStorePaymentAuthCode {
             flags,
             restore,
@@ -180883,10 +180887,10 @@ pub fn decode_input_store_payment_purpose_profile(
 
 pub fn encode_input_theme_profile(
     profile: Profile,
-    value: &rtd_tg::InputTheme,
+    __value: &rtd_tg::InputTheme,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputTheme::InputTheme { id, access_hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x65a48f160c1e3f56)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -181252,10 +181256,10 @@ pub fn decode_input_ton_connect_oauth_session_profile(
 
 pub fn encode_input_user_profile(
     profile: Profile,
-    value: &rtd_tg::InputUser,
+    __value: &rtd_tg::InputUser,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputUser::InputUser {
             user_id,
             access_hash,
@@ -181404,10 +181408,10 @@ pub fn decode_input_user_profile(
 
 pub fn encode_input_wall_paper_profile(
     profile: Profile,
-    value: &rtd_tg::InputWallPaper,
+    __value: &rtd_tg::InputWallPaper,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputWallPaper::InputWallPaper { id, access_hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x3b6bfd2e30b91cd7)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -181584,10 +181588,10 @@ pub fn decode_input_wallet_card_sticker_profile(
 
 pub fn encode_input_wallet_replacement_profile(
     profile: Profile,
-    value: &rtd_tg::InputWalletReplacement,
+    __value: &rtd_tg::InputWalletReplacement,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputWalletReplacement::InputWalletImported {
             flags,
             public_key,
@@ -181799,10 +181803,10 @@ pub fn decode_input_web_document_profile(
 
 pub fn encode_input_web_file_location_profile(
     profile: Profile,
-    value: &rtd_tg::InputWebFileLocation,
+    __value: &rtd_tg::InputWebFileLocation,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::InputWebFileLocation::InputWebFileAudioAlbumThumbLocation {
             flags,
             small,
@@ -182347,10 +182351,10 @@ pub fn decode_invoice_profile(
 
 pub fn encode_ip_port_profile(
     profile: Profile,
-    value: &rtd_tg::IpPort,
+    __value: &rtd_tg::IpPort,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::IpPort::IpPort { ipv4, port } => {
             let route = lookup_route_semantic(profile, SemanticId(0xe125441b96081210)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -182499,10 +182503,10 @@ pub fn decode_jsonobject_value_profile(
 
 pub fn encode_jsonvalue_profile(
     profile: Profile,
-    value: &rtd_tg::JSONValue,
+    __value: &rtd_tg::JSONValue,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::JSONValue::JsonArray { value } => {
             let route = lookup_route_semantic(profile, SemanticId(0x585d7e860bd42530)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -182717,10 +182721,10 @@ pub fn decode_jsonvalue_profile(
 
 pub fn encode_join_chat_bot_result_profile(
     profile: Profile,
-    value: &rtd_tg::JoinChatBotResult,
+    __value: &rtd_tg::JoinChatBotResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::JoinChatBotResult::JoinChatBotResultApproved => {
             let route = lookup_route_semantic(profile, SemanticId(0xb71efb66112d1c33)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -183605,10 +183609,10 @@ pub fn decode_lang_pack_language_profile(
 
 pub fn encode_lang_pack_string_profile(
     profile: Profile,
-    value: &rtd_tg::LangPackString,
+    __value: &rtd_tg::LangPackString,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::LangPackString::LangPackString { key, value } => {
             let route = lookup_route_semantic(profile, SemanticId(0xf9355b922b0aabf9)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -183929,10 +183933,10 @@ pub fn decode_mask_coords_profile(
 
 pub fn encode_media_area_profile(
     profile: Profile,
-    value: &rtd_tg::MediaArea,
+    __value: &rtd_tg::MediaArea,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MediaArea::InputMediaAreaChannelPost {
             coordinates,
             channel,
@@ -184577,10 +184581,10 @@ pub fn decode_media_area_coordinates_profile(
 
 pub fn encode_message_profile(
     profile: Profile,
-    value: &rtd_tg::Message,
+    __value: &rtd_tg::Message,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Message::Message {
             flags,
             out,
@@ -185130,8 +185134,8 @@ pub fn encode_message_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_message_message_225(profile, value, __w)?,
-                        226 => encode_policy_message_message_226(profile, value, __w)?,
+                        225 => encode_policy_message_message_225(profile, __value, __w)?,
+                        226 => encode_policy_message_message_226(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -187437,10 +187441,10 @@ fn decode_policy_message_message_226(
 
 pub fn encode_message_action_profile(
     profile: Profile,
-    value: &rtd_tg::MessageAction,
+    __value: &rtd_tg::MessageAction,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessageAction::MessageActionBoostApply { boosts } => {
             let route = lookup_route_semantic(profile, SemanticId(0xfb43a1e01e09f2c4)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -189958,16 +189962,16 @@ pub fn encode_message_action_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_message_action_message_action_star_gift_unique_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_message_action_message_action_star_gift_unique_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         227 => encode_policy_message_action_message_action_star_gift_unique_227(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         228 => encode_policy_message_action_message_action_star_gift_unique_228(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -193137,10 +193141,10 @@ fn decode_policy_message_action_message_action_star_gift_unique_228(
 
 pub fn encode_message_entity_profile(
     profile: Profile,
-    value: &rtd_tg::MessageEntity,
+    __value: &rtd_tg::MessageEntity,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessageEntity::InputMessageEntityMentionName {
             offset,
             length,
@@ -194064,10 +194068,10 @@ pub fn decode_message_entity_profile(
 
 pub fn encode_message_extended_media_profile(
     profile: Profile,
-    value: &rtd_tg::MessageExtendedMedia,
+    __value: &rtd_tg::MessageExtendedMedia,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessageExtendedMedia::MessageExtendedMedia { media } => {
             let route = lookup_route_semantic(profile, SemanticId(0x57859338f7b90d9d)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -194555,10 +194559,10 @@ pub fn decode_message_fwd_header_profile(
 
 pub fn encode_message_media_profile(
     profile: Profile,
-    value: &rtd_tg::MessageMedia,
+    __value: &rtd_tg::MessageMedia,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessageMedia::MessageMediaContact {
             phone_number,
             first_name,
@@ -196347,10 +196351,10 @@ pub fn decode_message_peer_reaction_profile(
 
 pub fn encode_message_peer_vote_profile(
     profile: Profile,
-    value: &rtd_tg::MessagePeerVote,
+    __value: &rtd_tg::MessagePeerVote,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagePeerVote::MessagePeerVote { peer, option, date } => {
             let route = lookup_route_semantic(profile, SemanticId(0x29c1ea8028ba5a88)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -197075,10 +197079,10 @@ pub fn decode_message_replies_profile(
 
 pub fn encode_message_reply_header_profile(
     profile: Profile,
-    value: &rtd_tg::MessageReplyHeader,
+    __value: &rtd_tg::MessageReplyHeader,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessageReplyHeader::MessageReplyHeader {
             flags,
             reply_to_scheduled,
@@ -197288,25 +197292,25 @@ pub fn encode_message_reply_header_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_message_reply_header_message_reply_header_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_message_reply_header_message_reply_header_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         227 => encode_policy_message_reply_header_message_reply_header_227(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         228 => encode_policy_message_reply_header_message_reply_header_228(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         229 => encode_policy_message_reply_header_message_reply_header_229(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         230 => encode_policy_message_reply_header_message_reply_header_230(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         231 => encode_policy_message_reply_header_message_reply_header_231(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -199574,10 +199578,10 @@ pub fn decode_message_views_profile(
 
 pub fn encode_messages_filter_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesFilter,
+    __value: &rtd_tg::MessagesFilter,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesFilter::InputMessagesFilterChatPhotos => {
             let route = lookup_route_semantic(profile, SemanticId(0x03ebc497967b472b)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -200258,10 +200262,10 @@ pub fn decode_nearest_dc_profile(
 
 pub fn encode_notification_sound_profile(
     profile: Profile,
-    value: &rtd_tg::NotificationSound,
+    __value: &rtd_tg::NotificationSound,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::NotificationSound::NotificationSoundDefault => {
             let route = lookup_route_semantic(profile, SemanticId(0x3521ce6c1cc55f0f)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -200382,10 +200386,10 @@ pub fn decode_notification_sound_profile(
 
 pub fn encode_notify_peer_profile(
     profile: Profile,
-    value: &rtd_tg::NotifyPeer,
+    __value: &rtd_tg::NotifyPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::NotifyPeer::NotifyBroadcasts => {
             let route = lookup_route_semantic(profile, SemanticId(0xc9a73eff3d779943)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -201466,10 +201470,10 @@ pub fn decode_page_profile(
 
 pub fn encode_page_block_profile(
     profile: Profile,
-    value: &rtd_tg::PageBlock,
+    __value: &rtd_tg::PageBlock,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PageBlock::InputPageBlockMap {
             geo,
             zoom,
@@ -201613,18 +201617,18 @@ pub fn encode_page_block_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => {
-                            encode_policy_page_block_page_block_blockquote_225(profile, value, __w)?
-                        }
-                        226 => {
-                            encode_policy_page_block_page_block_blockquote_226(profile, value, __w)?
-                        }
-                        227 => {
-                            encode_policy_page_block_page_block_blockquote_227(profile, value, __w)?
-                        }
-                        228 => {
-                            encode_policy_page_block_page_block_blockquote_228(profile, value, __w)?
-                        }
+                        225 => encode_policy_page_block_page_block_blockquote_225(
+                            profile, __value, __w,
+                        )?,
+                        226 => encode_policy_page_block_page_block_blockquote_226(
+                            profile, __value, __w,
+                        )?,
+                        227 => encode_policy_page_block_page_block_blockquote_227(
+                            profile, __value, __w,
+                        )?,
+                        228 => encode_policy_page_block_page_block_blockquote_228(
+                            profile, __value, __w,
+                        )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -202370,10 +202374,10 @@ pub fn encode_page_block_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_page_block_page_block_ordered_list_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_page_block_page_block_ordered_list_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -202467,8 +202471,12 @@ pub fn encode_page_block_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_page_block_page_block_photo_225(profile, value, __w)?,
-                        226 => encode_policy_page_block_page_block_photo_226(profile, value, __w)?,
+                        225 => {
+                            encode_policy_page_block_page_block_photo_225(profile, __value, __w)?
+                        }
+                        226 => {
+                            encode_policy_page_block_page_block_photo_226(profile, __value, __w)?
+                        }
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -202680,10 +202688,18 @@ pub fn encode_page_block_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_page_block_page_block_table_225(profile, value, __w)?,
-                        226 => encode_policy_page_block_page_block_table_226(profile, value, __w)?,
-                        227 => encode_policy_page_block_page_block_table_227(profile, value, __w)?,
-                        228 => encode_policy_page_block_page_block_table_228(profile, value, __w)?,
+                        225 => {
+                            encode_policy_page_block_page_block_table_225(profile, __value, __w)?
+                        }
+                        226 => {
+                            encode_policy_page_block_page_block_table_226(profile, __value, __w)?
+                        }
+                        227 => {
+                            encode_policy_page_block_page_block_table_227(profile, __value, __w)?
+                        }
+                        228 => {
+                            encode_policy_page_block_page_block_table_228(profile, __value, __w)?
+                        }
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -202804,8 +202820,12 @@ pub fn encode_page_block_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_page_block_page_block_video_225(profile, value, __w)?,
-                        226 => encode_policy_page_block_page_block_video_226(profile, value, __w)?,
+                        225 => {
+                            encode_policy_page_block_page_block_video_225(profile, __value, __w)?
+                        }
+                        226 => {
+                            encode_policy_page_block_page_block_video_226(profile, __value, __w)?
+                        }
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -204707,10 +204727,10 @@ pub fn decode_page_caption_profile(
 
 pub fn encode_page_list_item_profile(
     profile: Profile,
-    value: &rtd_tg::PageListItem,
+    __value: &rtd_tg::PageListItem,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PageListItem::PageListItemBlocks {
             flags,
             checkbox,
@@ -204760,10 +204780,10 @@ pub fn encode_page_list_item_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_page_list_item_page_list_item_blocks_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_page_list_item_page_list_item_blocks_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -204815,10 +204835,10 @@ pub fn encode_page_list_item_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_page_list_item_page_list_item_text_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_page_list_item_page_list_item_text_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -205070,10 +205090,10 @@ fn decode_policy_page_list_item_page_list_item_text_226(
 
 pub fn encode_page_list_ordered_item_profile(
     profile: Profile,
-    value: &rtd_tg::PageListOrderedItem,
+    __value: &rtd_tg::PageListOrderedItem,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PageListOrderedItem::PageListOrderedItemBlocks {
             flags,
             checkbox,
@@ -205158,6 +205178,23 @@ pub fn encode_page_list_ordered_item_profile(
                     }
                     Ok(())
                 }
+                RouteMode::Policy => {
+                    __w.put_u32(route.wire_id);
+                    match profile.layer {
+                        225 => {
+                            encode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
+                                profile, __value, __w,
+                            )?
+                        }
+                        226 => {
+                            encode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
+                                profile, __value, __w,
+                            )?
+                        }
+                        _ => return Err(ProjectionError::RouteNotEmitted(route)),
+                    }
+                    Ok(())
+                }
                 _ => Err(ProjectionError::RouteNotEmitted(route)),
             }
         }
@@ -205239,10 +205276,101 @@ pub fn encode_page_list_ordered_item_profile(
                     }
                     Ok(())
                 }
+                RouteMode::Policy => {
+                    __w.put_u32(route.wire_id);
+                    match profile.layer {
+                        225 => {
+                            encode_policy_page_list_ordered_item_page_list_ordered_item_text_225(
+                                profile, __value, __w,
+                            )?
+                        }
+                        226 => {
+                            encode_policy_page_list_ordered_item_page_list_ordered_item_text_226(
+                                profile, __value, __w,
+                            )?
+                        }
+                        _ => return Err(ProjectionError::RouteNotEmitted(route)),
+                    }
+                    Ok(())
+                }
                 _ => Err(ProjectionError::RouteNotEmitted(route)),
             }
         }
     }
+}
+
+fn encode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
+    profile: Profile,
+    value: &rtd_tg::PageListOrderedItem,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::PageListOrderedItem::PageListOrderedItemBlocks { blocks, num, .. } = value else {
+        unreachable!()
+    };
+    if let Some(value) = num {
+        __w.put_string(value.as_str());
+    } else {
+        __w.put_string(::std::string::String::new().as_str());
+    }
+    __w.put_vector_header(blocks.len());
+    for item in blocks.iter() {
+        encode_page_block_profile(profile, item, __w)?;
+    }
+    Ok(())
+}
+
+fn encode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
+    profile: Profile,
+    value: &rtd_tg::PageListOrderedItem,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::PageListOrderedItem::PageListOrderedItemBlocks { blocks, num, .. } = value else {
+        unreachable!()
+    };
+    if let Some(value) = num {
+        __w.put_string(value.as_str());
+    } else {
+        __w.put_string(::std::string::String::new().as_str());
+    }
+    __w.put_vector_header(blocks.len());
+    for item in blocks.iter() {
+        encode_page_block_profile(profile, item, __w)?;
+    }
+    Ok(())
+}
+
+fn encode_policy_page_list_ordered_item_page_list_ordered_item_text_225(
+    profile: Profile,
+    value: &rtd_tg::PageListOrderedItem,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::PageListOrderedItem::PageListOrderedItemText { num, text, .. } = value else {
+        unreachable!()
+    };
+    if let Some(value) = num {
+        __w.put_string(value.as_str());
+    } else {
+        __w.put_string(::std::string::String::new().as_str());
+    }
+    encode_rich_text_profile(profile, text, __w)?;
+    Ok(())
+}
+
+fn encode_policy_page_list_ordered_item_page_list_ordered_item_text_226(
+    profile: Profile,
+    value: &rtd_tg::PageListOrderedItem,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::PageListOrderedItem::PageListOrderedItemText { num, text, .. } = value else {
+        unreachable!()
+    };
+    if let Some(value) = num {
+        __w.put_string(value.as_str());
+    } else {
+        __w.put_string(::std::string::String::new().as_str());
+    }
+    encode_rich_text_profile(profile, text, __w)?;
+    Ok(())
 }
 
 pub fn decode_page_list_ordered_item_profile(
@@ -205346,8 +205474,151 @@ pub fn decode_page_list_ordered_item_profile(
             }
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
+        RouteMode::Policy => match route.semantic.0 {
+            0x0a64870344d80630 => match profile.layer {
+                225 => decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
+                    profile, __d,
+                ),
+                226 => decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
+                    profile, __d,
+                ),
+                _ => Err(AdmitError::UnsupportedRoute(route)),
+            },
+            0x39eb639674e29879 => match profile.layer {
+                225 => decode_policy_page_list_ordered_item_page_list_ordered_item_text_225(
+                    profile, __d,
+                ),
+                226 => decode_policy_page_list_ordered_item_page_list_ordered_item_text_226(
+                    profile, __d,
+                ),
+                _ => Err(AdmitError::UnsupportedRoute(route)),
+            },
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
+    let num: ::std::string::String = __d.take_string()?.to_owned();
+    let blocks: ::std::vec::Vec<rtd_tg::PageBlock> = {
+        let n = __d.take_vector_header()?;
+        let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+        for _ in 0..n {
+            items.push({
+                __d.enter()?;
+                let value = {
+                    let __id = __d.take_u32()?;
+                    decode_page_block_profile(profile, __id, __d)?
+                };
+                __d.leave();
+                value
+            });
+        }
+        items
+    };
+    let mut flags = 0u32;
+    flags |= 1u32 << 2;
+    Ok(rtd_tg::PageListOrderedItem::PageListOrderedItemBlocks {
+        flags,
+        checkbox: false,
+        checked: false,
+        num: Some(num),
+        blocks,
+        value: None,
+        type_: None,
+    })
+}
+
+fn decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
+    let num: ::std::string::String = __d.take_string()?.to_owned();
+    let blocks: ::std::vec::Vec<rtd_tg::PageBlock> = {
+        let n = __d.take_vector_header()?;
+        let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+        for _ in 0..n {
+            items.push({
+                __d.enter()?;
+                let value = {
+                    let __id = __d.take_u32()?;
+                    decode_page_block_profile(profile, __id, __d)?
+                };
+                __d.leave();
+                value
+            });
+        }
+        items
+    };
+    let mut flags = 0u32;
+    flags |= 1u32 << 2;
+    Ok(rtd_tg::PageListOrderedItem::PageListOrderedItemBlocks {
+        flags,
+        checkbox: false,
+        checked: false,
+        num: Some(num),
+        blocks,
+        value: None,
+        type_: None,
+    })
+}
+
+fn decode_policy_page_list_ordered_item_page_list_ordered_item_text_225(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
+    let num: ::std::string::String = __d.take_string()?.to_owned();
+    let text: ::std::boxed::Box<rtd_tg::RichText> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_rich_text_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let mut flags = 0u32;
+    flags |= 1u32 << 2;
+    Ok(rtd_tg::PageListOrderedItem::PageListOrderedItemText {
+        flags,
+        checkbox: false,
+        checked: false,
+        num: Some(num),
+        text,
+        value: None,
+        type_: None,
+    })
+}
+
+fn decode_policy_page_list_ordered_item_page_list_ordered_item_text_226(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
+    let num: ::std::string::String = __d.take_string()?.to_owned();
+    let text: ::std::boxed::Box<rtd_tg::RichText> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_rich_text_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let mut flags = 0u32;
+    flags |= 1u32 << 2;
+    Ok(rtd_tg::PageListOrderedItem::PageListOrderedItemText {
+        flags,
+        checkbox: false,
+        checked: false,
+        num: Some(num),
+        text,
+        value: None,
+        type_: None,
+    })
 }
 
 pub fn encode_page_related_article_profile(
@@ -205772,10 +206043,10 @@ pub fn decode_page_table_row_profile(
 
 pub fn encode_paid_reaction_privacy_profile(
     profile: Profile,
-    value: &rtd_tg::PaidReactionPrivacy,
+    __value: &rtd_tg::PaidReactionPrivacy,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaidReactionPrivacy::PaidReactionPrivacyAnonymous => {
             let route = lookup_route_semantic(profile, SemanticId(0x81518c1c5cfbe21a)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -205993,10 +206264,10 @@ pub fn decode_passkey_profile(
 
 pub fn encode_password_kdf_algo_profile(
     profile: Profile,
-    value: &rtd_tg::PasswordKdfAlgo,
+    __value: &rtd_tg::PasswordKdfAlgo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PasswordKdfAlgo::PasswordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow { salt1, salt2, g, p } => {
             let route = lookup_route_semantic(profile, SemanticId(0x0d67c14217cf6a60)).ok_or(ProjectionError::Unrepresentable { layer: profile.layer, wire_id: 0x3a912d4a })?;
             match route.mode {
@@ -206337,10 +206608,10 @@ pub fn decode_payment_requested_info_profile(
 
 pub fn encode_payment_saved_credentials_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentSavedCredentials,
+    __value: &rtd_tg::PaymentSavedCredentials,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentSavedCredentials::PaymentSavedCredentialsCard { id, title } => {
             let route = lookup_route_semantic(profile, SemanticId(0xf409db7933fa662c)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -206398,10 +206669,10 @@ pub fn decode_payment_saved_credentials_profile(
 
 pub fn encode_peer_profile(
     profile: Profile,
-    value: &rtd_tg::Peer,
+    __value: &rtd_tg::Peer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Peer::PeerChannel { channel_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0xff3a7b6be1ab71fb)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -206566,10 +206837,10 @@ pub fn decode_peer_blocked_profile(
 
 pub fn encode_peer_color_profile(
     profile: Profile,
-    value: &rtd_tg::PeerColor,
+    __value: &rtd_tg::PeerColor,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PeerColor::InputPeerColorCollectible { collectible_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0x18de37e71422e938)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -206812,10 +207083,10 @@ pub fn decode_peer_color_profile(
 
 pub fn encode_peer_located_profile(
     profile: Profile,
-    value: &rtd_tg::PeerLocated,
+    __value: &rtd_tg::PeerLocated,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PeerLocated::PeerLocated {
             peer,
             expires,
@@ -207829,10 +208100,10 @@ pub fn decode_pending_suggestion_profile(
 
 pub fn encode_phone_call_profile(
     profile: Profile,
-    value: &rtd_tg::PhoneCall,
+    __value: &rtd_tg::PhoneCall,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PhoneCall::PhoneCall {
             flags,
             p2p_allowed,
@@ -208423,10 +208694,10 @@ pub fn decode_phone_call_profile(
 
 pub fn encode_phone_call_discard_reason_profile(
     profile: Profile,
-    value: &rtd_tg::PhoneCallDiscardReason,
+    __value: &rtd_tg::PhoneCallDiscardReason,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PhoneCallDiscardReason::PhoneCallDiscardReasonBusy => {
             let route = lookup_route_semantic(profile, SemanticId(0x664b0f6181d2b325)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -208675,10 +208946,10 @@ pub fn decode_phone_call_protocol_profile(
 
 pub fn encode_phone_connection_profile(
     profile: Profile,
-    value: &rtd_tg::PhoneConnection,
+    __value: &rtd_tg::PhoneConnection,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PhoneConnection::PhoneConnection {
             flags,
             tcp,
@@ -208850,10 +209121,10 @@ pub fn decode_phone_connection_profile(
 
 pub fn encode_photo_profile(
     profile: Profile,
-    value: &rtd_tg::Photo,
+    __value: &rtd_tg::Photo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Photo::Photo {
             flags,
             has_stickers,
@@ -209039,10 +209310,10 @@ pub fn decode_photo_profile(
 
 pub fn encode_photo_size_profile(
     profile: Profile,
-    value: &rtd_tg::PhotoSize,
+    __value: &rtd_tg::PhotoSize,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PhotoSize::PhotoCachedSize { type_, w, h, bytes } => {
             let route = lookup_route_semantic(profile, SemanticId(0x12b2767470985e20)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -209553,10 +209824,10 @@ pub fn decode_poll_profile(
 
 pub fn encode_poll_answer_profile(
     profile: Profile,
-    value: &rtd_tg::PollAnswer,
+    __value: &rtd_tg::PollAnswer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PollAnswer::InputPollAnswer { flags, text, media } => {
             let route = lookup_route_semantic(profile, SemanticId(0x3aa323b68204106e)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -210353,10 +210624,10 @@ pub fn decode_post_address_profile(
 
 pub fn encode_post_interaction_counters_profile(
     profile: Profile,
-    value: &rtd_tg::PostInteractionCounters,
+    __value: &rtd_tg::PostInteractionCounters,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PostInteractionCounters::PostInteractionCountersMessage {
             msg_id,
             views,
@@ -210746,10 +211017,10 @@ pub fn decode_premium_subscription_option_profile(
 
 pub fn encode_prepaid_giveaway_profile(
     profile: Profile,
-    value: &rtd_tg::PrepaidGiveaway,
+    __value: &rtd_tg::PrepaidGiveaway,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PrepaidGiveaway::PrepaidGiveaway {
             id,
             months,
@@ -210870,10 +211141,10 @@ pub fn decode_prepaid_giveaway_profile(
 
 pub fn encode_privacy_key_profile(
     profile: Profile,
-    value: &rtd_tg::PrivacyKey,
+    __value: &rtd_tg::PrivacyKey,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PrivacyKey::PrivacyKeyAbout => {
             let route = lookup_route_semantic(profile, SemanticId(0x6624ac84a3613b54)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -211181,10 +211452,10 @@ pub fn decode_privacy_key_profile(
 
 pub fn encode_privacy_rule_profile(
     profile: Profile,
-    value: &rtd_tg::PrivacyRule,
+    __value: &rtd_tg::PrivacyRule,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PrivacyRule::PrivacyValueAllowAll => {
             let route = lookup_route_semantic(profile, SemanticId(0x2bb7dc23b060cb48)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -211524,10 +211795,10 @@ pub fn decode_privacy_rule_profile(
 
 pub fn encode_profile_tab_profile(
     profile: Profile,
-    value: &rtd_tg::ProfileTab,
+    __value: &rtd_tg::ProfileTab,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ProfileTab::ProfileTabFiles => {
             let route = lookup_route_semantic(profile, SemanticId(0xfe939ebff26f643d)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -211715,10 +211986,10 @@ pub fn decode_profile_tab_profile(
 
 pub fn encode_public_forward_profile(
     profile: Profile,
-    value: &rtd_tg::PublicForward,
+    __value: &rtd_tg::PublicForward,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PublicForward::PublicForwardMessage { message } => {
             let route = lookup_route_semantic(profile, SemanticId(0xa96ddccb64671465)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -211898,10 +212169,10 @@ pub fn decode_quick_reply_profile(
 
 pub fn encode_reaction_profile(
     profile: Profile,
-    value: &rtd_tg::Reaction,
+    __value: &rtd_tg::Reaction,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Reaction::ReactionCustomEmoji { document_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0x0c73cd7c54d54ae1)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -212118,10 +212389,10 @@ pub fn decode_reaction_count_profile(
 
 pub fn encode_reaction_notifications_from_profile(
     profile: Profile,
-    value: &rtd_tg::ReactionNotificationsFrom,
+    __value: &rtd_tg::ReactionNotificationsFrom,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ReactionNotificationsFrom::ReactionNotificationsFromAll => {
             let route = lookup_route_semantic(profile, SemanticId(0xccac5185be84b149)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -212472,10 +212743,10 @@ pub fn decode_received_notify_message_profile(
 
 pub fn encode_recent_me_url_profile(
     profile: Profile,
-    value: &rtd_tg::RecentMeUrl,
+    __value: &rtd_tg::RecentMeUrl,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::RecentMeUrl::RecentMeUrlChat { url, chat_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0x1ed2c2305edf6353)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -212745,10 +213016,10 @@ pub fn decode_recent_story_profile(
 
 pub fn encode_reply_markup_profile(
     profile: Profile,
-    value: &rtd_tg::ReplyMarkup,
+    __value: &rtd_tg::ReplyMarkup,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ReplyMarkup::ReplyInlineMarkup {
             flags,
             force_reply,
@@ -212954,16 +213225,16 @@ pub fn encode_reply_markup_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_reply_markup_reply_keyboard_markup_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_reply_markup_reply_keyboard_markup_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         227 => encode_policy_reply_markup_reply_keyboard_markup_227(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         228 => encode_policy_reply_markup_reply_keyboard_markup_228(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -213530,10 +213801,10 @@ fn decode_policy_reply_markup_reply_keyboard_markup_228(
 
 pub fn encode_report_reason_profile(
     profile: Profile,
-    value: &rtd_tg::ReportReason,
+    __value: &rtd_tg::ReportReason,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ReportReason::InputReportReasonChildAbuse => {
             let route = lookup_route_semantic(profile, SemanticId(0x6fd8235c38c48665)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -213761,10 +214032,10 @@ pub fn decode_report_reason_profile(
 
 pub fn encode_report_result_profile(
     profile: Profile,
-    value: &rtd_tg::ReportResult,
+    __value: &rtd_tg::ReportResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ReportResult::ReportResultAddComment {
             flags,
             optional,
@@ -213906,10 +214177,10 @@ pub fn decode_report_result_profile(
 
 pub fn encode_request_peer_type_profile(
     profile: Profile,
-    value: &rtd_tg::RequestPeerType,
+    __value: &rtd_tg::RequestPeerType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::RequestPeerType::RequestPeerTypeBroadcast {
             flags,
             creator,
@@ -214343,10 +214614,10 @@ pub fn decode_request_peer_type_profile(
 
 pub fn encode_requested_peer_profile(
     profile: Profile,
-    value: &rtd_tg::RequestedPeer,
+    __value: &rtd_tg::RequestedPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::RequestedPeer::RequestedPeerChannel {
             flags,
             channel_id,
@@ -214677,10 +214948,10 @@ pub fn decode_requested_peer_profile(
 
 pub fn encode_requirement_to_contact_profile(
     profile: Profile,
-    value: &rtd_tg::RequirementToContact,
+    __value: &rtd_tg::RequirementToContact,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::RequirementToContact::RequirementToContactEmpty => {
             let route = lookup_route_semantic(profile, SemanticId(0x8549df639b572ad4)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -215101,10 +215372,10 @@ pub fn decode_rich_message_profile(
 
 pub fn encode_rich_text_profile(
     profile: Profile,
-    value: &rtd_tg::RichText,
+    __value: &rtd_tg::RichText,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::RichText::TextAnchor { text, name } => {
             let route = lookup_route_semantic(profile, SemanticId(0x744b9014d479b8a0)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -216324,10 +216595,10 @@ pub fn decode_rich_text_profile(
 
 pub fn encode_saved_contact_profile(
     profile: Profile,
-    value: &rtd_tg::SavedContact,
+    __value: &rtd_tg::SavedContact,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SavedContact::SavedPhoneContact {
             phone,
             first_name,
@@ -216399,10 +216670,10 @@ pub fn decode_saved_contact_profile(
 
 pub fn encode_saved_dialog_profile(
     profile: Profile,
-    value: &rtd_tg::SavedDialog,
+    __value: &rtd_tg::SavedDialog,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SavedDialog::MonoForumDialog {
             flags,
             unread_mark,
@@ -217355,10 +217626,10 @@ pub fn decode_search_results_calendar_period_profile(
 
 pub fn encode_search_results_position_profile(
     profile: Profile,
-    value: &rtd_tg::SearchResultsPosition,
+    __value: &rtd_tg::SearchResultsPosition,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SearchResultsPosition::SearchResultPosition {
             msg_id,
             date,
@@ -217553,10 +217824,10 @@ pub fn decode_secure_data_profile(
 
 pub fn encode_secure_file_profile(
     profile: Profile,
-    value: &rtd_tg::SecureFile,
+    __value: &rtd_tg::SecureFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SecureFile::SecureFile {
             id,
             access_hash,
@@ -217663,10 +217934,10 @@ pub fn decode_secure_file_profile(
 
 pub fn encode_secure_password_kdf_algo_profile(
     profile: Profile,
-    value: &rtd_tg::SecurePasswordKdfAlgo,
+    __value: &rtd_tg::SecurePasswordKdfAlgo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SecurePasswordKdfAlgo::SecurePasswordKdfAlgoPBKDF2HMACSHA512iter100000 { salt } => {
             let route = lookup_route_semantic(profile, SemanticId(0x07b6a9c6f5183176)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -217764,10 +218035,10 @@ pub fn decode_secure_password_kdf_algo_profile(
 
 pub fn encode_secure_plain_data_profile(
     profile: Profile,
-    value: &rtd_tg::SecurePlainData,
+    __value: &rtd_tg::SecurePlainData,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SecurePlainData::SecurePlainEmail { email } => {
             let route = lookup_route_semantic(profile, SemanticId(0xbeeedc845b1db156)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -217845,10 +218116,10 @@ pub fn decode_secure_plain_data_profile(
 
 pub fn encode_secure_required_type_profile(
     profile: Profile,
-    value: &rtd_tg::SecureRequiredType,
+    __value: &rtd_tg::SecureRequiredType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SecureRequiredType::SecureRequiredType {
             flags,
             native_names,
@@ -218377,10 +218648,10 @@ pub fn decode_secure_value_profile(
 
 pub fn encode_secure_value_error_profile(
     profile: Profile,
-    value: &rtd_tg::SecureValueError,
+    __value: &rtd_tg::SecureValueError,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SecureValueError::SecureValueError { type_, hash, text } => {
             let route = lookup_route_semantic(profile, SemanticId(0x9aa4e5491af71105)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -218916,10 +219187,10 @@ pub fn decode_secure_value_hash_profile(
 
 pub fn encode_secure_value_type_profile(
     profile: Profile,
-    value: &rtd_tg::SecureValueType,
+    __value: &rtd_tg::SecureValueType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SecureValueType::SecureValueTypeAddress => {
             let route = lookup_route_semantic(profile, SemanticId(0x1dab1e8a23561e34)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -219290,10 +219561,10 @@ pub fn decode_send_as_peer_profile(
 
 pub fn encode_send_message_action_profile(
     profile: Profile,
-    value: &rtd_tg::SendMessageAction,
+    __value: &rtd_tg::SendMessageAction,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SendMessageAction::InputSendMessageRichMessageDraftAction {
             flags,
             can_stop,
@@ -219339,8 +219610,8 @@ pub fn encode_send_message_action_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        227 => encode_policy_send_message_action_input_send_message_rich_message_draft_action_227(profile, value, __w)?,
-                        228 => encode_policy_send_message_action_input_send_message_rich_message_draft_action_228(profile, value, __w)?,
+                        227 => encode_policy_send_message_action_input_send_message_rich_message_draft_action_227(profile, __value, __w)?,
+                        228 => encode_policy_send_message_action_input_send_message_rich_message_draft_action_228(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -219616,8 +219887,8 @@ pub fn encode_send_message_action_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        227 => encode_policy_send_message_action_send_message_rich_message_draft_action_227(profile, value, __w)?,
-                        228 => encode_policy_send_message_action_send_message_rich_message_draft_action_228(profile, value, __w)?,
+                        227 => encode_policy_send_message_action_send_message_rich_message_draft_action_227(profile, __value, __w)?,
+                        228 => encode_policy_send_message_action_send_message_rich_message_draft_action_228(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -219693,22 +219964,22 @@ pub fn encode_send_message_action_profile(
                     match profile.layer {
                         225 => {
                             encode_policy_send_message_action_send_message_text_draft_action_225(
-                                profile, value, __w,
+                                profile, __value, __w,
                             )?
                         }
                         226 => {
                             encode_policy_send_message_action_send_message_text_draft_action_226(
-                                profile, value, __w,
+                                profile, __value, __w,
                             )?
                         }
                         227 => {
                             encode_policy_send_message_action_send_message_text_draft_action_227(
-                                profile, value, __w,
+                                profile, __value, __w,
                             )?
                         }
                         228 => {
                             encode_policy_send_message_action_send_message_text_draft_action_228(
-                                profile, value, __w,
+                                profile, __value, __w,
                             )?
                         }
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
@@ -220347,10 +220618,10 @@ fn decode_policy_send_message_action_send_message_text_draft_action_228(
 
 pub fn encode_share_theme_profile(
     profile: Profile,
-    value: &rtd_tg::ShareTheme,
+    __value: &rtd_tg::ShareTheme,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ShareTheme::InputShareThemeGift { stargift } => {
             let route = lookup_route_semantic(profile, SemanticId(0x621c9ee12dc6ccb4)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -220645,10 +220916,10 @@ pub fn decode_share_theme_backdrop_option_profile(
 
 pub fn encode_share_theme_backdrops_profile(
     profile: Profile,
-    value: &rtd_tg::ShareThemeBackdrops,
+    __value: &rtd_tg::ShareThemeBackdrops,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ShareThemeBackdrops::ShareThemeBackdrops { hash, backdrops } => {
             let route = lookup_route_semantic(profile, SemanticId(0x4d24898410a0d049)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -221384,10 +221655,10 @@ pub fn decode_sponsored_peer_profile(
 
 pub fn encode_star_gift_profile(
     profile: Profile,
-    value: &rtd_tg::StarGift,
+    __value: &rtd_tg::StarGift,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarGift::StarGift {
             flags,
             limited,
@@ -222444,10 +222715,10 @@ pub fn decode_star_gift_active_auction_state_profile(
 
 pub fn encode_star_gift_attribute_profile(
     profile: Profile,
-    value: &rtd_tg::StarGiftAttribute,
+    __value: &rtd_tg::StarGiftAttribute,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarGiftAttribute::StarGiftAttributeBackdrop {
             name,
             backdrop_id,
@@ -222839,10 +223110,10 @@ pub fn decode_star_gift_attribute_counter_profile(
 
 pub fn encode_star_gift_attribute_id_profile(
     profile: Profile,
-    value: &rtd_tg::StarGiftAttributeId,
+    __value: &rtd_tg::StarGiftAttributeId,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarGiftAttributeId::StarGiftAttributeIdBackdrop { backdrop_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0x732e524cd3c61e92)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -222945,10 +223216,10 @@ pub fn decode_star_gift_attribute_id_profile(
 
 pub fn encode_star_gift_attribute_rarity_profile(
     profile: Profile,
-    value: &rtd_tg::StarGiftAttributeRarity,
+    __value: &rtd_tg::StarGiftAttributeRarity,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarGiftAttributeRarity::StarGiftAttributeRarity { permille } => {
             let route = lookup_route_semantic(profile, SemanticId(0x31247c45c98fe051)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -223245,10 +223516,10 @@ pub fn decode_star_gift_auction_acquired_gift_profile(
 
 pub fn encode_star_gift_auction_round_profile(
     profile: Profile,
-    value: &rtd_tg::StarGiftAuctionRound,
+    __value: &rtd_tg::StarGiftAuctionRound,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarGiftAuctionRound::StarGiftAuctionRound { num, duration } => {
             let route = lookup_route_semantic(profile, SemanticId(0xa2d932cc9ca80c66)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -223350,10 +223621,10 @@ pub fn decode_star_gift_auction_round_profile(
 
 pub fn encode_star_gift_auction_state_profile(
     profile: Profile,
-    value: &rtd_tg::StarGiftAuctionState,
+    __value: &rtd_tg::StarGiftAuctionState,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarGiftAuctionState::StarGiftAuctionState {
             version,
             start_date,
@@ -224192,10 +224463,10 @@ pub fn decode_star_ref_program_profile(
 
 pub fn encode_stars_amount_profile(
     profile: Profile,
-    value: &rtd_tg::StarsAmount,
+    __value: &rtd_tg::StarsAmount,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarsAmount::StarsAmount { amount, nanos } => {
             let route = lookup_route_semantic(profile, SemanticId(0xbae17743166cf86d)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -225913,10 +226184,10 @@ pub fn decode_stars_transaction_profile(
 
 pub fn encode_stars_transaction_peer_profile(
     profile: Profile,
-    value: &rtd_tg::StarsTransactionPeer,
+    __value: &rtd_tg::StarsTransactionPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StarsTransactionPeer::StarsTransactionPeer { peer } => {
             let route = lookup_route_semantic(profile, SemanticId(0xd3e91b31caca795f)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -226225,10 +226496,10 @@ pub fn decode_stats_date_range_days_profile(
 
 pub fn encode_stats_graph_profile(
     profile: Profile,
-    value: &rtd_tg::StatsGraph,
+    __value: &rtd_tg::StatsGraph,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StatsGraph::StatsGraph {
             flags,
             json,
@@ -227119,10 +227390,10 @@ pub fn decode_sticker_set_profile(
 
 pub fn encode_sticker_set_covered_profile(
     profile: Profile,
-    value: &rtd_tg::StickerSetCovered,
+    __value: &rtd_tg::StickerSetCovered,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StickerSetCovered::StickerSetCovered { set, cover } => {
             let route = lookup_route_semantic(profile, SemanticId(0x98372b498ecf9740)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -227763,10 +228034,10 @@ pub fn decode_story_fwd_header_profile(
 
 pub fn encode_story_item_profile(
     profile: Profile,
-    value: &rtd_tg::StoryItem,
+    __value: &rtd_tg::StoryItem,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StoryItem::StoryItem {
             flags,
             pinned,
@@ -228341,10 +228612,10 @@ pub fn decode_story_item_profile(
 
 pub fn encode_story_reaction_profile(
     profile: Profile,
-    value: &rtd_tg::StoryReaction,
+    __value: &rtd_tg::StoryReaction,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StoryReaction::StoryReaction {
             peer_id,
             date,
@@ -228504,10 +228775,10 @@ pub fn decode_story_reaction_profile(
 
 pub fn encode_story_view_profile(
     profile: Profile,
-    value: &rtd_tg::StoryView,
+    __value: &rtd_tg::StoryView,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StoryView::StoryView {
             flags,
             blocked,
@@ -230438,10 +230709,10 @@ pub fn decode_top_peer_profile(
 
 pub fn encode_top_peer_category_profile(
     profile: Profile,
-    value: &rtd_tg::TopPeerCategory,
+    __value: &rtd_tg::TopPeerCategory,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::TopPeerCategory::TopPeerCategoryBotsApp => {
             let route = lookup_route_semantic(profile, SemanticId(0x871fac321a26dbc7)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -230811,10 +231082,10 @@ pub fn decode_true_profile(
 
 pub fn encode_update_profile(
     profile: Profile,
-    value: &rtd_tg::Update,
+    __value: &rtd_tg::Update,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Update::UpdateAiComposeTones => {
             let route = lookup_route_semantic(profile, SemanticId(0xdc48cc38635854a8)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -231043,7 +231314,7 @@ pub fn encode_update_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_update_update_bot_chat_invite_requester_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -240024,10 +240295,10 @@ fn decode_policy_update_update_bot_chat_invite_requester_225(
 
 pub fn encode_updates_profile(
     profile: Profile,
-    value: &rtd_tg::Updates,
+    __value: &rtd_tg::Updates,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::Updates::UpdateShort { update, date } => {
             let route = lookup_route_semantic(profile, SemanticId(0x8bd76fdc279808c1)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -240960,10 +241231,10 @@ pub fn decode_updates_profile(
 
 pub fn encode_url_auth_result_profile(
     profile: Profile,
-    value: &rtd_tg::UrlAuthResult,
+    __value: &rtd_tg::UrlAuthResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UrlAuthResult::UrlAuthResultAccepted { flags, url } => {
             let route = lookup_route_semantic(profile, SemanticId(0xb5ac5c4e7502c5ec)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -241208,22 +241479,22 @@ pub fn encode_url_auth_result_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_url_auth_result_url_auth_result_request_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_url_auth_result_url_auth_result_request_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         227 => encode_policy_url_auth_result_url_auth_result_request_227(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         228 => encode_policy_url_auth_result_url_auth_result_request_228(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         229 => encode_policy_url_auth_result_url_auth_result_request_229(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         230 => encode_policy_url_auth_result_url_auth_result_request_230(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -242596,10 +242867,10 @@ fn decode_policy_url_auth_result_url_auth_result_request_230(
 
 pub fn encode_user_profile(
     profile: Profile,
-    value: &rtd_tg::User,
+    __value: &rtd_tg::User,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::User::User {
             flags,
             self_,
@@ -243115,9 +243386,9 @@ pub fn encode_user_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
-                        225 => encode_policy_user_user_225(profile, value, __w)?,
-                        226 => encode_policy_user_user_226(profile, value, __w)?,
-                        227 => encode_policy_user_user_227(profile, value, __w)?,
+                        225 => encode_policy_user_user_225(profile, __value, __w)?,
+                        226 => encode_policy_user_user_226(profile, __value, __w)?,
+                        227 => encode_policy_user_user_227(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
                     Ok(())
@@ -253707,10 +253978,10 @@ fn decode_policy_user_full_231(
 
 pub fn encode_user_profile_photo_profile(
     profile: Profile,
-    value: &rtd_tg::UserProfilePhoto,
+    __value: &rtd_tg::UserProfilePhoto,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UserProfilePhoto::UserProfilePhoto {
             flags,
             has_video,
@@ -253836,10 +254107,10 @@ pub fn decode_user_profile_photo_profile(
 
 pub fn encode_user_status_profile(
     profile: Profile,
-    value: &rtd_tg::UserStatus,
+    __value: &rtd_tg::UserStatus,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UserStatus::UserStatusEmpty => {
             let route = lookup_route_semantic(profile, SemanticId(0xe3b057528c4ad1e0)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -254474,10 +254745,10 @@ fn decode_policy_username_229(
 
 pub fn encode_video_size_profile(
     profile: Profile,
-    value: &rtd_tg::VideoSize,
+    __value: &rtd_tg::VideoSize,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::VideoSize::VideoSize {
             flags,
             type_,
@@ -254682,10 +254953,10 @@ pub fn decode_video_size_profile(
 
 pub fn encode_wall_paper_profile(
     profile: Profile,
-    value: &rtd_tg::WallPaper,
+    __value: &rtd_tg::WallPaper,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::WallPaper::WallPaper {
             id,
             flags,
@@ -255200,10 +255471,10 @@ pub fn decode_wallet_ownership_proof_profile(
 
 pub fn encode_wallet_state_profile(
     profile: Profile,
-    value: &rtd_tg::WalletState,
+    __value: &rtd_tg::WalletState,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::WalletState::WalletState {
             flags,
             backup_enabled,
@@ -255554,10 +255825,10 @@ pub fn decode_wallet_transaction_profile(
 
 pub fn encode_wallet_transaction_peer_profile(
     profile: Profile,
-    value: &rtd_tg::WalletTransactionPeer,
+    __value: &rtd_tg::WalletTransactionPeer,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::WalletTransactionPeer::WalletTransactionPeerAddress {
             flags,
             address,
@@ -256081,10 +256352,10 @@ pub fn decode_web_authorization_profile(
 
 pub fn encode_web_document_profile(
     profile: Profile,
-    value: &rtd_tg::WebDocument,
+    __value: &rtd_tg::WebDocument,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::WebDocument::WebDocument {
             url,
             access_hash,
@@ -256344,10 +256615,10 @@ pub fn decode_web_domain_exception_profile(
 
 pub fn encode_web_page_profile(
     profile: Profile,
-    value: &rtd_tg::WebPage,
+    __value: &rtd_tg::WebPage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::WebPage::WebPage {
             flags,
             has_large_media,
@@ -256916,10 +257187,10 @@ pub fn decode_web_page_profile(
 
 pub fn encode_web_page_attribute_profile(
     profile: Profile,
-    value: &rtd_tg::WebPageAttribute,
+    __value: &rtd_tg::WebPageAttribute,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::WebPageAttribute::WebPageAttributeAiComposeTone { emoji_id } => {
             let route = lookup_route_semantic(profile, SemanticId(0xa6fd28a9f7a0b6f3)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -257419,10 +257690,10 @@ pub fn decode_web_view_message_sent_profile(
 
 pub fn encode_web_view_result_profile(
     profile: Profile,
-    value: &rtd_tg::WebViewResult,
+    __value: &rtd_tg::WebViewResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::WebViewResult::WebViewResultUrl {
             flags,
             fullsize,
@@ -257486,10 +257757,10 @@ pub fn encode_web_view_result_profile(
                     __w.put_u32(route.wire_id);
                     match profile.layer {
                         225 => encode_policy_web_view_result_web_view_result_url_225(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         226 => encode_policy_web_view_result_web_view_result_url_226(
-                            profile, value, __w,
+                            profile, __value, __w,
                         )?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -258345,10 +258616,10 @@ pub fn decode_account_business_chat_links_profile(
 
 pub fn encode_account_chat_themes_profile(
     profile: Profile,
-    value: &rtd_tg::AccountChatThemes,
+    __value: &rtd_tg::AccountChatThemes,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountChatThemes::ChatThemes {
             flags,
             hash,
@@ -258713,10 +258984,10 @@ pub fn decode_account_content_settings_profile(
 
 pub fn encode_account_email_verified_profile(
     profile: Profile,
-    value: &rtd_tg::AccountEmailVerified,
+    __value: &rtd_tg::AccountEmailVerified,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountEmailVerified::EmailVerified { email } => {
             let route = lookup_route_semantic(profile, SemanticId(0x4de9612b7d9adc25)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -258805,10 +259076,10 @@ pub fn decode_account_email_verified_profile(
 
 pub fn encode_account_emoji_statuses_profile(
     profile: Profile,
-    value: &rtd_tg::AccountEmojiStatuses,
+    __value: &rtd_tg::AccountEmojiStatuses,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountEmojiStatuses::EmojiStatuses { hash, statuses } => {
             let route = lookup_route_semantic(profile, SemanticId(0x187b6e5b547d50c2)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -259785,10 +260056,10 @@ pub fn decode_account_privacy_rules_profile(
 
 pub fn encode_account_reset_password_result_profile(
     profile: Profile,
-    value: &rtd_tg::AccountResetPasswordResult,
+    __value: &rtd_tg::AccountResetPasswordResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountResetPasswordResult::ResetPasswordFailedWait { retry_date } => {
             let route = lookup_route_semantic(profile, SemanticId(0x8d8cb479cfae598f)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -260066,10 +260337,10 @@ pub fn decode_account_resolved_business_chat_links_profile(
 
 pub fn encode_account_saved_music_ids_profile(
     profile: Profile,
-    value: &rtd_tg::AccountSavedMusicIds,
+    __value: &rtd_tg::AccountSavedMusicIds,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountSavedMusicIds::SavedMusicIds { ids } => {
             let route = lookup_route_semantic(profile, SemanticId(0x09c0e780b44cbfa9)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -260155,10 +260426,10 @@ pub fn decode_account_saved_music_ids_profile(
 
 pub fn encode_account_saved_ringtone_profile(
     profile: Profile,
-    value: &rtd_tg::AccountSavedRingtone,
+    __value: &rtd_tg::AccountSavedRingtone,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountSavedRingtone::SavedRingtone => {
             let route = lookup_route_semantic(profile, SemanticId(0xf52e5630d5cf32f1)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -260239,10 +260510,10 @@ pub fn decode_account_saved_ringtone_profile(
 
 pub fn encode_account_saved_ringtones_profile(
     profile: Profile,
-    value: &rtd_tg::AccountSavedRingtones,
+    __value: &rtd_tg::AccountSavedRingtones,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountSavedRingtones::SavedRingtones { hash, ringtones } => {
             let route = lookup_route_semantic(profile, SemanticId(0x0b047c6cd27d9a37)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -260453,10 +260724,10 @@ pub fn decode_account_takeout_profile(
 
 pub fn encode_account_themes_profile(
     profile: Profile,
-    value: &rtd_tg::AccountThemes,
+    __value: &rtd_tg::AccountThemes,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountThemes::Themes { hash, themes } => {
             let route = lookup_route_semantic(profile, SemanticId(0x6e145dfbcd18a8b4)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -260616,10 +260887,10 @@ pub fn decode_account_tmp_password_profile(
 
 pub fn encode_account_wall_papers_profile(
     profile: Profile,
-    value: &rtd_tg::AccountWallPapers,
+    __value: &rtd_tg::AccountWallPapers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountWallPapers::WallPapers { hash, wallpapers } => {
             let route = lookup_route_semantic(profile, SemanticId(0xc266c451f405cde8)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -260823,10 +261094,10 @@ pub fn decode_account_web_authorizations_profile(
 
 pub fn encode_account_web_browser_settings_profile(
     profile: Profile,
-    value: &rtd_tg::AccountWebBrowserSettings,
+    __value: &rtd_tg::AccountWebBrowserSettings,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AccountWebBrowserSettings::WebBrowserSettings {
             flags,
             open_external_browser,
@@ -260984,10 +261255,10 @@ pub fn decode_account_web_browser_settings_profile(
 
 pub fn encode_aicompose_tones_profile(
     profile: Profile,
-    value: &rtd_tg::AicomposeTones,
+    __value: &rtd_tg::AicomposeTones,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AicomposeTones::Tones { hash, tones, users } => {
             let route = lookup_route_semantic(profile, SemanticId(0x664c39853cce0161)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -261108,10 +261379,10 @@ pub fn decode_aicompose_tones_profile(
 
 pub fn encode_auth_authorization_profile(
     profile: Profile,
-    value: &rtd_tg::AuthAuthorization,
+    __value: &rtd_tg::AuthAuthorization,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AuthAuthorization::Authorization {
             flags,
             setup_password_required,
@@ -261308,10 +261579,10 @@ pub fn decode_auth_authorization_profile(
 
 pub fn encode_auth_code_type_profile(
     profile: Profile,
-    value: &rtd_tg::AuthCodeType,
+    __value: &rtd_tg::AuthCodeType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AuthCodeType::CodeTypeCall => {
             let route = lookup_route_semantic(profile, SemanticId(0x3552a02abee415ad)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -261637,10 +261908,10 @@ pub fn decode_auth_logged_out_profile(
 
 pub fn encode_auth_login_token_profile(
     profile: Profile,
-    value: &rtd_tg::AuthLoginToken,
+    __value: &rtd_tg::AuthLoginToken,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AuthLoginToken::LoginToken { expires, token } => {
             let route = lookup_route_semantic(profile, SemanticId(0x24b47df53136adbb)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -261869,10 +262140,10 @@ pub fn decode_auth_password_recovery_profile(
 
 pub fn encode_auth_sent_code_profile(
     profile: Profile,
-    value: &rtd_tg::AuthSentCode,
+    __value: &rtd_tg::AuthSentCode,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AuthSentCode::SentCode {
             flags,
             type_,
@@ -261968,6 +262239,16 @@ pub fn encode_auth_sent_code_profile(
                     __w.put_i64(*amount);
                     Ok(())
                 }
+                RouteMode::Policy => {
+                    __w.put_u32(route.wire_id);
+                    match profile.layer {
+                        225 => encode_policy_auth_sent_code_sent_code_payment_required_225(
+                            profile, __value, __w,
+                        )?,
+                        _ => return Err(ProjectionError::RouteNotEmitted(route)),
+                    }
+                    Ok(())
+                }
                 _ => Err(ProjectionError::RouteNotEmitted(route)),
             }
         }
@@ -261993,6 +262274,32 @@ pub fn encode_auth_sent_code_profile(
             }
         }
     }
+}
+
+fn encode_policy_auth_sent_code_sent_code_payment_required_225(
+    _profile: Profile,
+    value: &rtd_tg::AuthSentCode,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::AuthSentCode::SentCodePaymentRequired {
+        amount,
+        currency,
+        phone_code_hash,
+        store_product,
+        support_email_address,
+        support_email_subject,
+        ..
+    } = value
+    else {
+        unreachable!()
+    };
+    __w.put_string(store_product.as_str());
+    __w.put_string(phone_code_hash.as_str());
+    __w.put_string(support_email_address.as_str());
+    __w.put_string(support_email_subject.as_str());
+    __w.put_string(currency.as_str());
+    __w.put_i64(*amount);
+    Ok(())
 }
 
 pub fn decode_auth_sent_code_profile(
@@ -262082,16 +262389,44 @@ pub fn decode_auth_sent_code_profile(
             }
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
+        RouteMode::Policy => match route.semantic.0 {
+            0x7f23f1fb9f02b327 => match profile.layer {
+                225 => decode_policy_auth_sent_code_sent_code_payment_required_225(profile, __d),
+                _ => Err(AdmitError::UnsupportedRoute(route)),
+            },
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
 }
 
+fn decode_policy_auth_sent_code_sent_code_payment_required_225(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::AuthSentCode, AdmitError> {
+    let store_product: ::std::string::String = __d.take_string()?.to_owned();
+    let phone_code_hash: ::std::string::String = __d.take_string()?.to_owned();
+    let support_email_address: ::std::string::String = __d.take_string()?.to_owned();
+    let support_email_subject: ::std::string::String = __d.take_string()?.to_owned();
+    let currency: ::std::string::String = __d.take_string()?.to_owned();
+    let amount: i64 = __d.take_i64()?;
+    Ok(rtd_tg::AuthSentCode::SentCodePaymentRequired {
+        store_product,
+        phone_code_hash,
+        support_email_address,
+        support_email_subject,
+        premium_days: 0i32,
+        currency,
+        amount,
+    })
+}
+
 pub fn encode_auth_sent_code_type_profile(
     profile: Profile,
-    value: &rtd_tg::AuthSentCodeType,
+    __value: &rtd_tg::AuthSentCodeType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::AuthSentCodeType::SentCodeTypeApp { length } => {
             let route = lookup_route_semantic(profile, SemanticId(0x6668ad7dd78962b9)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -263371,10 +263706,10 @@ pub fn decode_channels_channel_participant_profile(
 
 pub fn encode_channels_channel_participants_profile(
     profile: Profile,
-    value: &rtd_tg::ChannelsChannelParticipants,
+    __value: &rtd_tg::ChannelsChannelParticipants,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChannelsChannelParticipants::ChannelParticipants {
             count,
             participants,
@@ -263665,10 +264000,10 @@ pub fn decode_channels_send_as_peers_profile(
 
 pub fn encode_channels_sponsored_message_report_result_profile(
     profile: Profile,
-    value: &rtd_tg::ChannelsSponsoredMessageReportResult,
+    __value: &rtd_tg::ChannelsSponsoredMessageReportResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChannelsSponsoredMessageReportResult::SponsoredMessageReportResultAdsHidden => {
             let route = lookup_route_semantic(profile, SemanticId(0xd652895604e4a9f0)).ok_or(ProjectionError::Unrepresentable { layer: profile.layer, wire_id: 0x3e3bcf2f })?;
             match route.mode {
@@ -263782,10 +264117,10 @@ pub fn decode_channels_sponsored_message_report_result_profile(
 
 pub fn encode_chatlists_chatlist_invite_profile(
     profile: Profile,
-    value: &rtd_tg::ChatlistsChatlistInvite,
+    __value: &rtd_tg::ChatlistsChatlistInvite,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ChatlistsChatlistInvite::ChatlistInvite {
             flags,
             title_noanimate,
@@ -264751,10 +265086,10 @@ pub fn decode_communities_peer_link_requests_profile(
 
 pub fn encode_contacts_blocked_profile(
     profile: Profile,
-    value: &rtd_tg::ContactsBlocked,
+    __value: &rtd_tg::ContactsBlocked,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ContactsBlocked::Blocked {
             blocked,
             chats,
@@ -265089,10 +265424,10 @@ pub fn decode_contacts_contact_birthdays_profile(
 
 pub fn encode_contacts_contacts_profile(
     profile: Profile,
-    value: &rtd_tg::ContactsContacts,
+    __value: &rtd_tg::ContactsContacts,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ContactsContacts::Contacts {
             contacts,
             saved_count,
@@ -265640,10 +265975,10 @@ pub fn decode_contacts_resolved_peer_profile(
 
 pub fn encode_contacts_sponsored_peers_profile(
     profile: Profile,
-    value: &rtd_tg::ContactsSponsoredPeers,
+    __value: &rtd_tg::ContactsSponsoredPeers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ContactsSponsoredPeers::SponsoredPeers {
             peers,
             chats,
@@ -265793,10 +266128,10 @@ pub fn decode_contacts_sponsored_peers_profile(
 
 pub fn encode_contacts_top_peers_profile(
     profile: Profile,
-    value: &rtd_tg::ContactsTopPeers,
+    __value: &rtd_tg::ContactsTopPeers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::ContactsTopPeers::TopPeers {
             categories,
             chats,
@@ -265966,10 +266301,10 @@ pub fn decode_contacts_top_peers_profile(
 
 pub fn encode_ephemeral_welcome_messages_profile(
     profile: Profile,
-    value: &rtd_tg::EphemeralWelcomeMessages,
+    __value: &rtd_tg::EphemeralWelcomeMessages,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::EphemeralWelcomeMessages::WelcomeMessages { hash, messages } => {
             let route = lookup_route_semantic(profile, SemanticId(0xfb4aa108d9f6b64a)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -266157,10 +266492,10 @@ pub fn decode_fragment_collectible_info_profile(
 
 pub fn encode_help_app_config_profile(
     profile: Profile,
-    value: &rtd_tg::HelpAppConfig,
+    __value: &rtd_tg::HelpAppConfig,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpAppConfig::AppConfig { hash, config } => {
             let route = lookup_route_semantic(profile, SemanticId(0x12bdb4a52b62bb3f)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -266244,10 +266579,10 @@ pub fn decode_help_app_config_profile(
 
 pub fn encode_help_app_update_profile(
     profile: Profile,
-    value: &rtd_tg::HelpAppUpdate,
+    __value: &rtd_tg::HelpAppUpdate,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpAppUpdate::AppUpdate {
             flags,
             can_not_skip,
@@ -266541,10 +266876,10 @@ pub fn decode_help_config_simple_profile(
 
 pub fn encode_help_countries_list_profile(
     profile: Profile,
-    value: &rtd_tg::HelpCountriesList,
+    __value: &rtd_tg::HelpCountriesList,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpCountriesList::CountriesList { countries, hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x3850d6a52e799f0e)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -266904,10 +267239,10 @@ pub fn decode_help_country_code_profile(
 
 pub fn encode_help_deep_link_info_profile(
     profile: Profile,
-    value: &rtd_tg::HelpDeepLinkInfo,
+    __value: &rtd_tg::HelpDeepLinkInfo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpDeepLinkInfo::DeepLinkInfo {
             flags,
             update_app,
@@ -267093,10 +267428,10 @@ pub fn decode_help_invite_text_profile(
 
 pub fn encode_help_passport_config_profile(
     profile: Profile,
-    value: &rtd_tg::HelpPassportConfig,
+    __value: &rtd_tg::HelpPassportConfig,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpPassportConfig::PassportConfig {
             hash,
             countries_langs,
@@ -267359,10 +267694,10 @@ pub fn decode_help_peer_color_option_profile(
 
 pub fn encode_help_peer_color_set_profile(
     profile: Profile,
-    value: &rtd_tg::HelpPeerColorSet,
+    __value: &rtd_tg::HelpPeerColorSet,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpPeerColorSet::PeerColorProfileSet {
             palette_colors,
             bg_colors,
@@ -267506,10 +267841,10 @@ pub fn decode_help_peer_color_set_profile(
 
 pub fn encode_help_peer_colors_profile(
     profile: Profile,
-    value: &rtd_tg::HelpPeerColors,
+    __value: &rtd_tg::HelpPeerColors,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpPeerColors::PeerColors { hash, colors } => {
             let route = lookup_route_semantic(profile, SemanticId(0x48171bd8921397b5)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -267790,10 +268125,10 @@ pub fn decode_help_premium_promo_profile(
 
 pub fn encode_help_promo_data_profile(
     profile: Profile,
-    value: &rtd_tg::HelpPromoData,
+    __value: &rtd_tg::HelpPromoData,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpPromoData::PromoData {
             flags,
             proxy,
@@ -268442,10 +268777,10 @@ pub fn decode_help_terms_of_service_profile(
 
 pub fn encode_help_terms_of_service_update_profile(
     profile: Profile,
-    value: &rtd_tg::HelpTermsOfServiceUpdate,
+    __value: &rtd_tg::HelpTermsOfServiceUpdate,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpTermsOfServiceUpdate::TermsOfServiceUpdate {
             expires,
             terms_of_service,
@@ -268542,10 +268877,10 @@ pub fn decode_help_terms_of_service_update_profile(
 
 pub fn encode_help_timezones_list_profile(
     profile: Profile,
-    value: &rtd_tg::HelpTimezonesList,
+    __value: &rtd_tg::HelpTimezonesList,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpTimezonesList::TimezonesList { timezones, hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x832fc6f14b6a5cf0)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -268642,10 +268977,10 @@ pub fn decode_help_timezones_list_profile(
 
 pub fn encode_help_user_info_profile(
     profile: Profile,
-    value: &rtd_tg::HelpUserInfo,
+    __value: &rtd_tg::HelpUserInfo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::HelpUserInfo::UserInfo {
             message,
             entities,
@@ -268975,10 +269310,10 @@ pub fn decode_messages_affected_messages_profile(
 
 pub fn encode_messages_all_stickers_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesAllStickers,
+    __value: &rtd_tg::MessagesAllStickers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesAllStickers::AllStickers { hash, sets } => {
             let route = lookup_route_semantic(profile, SemanticId(0xbf2695a499837340)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -269152,10 +269487,10 @@ pub fn decode_messages_archived_stickers_profile(
 
 pub fn encode_messages_available_effects_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesAvailableEffects,
+    __value: &rtd_tg::MessagesAvailableEffects,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesAvailableEffects::AvailableEffects {
             hash,
             effects,
@@ -269286,10 +269621,10 @@ pub fn decode_messages_available_effects_profile(
 
 pub fn encode_messages_available_reactions_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesAvailableReactions,
+    __value: &rtd_tg::MessagesAvailableReactions,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesAvailableReactions::AvailableReactions { hash, reactions } => {
             let route = lookup_route_semantic(profile, SemanticId(0xb5435077bf7bcd0a)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -270229,10 +270564,10 @@ pub fn decode_messages_chat_invite_importers_profile(
 
 pub fn encode_messages_chat_invite_join_result_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesChatInviteJoinResult,
+    __value: &rtd_tg::MessagesChatInviteJoinResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultOk { updates } => {
             let route = lookup_route_semantic(profile, SemanticId(0x110d741747488ce9)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -270357,10 +270692,10 @@ pub fn decode_messages_chat_invite_join_result_profile(
 
 pub fn encode_messages_chats_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesChats,
+    __value: &rtd_tg::MessagesChats,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesChats::Chats { chats } => {
             let route = lookup_route_semantic(profile, SemanticId(0x53ea055f6750ca82)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -270701,10 +271036,10 @@ pub fn decode_messages_composed_rich_message_with_ai_profile(
 
 pub fn encode_messages_dh_config_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesDhConfig,
+    __value: &rtd_tg::MessagesDhConfig,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesDhConfig::DhConfig {
             g,
             p,
@@ -270897,10 +271232,10 @@ pub fn decode_messages_dialog_filters_profile(
 
 pub fn encode_messages_dialogs_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesDialogs,
+    __value: &rtd_tg::MessagesDialogs,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesDialogs::Dialogs {
             dialogs,
             messages,
@@ -271422,10 +271757,10 @@ pub fn decode_messages_discussion_message_profile(
 
 pub fn encode_messages_emoji_game_info_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesEmojiGameInfo,
+    __value: &rtd_tg::MessagesEmojiGameInfo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesEmojiGameInfo::EmojiGameDiceInfo {
             flags,
             game_hash,
@@ -271627,10 +271962,10 @@ pub fn decode_messages_emoji_game_outcome_profile(
 
 pub fn encode_messages_emoji_groups_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesEmojiGroups,
+    __value: &rtd_tg::MessagesEmojiGroups,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesEmojiGroups::EmojiGroups { hash, groups } => {
             let route = lookup_route_semantic(profile, SemanticId(0xd36500e4056a0325)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -271727,10 +272062,10 @@ pub fn decode_messages_emoji_groups_profile(
 
 pub fn encode_messages_exported_chat_invite_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesExportedChatInvite,
+    __value: &rtd_tg::MessagesExportedChatInvite,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesExportedChatInvite::ExportedChatInvite { invite, users } => {
             let route = lookup_route_semantic(profile, SemanticId(0x77a9263766a73447)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -272008,10 +272343,10 @@ pub fn decode_messages_exported_chat_invites_profile(
 
 pub fn encode_messages_faved_stickers_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesFavedStickers,
+    __value: &rtd_tg::MessagesFavedStickers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesFavedStickers::FavedStickers {
             hash,
             packs,
@@ -272140,10 +272475,10 @@ pub fn decode_messages_faved_stickers_profile(
 
 pub fn encode_messages_featured_stickers_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesFeaturedStickers,
+    __value: &rtd_tg::MessagesFeaturedStickers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesFeaturedStickers::FeaturedStickers {
             flags,
             premium,
@@ -272481,10 +272816,10 @@ pub fn decode_messages_forum_topics_profile(
 
 pub fn encode_messages_found_sticker_sets_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesFoundStickerSets,
+    __value: &rtd_tg::MessagesFoundStickerSets,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesFoundStickerSets::FoundStickerSets { hash, sets } => {
             let route = lookup_route_semantic(profile, SemanticId(0x51173088d970891c)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -272583,10 +272918,10 @@ pub fn decode_messages_found_sticker_sets_profile(
 
 pub fn encode_messages_found_stickers_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesFoundStickers,
+    __value: &rtd_tg::MessagesFoundStickers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesFoundStickers::FoundStickers {
             flags,
             next_offset,
@@ -273565,10 +273900,10 @@ pub fn decode_messages_message_views_profile(
 
 pub fn encode_messages_messages_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesMessages,
+    __value: &rtd_tg::MessagesMessages,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesMessages::ChannelMessages {
             flags,
             inexact,
@@ -274637,10 +274972,10 @@ pub fn decode_messages_prepared_inline_message_profile(
 
 pub fn encode_messages_quick_replies_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesQuickReplies,
+    __value: &rtd_tg::MessagesQuickReplies,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesQuickReplies::QuickReplies {
             quick_replies,
             messages,
@@ -274816,10 +275151,10 @@ pub fn decode_messages_quick_replies_profile(
 
 pub fn encode_messages_reactions_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesReactions,
+    __value: &rtd_tg::MessagesReactions,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesReactions::Reactions { hash, reactions } => {
             let route = lookup_route_semantic(profile, SemanticId(0xd6ea308260d3925d)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -274916,10 +275251,10 @@ pub fn decode_messages_reactions_profile(
 
 pub fn encode_messages_recent_stickers_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesRecentStickers,
+    __value: &rtd_tg::MessagesRecentStickers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesRecentStickers::RecentStickers {
             hash,
             packs,
@@ -275066,10 +275401,10 @@ pub fn decode_messages_recent_stickers_profile(
 
 pub fn encode_messages_saved_dialogs_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesSavedDialogs,
+    __value: &rtd_tg::MessagesSavedDialogs,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesSavedDialogs::SavedDialogs {
             dialogs,
             messages,
@@ -275383,10 +275718,10 @@ pub fn decode_messages_saved_dialogs_profile(
 
 pub fn encode_messages_saved_gifs_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesSavedGifs,
+    __value: &rtd_tg::MessagesSavedGifs,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesSavedGifs::SavedGifs { hash, gifs } => {
             let route = lookup_route_semantic(profile, SemanticId(0xf4fac12463f2c68e)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -275483,10 +275818,10 @@ pub fn decode_messages_saved_gifs_profile(
 
 pub fn encode_messages_saved_reaction_tags_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesSavedReactionTags,
+    __value: &rtd_tg::MessagesSavedReactionTags,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesSavedReactionTags::SavedReactionTags { tags, hash } => {
             let route = lookup_route_semantic(profile, SemanticId(0x46b1dbe787875a2e)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -275970,10 +276305,10 @@ pub fn decode_messages_search_results_positions_profile(
 
 pub fn encode_messages_sent_encrypted_message_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesSentEncryptedMessage,
+    __value: &rtd_tg::MessagesSentEncryptedMessage,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesSentEncryptedMessage::SentEncryptedFile { date, file } => {
             let route = lookup_route_semantic(profile, SemanticId(0xa6838dc7ba6571bc)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -276064,10 +276399,10 @@ pub fn decode_messages_sent_encrypted_message_profile(
 
 pub fn encode_messages_sponsored_messages_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesSponsoredMessages,
+    __value: &rtd_tg::MessagesSponsoredMessages,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesSponsoredMessages::SponsoredMessages {
             flags,
             posts_between,
@@ -276283,10 +276618,10 @@ pub fn decode_messages_sponsored_messages_profile(
 
 pub fn encode_messages_sticker_set_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesStickerSet,
+    __value: &rtd_tg::MessagesStickerSet,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesStickerSet::StickerSet {
             set,
             packs,
@@ -276449,10 +276784,10 @@ pub fn decode_messages_sticker_set_profile(
 
 pub fn encode_messages_sticker_set_install_result_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesStickerSetInstallResult,
+    __value: &rtd_tg::MessagesStickerSetInstallResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesStickerSetInstallResult::StickerSetInstallResultArchive { sets } => {
             let route = lookup_route_semantic(profile, SemanticId(0xddf6338c7d6c07eb)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -276554,10 +276889,10 @@ pub fn decode_messages_sticker_set_install_result_profile(
 
 pub fn encode_messages_stickers_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesStickers,
+    __value: &rtd_tg::MessagesStickers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesStickers::Stickers { hash, stickers } => {
             let route = lookup_route_semantic(profile, SemanticId(0x1a891dfae89b31fa)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -276851,10 +277186,10 @@ pub fn decode_messages_translated_rich_message_profile(
 
 pub fn encode_messages_translated_text_profile(
     profile: Profile,
-    value: &rtd_tg::MessagesTranslatedText,
+    __value: &rtd_tg::MessagesTranslatedText,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::MessagesTranslatedText::TranslateResult { result } => {
             let route = lookup_route_semantic(profile, SemanticId(0xf8fa373e7e100853)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -277407,10 +277742,10 @@ pub fn decode_payments_bank_card_data_profile(
 
 pub fn encode_payments_check_can_send_gift_result_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsCheckCanSendGiftResult,
+    __value: &rtd_tg::PaymentsCheckCanSendGiftResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsCheckCanSendGiftResult::CheckCanSendGiftResultFail { reason } => {
             let route = lookup_route_semantic(profile, SemanticId(0x0e6bebaf2ee26bf2)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -277958,10 +278293,10 @@ pub fn decode_payments_exported_invoice_profile(
 
 pub fn encode_payments_giveaway_info_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsGiveawayInfo,
+    __value: &rtd_tg::PaymentsGiveawayInfo,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsGiveawayInfo::GiveawayInfo {
             flags,
             participating,
@@ -278222,10 +278557,10 @@ pub fn decode_payments_giveaway_info_profile(
 
 pub fn encode_payments_payment_form_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsPaymentForm,
+    __value: &rtd_tg::PaymentsPaymentForm,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsPaymentForm::PaymentForm {
             flags,
             can_save_credentials,
@@ -278714,10 +279049,10 @@ pub fn decode_payments_payment_form_profile(
 
 pub fn encode_payments_payment_receipt_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsPaymentReceipt,
+    __value: &rtd_tg::PaymentsPaymentReceipt,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsPaymentReceipt::PaymentReceipt {
             flags,
             date,
@@ -279091,10 +279426,10 @@ pub fn decode_payments_payment_receipt_profile(
 
 pub fn encode_payments_payment_result_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsPaymentResult,
+    __value: &rtd_tg::PaymentsPaymentResult,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsPaymentResult::PaymentResult { updates } => {
             let route = lookup_route_semantic(profile, SemanticId(0x0cf273e144e8bedf)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -279738,10 +280073,10 @@ pub fn decode_payments_saved_star_gifts_profile(
 
 pub fn encode_payments_star_gift_active_auctions_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsStarGiftActiveAuctions,
+    __value: &rtd_tg::PaymentsStarGiftActiveAuctions,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsStarGiftActiveAuctions::StarGiftActiveAuctions {
             auctions,
             users,
@@ -280186,10 +280521,10 @@ pub fn decode_payments_star_gift_auction_state_profile(
 
 pub fn encode_payments_star_gift_collections_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsStarGiftCollections,
+    __value: &rtd_tg::PaymentsStarGiftCollections,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsStarGiftCollections::StarGiftCollections { collections } => {
             let route = lookup_route_semantic(profile, SemanticId(0x612367d2fdaadd1d)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -280619,10 +280954,10 @@ pub fn decode_payments_star_gift_withdrawal_url_profile(
 
 pub fn encode_payments_star_gifts_profile(
     profile: Profile,
-    value: &rtd_tg::PaymentsStarGifts,
+    __value: &rtd_tg::PaymentsStarGifts,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PaymentsStarGifts::StarGifts {
             hash,
             gifts,
@@ -282825,10 +283160,10 @@ pub fn decode_photos_photo_profile(
 
 pub fn encode_photos_photos_profile(
     profile: Profile,
-    value: &rtd_tg::PhotosPhotos,
+    __value: &rtd_tg::PhotosPhotos,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::PhotosPhotos::Photos { photos, users } => {
             let route = lookup_route_semantic(profile, SemanticId(0xada1a3cf49c99851)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -283516,10 +283851,10 @@ pub fn decode_premium_my_boosts_profile(
 
 pub fn encode_smsjobs_eligibility_to_join_profile(
     profile: Profile,
-    value: &rtd_tg::SmsjobsEligibilityToJoin,
+    __value: &rtd_tg::SmsjobsEligibilityToJoin,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::SmsjobsEligibilityToJoin::EligibleToJoin {
             terms_url,
             monthly_sent_sms,
@@ -284857,10 +285192,10 @@ pub fn decode_stickers_suggested_short_name_profile(
 
 pub fn encode_storage_file_type_profile(
     profile: Profile,
-    value: &rtd_tg::StorageFileType,
+    __value: &rtd_tg::StorageFileType,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StorageFileType::FileGif => {
             let route = lookup_route_semantic(profile, SemanticId(0xa20c16b47155b835)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -285088,10 +285423,10 @@ pub fn decode_storage_file_type_profile(
 
 pub fn encode_stories_albums_profile(
     profile: Profile,
-    value: &rtd_tg::StoriesAlbums,
+    __value: &rtd_tg::StoriesAlbums,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StoriesAlbums::Albums { hash, albums } => {
             let route = lookup_route_semantic(profile, SemanticId(0x6f9dfe00e8689e46)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -285188,10 +285523,10 @@ pub fn decode_stories_albums_profile(
 
 pub fn encode_stories_all_stories_profile(
     profile: Profile,
-    value: &rtd_tg::StoriesAllStories,
+    __value: &rtd_tg::StoriesAllStories,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::StoriesAllStories::AllStories {
             flags,
             has_more,
@@ -286487,10 +286822,10 @@ pub fn decode_toncenter_streaming_url_profile(
 
 pub fn encode_updates_channel_difference_profile(
     profile: Profile,
-    value: &rtd_tg::UpdatesChannelDifference,
+    __value: &rtd_tg::UpdatesChannelDifference,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UpdatesChannelDifference::ChannelDifference {
             flags,
             final_,
@@ -286902,10 +287237,10 @@ pub fn decode_updates_channel_difference_profile(
 
 pub fn encode_updates_difference_profile(
     profile: Profile,
-    value: &rtd_tg::UpdatesDifference,
+    __value: &rtd_tg::UpdatesDifference,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UpdatesDifference::Difference {
             new_messages,
             new_encrypted_messages,
@@ -287401,10 +287736,10 @@ pub fn decode_updates_state_profile(
 
 pub fn encode_upload_cdn_file_profile(
     profile: Profile,
-    value: &rtd_tg::UploadCdnFile,
+    __value: &rtd_tg::UploadCdnFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UploadCdnFile::CdnFile { bytes } => {
             let route = lookup_route_semantic(profile, SemanticId(0xb3e74870e89a57b1)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -287482,10 +287817,10 @@ pub fn decode_upload_cdn_file_profile(
 
 pub fn encode_upload_file_profile(
     profile: Profile,
-    value: &rtd_tg::UploadFile,
+    __value: &rtd_tg::UploadFile,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UploadFile::File {
             type_,
             mtime,
@@ -287719,10 +288054,10 @@ pub fn decode_upload_web_file_profile(
 
 pub fn encode_users_saved_music_profile(
     profile: Profile,
-    value: &rtd_tg::UsersSavedMusic,
+    __value: &rtd_tg::UsersSavedMusic,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UsersSavedMusic::SavedMusic { count, documents } => {
             let route = lookup_route_semantic(profile, SemanticId(0xbdef4db6efe01166)).ok_or(
                 ProjectionError::Unrepresentable {
@@ -287943,10 +288278,10 @@ pub fn decode_users_user_full_profile(
 
 pub fn encode_users_users_profile(
     profile: Profile,
-    value: &rtd_tg::UsersUsers,
+    __value: &rtd_tg::UsersUsers,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
-    match value {
+    match __value {
         rtd_tg::UsersUsers::Users { users } => {
             let route = lookup_route_semantic(profile, SemanticId(0x59c3f064f3c2543b)).ok_or(
                 ProjectionError::Unrepresentable {
