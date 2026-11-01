@@ -286,6 +286,6 @@ mod tests {
     fn loads_rtd_config() {
         let config = load_rtd_config(std::path::Path::new("../../schema/rtd.json"));
         let config = config.expect("config loads");
-        assert_eq!(config.enabled_layers, vec![232]);
+        assert_eq!(config.enabled_layers, vec![225, 226, 227, 228, 229, 230, 231, 232]);
     }
 }

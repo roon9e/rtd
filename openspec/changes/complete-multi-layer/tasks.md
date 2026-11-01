@@ -2,8 +2,8 @@
 
 ## 1. Enable layers and baseline
 
-- [ ] 1.1 Set `schema/rtd.json` `enabled_layers` to 225–232 and run `cargo run -p rtd-codegen -- generate`; verify generation now reports a non-empty route product across the enabled set with nonzero body plans, and record the per-mode route counts for reference
-- [ ] 1.2 Confirm the manifest already carries tdesktop provenance for layers 225–231 and that SHA-256 verification passes for every enabled layer; verify `cargo run -p rtd-codegen -- verify` reports the enabled set and succeeds
+- [x] 1.1 Set `schema/rtd.json` `enabled_layers` to 225–232 and run `cargo run -p rtd-codegen -- generate`; verify generation now reports a non-empty route product across the enabled set with nonzero body plans, and record the per-mode route counts for reference (routes=19845, body_plans=1037, preflight=1148, result=968, 3.43 MB / 125760 lines)
+- [x] 1.2 Confirm the manifest already carries tdesktop provenance for layers 225–231 and that SHA-256 verification passes for every enabled layer; verify `cargo run -p rtd-codegen -- verify` reports the enabled set and succeeds
 
 ## 2. Generator — emit non-direct route bodies
 

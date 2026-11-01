@@ -74,10 +74,10 @@ fn invoke_after_msgs(msg_ids: Vec<i64>, query: Method) -> Method {
 #[test]
 fn unsupported_layer_is_refused() {
     assert!(resolve_profile(232).is_some());
-    assert!(resolve_profile(231).is_none());
+    assert!(resolve_profile(224).is_none());
     let body = encode_method(&bind());
-    let error = admit(Profile::new(231), &body).unwrap_err();
-    assert_eq!(error, AdmitError::UnsupportedLayer(231));
+    let error = admit(Profile::new(224), &body).unwrap_err();
+    assert_eq!(error, AdmitError::UnsupportedLayer(224));
 }
 
 #[test]
@@ -176,12 +176,12 @@ fn unrepresentable_value_fails_closed() {
         .encode(Profile::new(232), &mut writer)
         .expect("canonical encoding");
     let error = frozen
-        .encode(Profile::new(231), &mut Writer::new())
+        .encode(Profile::new(224), &mut Writer::new())
         .unwrap_err();
     assert_eq!(
         error,
         ProjectionError::Unrepresentable {
-            layer: 231,
+            layer: 224,
             wire_id: frozen.type_id()
         }
     );
@@ -229,7 +229,7 @@ fn decode_object_is_profile_bound() {
     let bytes = writer.into_vec();
     let value = decode_object(Profile::new(232), &bytes, Limits::default()).expect("decoded");
     assert_eq!(value, Object::Bool(Box::new(Bool::BoolTrue)));
-    assert!(decode_object(Profile::new(231), &bytes, Limits::default()).is_err());
+    assert!(decode_object(Profile::new(224), &bytes, Limits::default()).is_err());
 }
 
 #[test]
@@ -336,8 +336,8 @@ fn fail_closed_behaviors_are_unchanged() {
     // Unsupported-layer refusal.
     let body = encode_method(&bind());
     assert_eq!(
-        admit(Profile::new(231), &body).unwrap_err(),
-        AdmitError::UnsupportedLayer(231)
+        admit(Profile::new(224), &body).unwrap_err(),
+        AdmitError::UnsupportedLayer(224)
     );
 
     // Conflicting-selector rejection.
@@ -351,10 +351,10 @@ fn fail_closed_behaviors_are_unchanged() {
     let frozen = FrozenObject::freeze(Object::Bool(Box::new(Bool::BoolTrue))).unwrap();
     assert_eq!(
         frozen
-            .encode(Profile::new(231), &mut Writer::new())
+            .encode(Profile::new(224), &mut Writer::new())
             .unwrap_err(),
         ProjectionError::Unrepresentable {
-            layer: 231,
+            layer: 224,
             wire_id: frozen.type_id()
         }
     );
