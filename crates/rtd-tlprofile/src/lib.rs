@@ -162625,8 +162625,127 @@ pub fn encode_ephemeral_message_profile(
             }
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                228 => encode_policy_ephemeral_message_228(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_ephemeral_message_228(
+    profile: Profile,
+    value: &rtd_tg::EphemeralMessage,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::EphemeralMessage {
+        anchor_msg_id,
+        chat_instance,
+        date,
+        entities,
+        from_id,
+        id,
+        invert_media,
+        media,
+        message,
+        noforwards,
+        out,
+        peer_id,
+        receiver_id,
+        reply_markup,
+        reply_to,
+        rich_message,
+        top_msg_id,
+        welcome_template,
+        ..
+    } = value;
+    if rich_message.is_some() {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xdd27bee9,
+        });
+    }
+    if *welcome_template {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xdd27bee9,
+        });
+    }
+    if anchor_msg_id.is_some() {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xdd27bee9,
+        });
+    }
+    if chat_instance.is_some() {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xdd27bee9,
+        });
+    }
+    if *invert_media {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xdd27bee9,
+        });
+    }
+    if *noforwards {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xdd27bee9,
+        });
+    }
+    let mut __flags_flags = 0u32;
+    if *out {
+        __flags_flags |= 1u32 << 0;
+    }
+    if top_msg_id.is_some() {
+        __flags_flags |= 1u32 << 1;
+    }
+    if entities.is_some() {
+        __flags_flags |= 1u32 << 2;
+    }
+    if media.is_some() {
+        __flags_flags |= 1u32 << 3;
+    }
+    if reply_markup.is_some() {
+        __flags_flags |= 1u32 << 4;
+    }
+    if reply_to.is_some() {
+        __flags_flags |= 1u32 << 6;
+    }
+    __w.put_u32(__flags_flags);
+    __w.put_i32(*id);
+    encode_peer_profile(profile, from_id, __w)?;
+    let __required =
+        rtd_layerhooks::ephemeral::require_message_peer(peer_id.is_some(), peer_id.as_deref())?;
+    encode_peer_profile(profile, __required, __w)?;
+    __w.put_i64(*receiver_id);
+    if let Some(value) = top_msg_id {
+        __w.put_i32(*value);
+    }
+    __w.put_i32(*date);
+    __w.put_string(message.as_str());
+    if let Some(value) = entities {
+        __w.put_vector_header(value.len());
+        for item in value.iter() {
+            encode_message_entity_profile(profile, item, __w)?;
+        }
+    }
+    if let Some(value) = media {
+        encode_message_media_profile(profile, value, __w)?;
+    }
+    if let Some(value) = reply_markup {
+        encode_reply_markup_profile(profile, value, __w)?;
+    }
+    if let Some(value) = reply_to {
+        encode_message_reply_header_profile(profile, value, __w)?;
+    }
+    Ok(())
 }
 
 pub fn decode_ephemeral_message_profile(
@@ -162791,8 +162910,148 @@ pub fn decode_ephemeral_message_profile(
                 anchor_msg_id,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            228 => decode_policy_ephemeral_message_228(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_ephemeral_message_228(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::EphemeralMessage, AdmitError> {
+    let flags = __d.take_u32()?;
+    let out: bool = flags & (1u32 << 0) != 0;
+    let id: i32 = __d.take_i32()?;
+    let from_id: ::std::boxed::Box<rtd_tg::Peer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let peer_id: ::std::boxed::Box<rtd_tg::Peer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let receiver_id: i64 = __d.take_i64()?;
+    let top_msg_id: Option<i32> = if flags & (1u32 << 1) != 0 {
+        Some(__d.take_i32()?)
+    } else {
+        None
+    };
+    let date: i32 = __d.take_i32()?;
+    let message: ::std::string::String = __d.take_string()?.to_owned();
+    let entities: Option<::std::vec::Vec<rtd_tg::MessageEntity>> = if flags & (1u32 << 2) != 0 {
+        Some({
+            let n = __d.take_vector_header()?;
+            let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+            for _ in 0..n {
+                items.push({
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_message_entity_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    value
+                });
+            }
+            items
+        })
+    } else {
+        None
+    };
+    let media: Option<::std::boxed::Box<rtd_tg::MessageMedia>> = if flags & (1u32 << 3) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_message_media_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let reply_markup: Option<::std::boxed::Box<rtd_tg::ReplyMarkup>> = if flags & (1u32 << 4) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_reply_markup_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let reply_to: Option<::std::boxed::Box<rtd_tg::MessageReplyHeader>> =
+        if flags & (1u32 << 6) != 0 {
+            Some({
+                __d.enter()?;
+                let value = {
+                    let __id = __d.take_u32()?;
+                    decode_message_reply_header_profile(profile, __id, __d)?
+                };
+                __d.leave();
+                ::std::boxed::Box::new(value)
+            })
+        } else {
+            None
+        };
+    let mut flags = 0u32;
+    if out {
+        flags |= 1u32 << 0;
+    }
+    flags |= 1u32 << 9;
+    if top_msg_id.is_some() {
+        flags |= 1u32 << 1;
+    }
+    if entities.is_some() {
+        flags |= 1u32 << 2;
+    }
+    if media.is_some() {
+        flags |= 1u32 << 3;
+    }
+    if reply_markup.is_some() {
+        flags |= 1u32 << 4;
+    }
+    if reply_to.is_some() {
+        flags |= 1u32 << 6;
+    }
+    Ok(rtd_tg::EphemeralMessage {
+        flags,
+        out,
+        welcome_template: false,
+        invert_media: false,
+        noforwards: false,
+        id,
+        from_id,
+        peer_id: Some(peer_id),
+        receiver_id,
+        top_msg_id,
+        date,
+        message,
+        entities,
+        media,
+        reply_markup,
+        reply_to,
+        rich_message: None,
+        chat_instance: None,
+        anchor_msg_id: None,
+    })
 }
 
 pub fn encode_error_profile(
@@ -365824,8 +366083,111 @@ pub fn encode_ephemeral_send_message_profile(
             }
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                228 => encode_policy_ephemeral_send_message_228(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_ephemeral_send_message_228(
+    profile: Profile,
+    value: &rtd_tg::EphemeralSendMessage,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::EphemeralSendMessage {
+        anchor,
+        entities,
+        invert_media,
+        media,
+        message,
+        noforwards,
+        peer,
+        query_id,
+        random_id,
+        receiver_id,
+        reply_markup,
+        reply_to,
+        rich_message,
+        welcome,
+        ..
+    } = value;
+    if *invert_media {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xba8d5f35,
+        });
+    }
+    if *anchor {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xba8d5f35,
+        });
+    }
+    if *noforwards {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xba8d5f35,
+        });
+    }
+    if *welcome {
+        return Err(ProjectionError::Unrepresentable {
+            layer: profile.layer,
+            wire_id: 0xba8d5f35,
+        });
+    }
+    let mut __flags_flags = 0u32;
+    if query_id.is_some() {
+        __flags_flags |= 1u32 << 0;
+    }
+    if entities.is_some() {
+        __flags_flags |= 1u32 << 1;
+    }
+    if media.is_some() {
+        __flags_flags |= 1u32 << 2;
+    }
+    if reply_markup.is_some() {
+        __flags_flags |= 1u32 << 3;
+    }
+    if rich_message.is_some() {
+        __flags_flags |= 1u32 << 4;
+    }
+    if reply_to.is_some() {
+        __flags_flags |= 1u32 << 5;
+    }
+    __w.put_u32(__flags_flags);
+    let __required = rtd_layerhooks::ephemeral::require_send_peer(peer.is_some(), peer.as_deref())?;
+    encode_input_peer_profile(profile, __required, __w)?;
+    encode_input_user_profile(profile, receiver_id, __w)?;
+    if let Some(value) = query_id {
+        __w.put_i64(*value);
+    }
+    __w.put_string(message.as_str());
+    if let Some(value) = entities {
+        __w.put_vector_header(value.len());
+        for item in value.iter() {
+            encode_message_entity_profile(profile, item, __w)?;
+        }
+    }
+    if let Some(value) = media {
+        encode_input_media_profile(profile, value, __w)?;
+    }
+    if let Some(value) = reply_markup {
+        encode_reply_markup_profile(profile, value, __w)?;
+    }
+    if let Some(value) = rich_message {
+        encode_input_rich_message_profile(profile, value, __w)?;
+    }
+    __w.put_i64(*random_id);
+    if let Some(value) = reply_to {
+        encode_input_reply_to_profile(profile, value, __w)?;
+    }
+    Ok(())
 }
 
 pub fn decode_ephemeral_send_message_profile(
@@ -365973,8 +366335,154 @@ pub fn decode_ephemeral_send_message_profile(
                 reply_to,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            228 => decode_policy_ephemeral_send_message_228(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_ephemeral_send_message_228(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::EphemeralSendMessage, AdmitError> {
+    let flags = __d.take_u32()?;
+    let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let receiver_id: ::std::boxed::Box<rtd_tg::InputUser> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_user_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let query_id: Option<i64> = if flags & (1u32 << 0) != 0 {
+        Some(__d.take_i64()?)
+    } else {
+        None
+    };
+    let message: ::std::string::String = __d.take_string()?.to_owned();
+    let entities: Option<::std::vec::Vec<rtd_tg::MessageEntity>> = if flags & (1u32 << 1) != 0 {
+        Some({
+            let n = __d.take_vector_header()?;
+            let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+            for _ in 0..n {
+                items.push({
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_message_entity_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    value
+                });
+            }
+            items
+        })
+    } else {
+        None
+    };
+    let media: Option<::std::boxed::Box<rtd_tg::InputMedia>> = if flags & (1u32 << 2) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_input_media_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let reply_markup: Option<::std::boxed::Box<rtd_tg::ReplyMarkup>> = if flags & (1u32 << 3) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_reply_markup_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let rich_message: Option<::std::boxed::Box<rtd_tg::InputRichMessage>> =
+        if flags & (1u32 << 4) != 0 {
+            Some({
+                __d.enter()?;
+                let value = {
+                    let __id = __d.take_u32()?;
+                    decode_input_rich_message_profile(profile, __id, __d)?
+                };
+                __d.leave();
+                ::std::boxed::Box::new(value)
+            })
+        } else {
+            None
+        };
+    let random_id: i64 = __d.take_i64()?;
+    let reply_to: Option<::std::boxed::Box<rtd_tg::InputReplyTo>> = if flags & (1u32 << 5) != 0 {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_input_reply_to_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let mut flags = 0u32;
+    flags |= 1u32 << 8;
+    if query_id.is_some() {
+        flags |= 1u32 << 0;
+    }
+    if entities.is_some() {
+        flags |= 1u32 << 1;
+    }
+    if media.is_some() {
+        flags |= 1u32 << 2;
+    }
+    if reply_markup.is_some() {
+        flags |= 1u32 << 3;
+    }
+    if rich_message.is_some() {
+        flags |= 1u32 << 4;
+    }
+    if reply_to.is_some() {
+        flags |= 1u32 << 5;
+    }
+    Ok(rtd_tg::EphemeralSendMessage {
+        flags,
+        invert_media: false,
+        welcome: false,
+        anchor: false,
+        noforwards: false,
+        peer: Some(peer),
+        receiver_id,
+        query_id,
+        message,
+        entities,
+        media,
+        reply_markup,
+        rich_message,
+        random_id,
+        reply_to,
+    })
 }
 
 pub fn encode_ephemeral_delete_message_profile(
@@ -366029,8 +366537,35 @@ pub fn encode_ephemeral_delete_message_profile(
             __w.put_i32(*id);
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                228 => encode_policy_ephemeral_delete_message_228(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_ephemeral_delete_message_228(
+    profile: Profile,
+    value: &rtd_tg::EphemeralDeleteMessage,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::EphemeralDeleteMessage {
+        id,
+        peer,
+        receiver_id,
+        ..
+    } = value;
+    let __required =
+        rtd_layerhooks::ephemeral::require_delete_peer(peer.is_some(), peer.as_deref())?;
+    encode_input_peer_profile(profile, __required, __w)?;
+    encode_input_user_profile(profile, receiver_id, __w)?;
+    __w.put_i32(*id);
+    Ok(())
 }
 
 pub fn decode_ephemeral_delete_message_profile(
@@ -366080,8 +366615,45 @@ pub fn decode_ephemeral_delete_message_profile(
                 id,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            228 => decode_policy_ephemeral_delete_message_228(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_ephemeral_delete_message_228(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::EphemeralDeleteMessage, AdmitError> {
+    let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_peer_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let receiver_id: ::std::boxed::Box<rtd_tg::InputUser> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_user_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let id: i32 = __d.take_i32()?;
+    let mut flags = 0u32;
+    flags |= 1u32 << 0;
+    Ok(rtd_tg::EphemeralDeleteMessage {
+        flags,
+        peer: Some(peer),
+        receiver_id,
+        id,
+    })
 }
 
 pub fn encode_ephemeral_report_message_profile(

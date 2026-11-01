@@ -2,123 +2,108 @@
 
 ## Project
 
-`rtd` (repo `C:\Users\roon9e\Documents\github\rtd`, GitHub `roon9e/rtd`) is a from-scratch
-Rust reimplementation of the server-facing core of the Go library `td`
-(`C:\Users\roon9e\Documents\github\td`) plus a multi-datacenter MTProto 2.0 server
+`rtd` (repo `C:\Users\roon9e\Documents\github\rtd`) is a from-scratch Rust reimplementation
+of the server-facing core of the Go library `td` plus a multi-datacenter MTProto 2.0 server
 runtime. Wire-compatible with real clients, Go `td`, and the official
-`TelegramMessenger/mtproto-engine` (read-only GPL peer; run its
-`mtproto-testserver.exe` as a test peer only). Edition 2024, MSRV 1.99, `unsafe` forbidden,
-clippy `all=deny`; **no `allow(...)` anywhere** (hand-written or generated). Branch model:
-**main only**, pushed directly; CI runs on `main` (watch with `gh run list` / `gh run view`).
+`TelegramMessenger/mtproto-engine` (read-only GPL peer; run its `mtproto-testserver.exe` as
+a test peer only). Edition 2024, MSRV 1.99, `unsafe` forbidden, clippy `all=deny`; **no
+`allow(...)` anywhere**. Branch model: **main only**, pushed directly; CI runs on `main`
+(`gh run list`, `gh run view <id> --log-failed`).
 
-Active OpenSpec change: **`complete-multi-layer`** — read
-`openspec/changes/complete-multi-layer/{proposal,design,tasks}.md` and `specs/`.
+Active OpenSpec change: **`complete-multi-layer`** — `openspec/changes/complete-multi-layer/`.
 
-## Git / CI state
+## State
 
-- `main == origin/main` at **`bded7f5`**, CI green for the earlier commits; the last three
-  pushes were still running when this was written (check `gh run list`).
-- This session pushed four commits:
-  - `f8ee2d8` mechanical policy routes end-to-end (142/179 policy routes).
-  - `a10bcb4` output atomicity/freshness tests (task 3.5).
-  - `faa9fec` shared hook registry + generator lookup gate (task 2.1).
-  - `9ec8b6a` present-in-both required/result/discard hooks + strict gate (tasks 2.3, 5.2).
-  - `bded7f5` gate the project-action hooks too.
-- Tree is clean. Regenerating is unchanged: `profile_bytes=12455790 profile_lines=379876`,
-  `routes=19845 direct=18489 retag=4 rewrite=1100 unavailable=0 policy=179 profile_only=73`.
+`main == origin/main` at **`04da7ef`**; CI green for the last verified push. Sessions since
+`b5cb9c1` implemented: mechanical policy routes, `default`, the shared hook registry + gate,
+the present-in-both required/result/discard hooks, field-shaped hook call-site emission, and
+admission of rewrite/policy methods. Sidecar: **12.50 MB / 381,249 lines** (16 MiB / 400k
+budget). Policy coverage: **162 of 179** routes execute (mechanical + `default` + the bot
+text field hooks); 17 stay fail-closed.
 
-## Done in `complete-multi-layer`
+### Tasks done
+1.1, 1.2, 2.1, 2.2, 2.3, 3.1, 3.2, 3.4, 3.5, 5.2, 6.1, 6.2, 7.2, 7.3.
 
-- **1.1, 1.2, 2.2, 3.1, 3.2, 3.4, 3.5** and now **2.1, 2.3, 5.2**.
-- **Policy (mechanical)**: `emit_profile.rs` emits isolated per-`(container-or-variant,
-  layer)` functions for present-in-both families whose every body obligation is `drop` or
-  `reject-if-present`. Encode recomputes the layer flags word; decode rebuilds the canonical
-  value and recomputes the canonical flags word. This covers **142 of 179** policy routes;
-  the rest (adapter/project/default) stay fail-closed.
-- **Hook registry** `crates/rtd-layerhooks-registry` (dependency-free): `HookSpec { name,
-  direction, status, signature }`, `HOOKS`, `lookup`, `implemented_names`. `Status` is
-  `Implemented | Pending | Deferred`.
-- **Gate** `rtd-codegen::generate::check_hook_registry(plan, hooks: &[HookSpec])` runs in
-  `generate`: for every present-in-both obligation whose action is `adapter` **or** `project`
-  (and kind != `old-only`) it requires a registered hook whose `direction` covers the
-  obligation and whose status is not `Pending`; then every registry entry must be referenced
-  (stale fails). Tests cover missing / direction-mismatch / unimplemented / stale
-  (`hook_registry_fails_on_*`). `rtd-layerhooks::implemented_hooks_match_the_registry`
-  asserts `IMPLEMENTED_HOOKS == registry::implemented_names()`.
-- **Implemented hooks** in `crates/rtd-layerhooks/src/` (each with fail-closed tests):
-  - `text.rs` — bot-verification text family (3 hooks).
-  - `results.rs` — `layerAdaptBotGuestChatResult`,
-    `layerAdaptChatInviteJoinResultToUpdates`, `layerAdaptUpdatesToChatInviteJoinResult`,
-    `layerAdaptWebBrowserSettingsExceptionResult`.
-  - `ephemeral.rs` — `layerRequireLegacyEphemeral{Message,Send,Delete}Peer`.
-  - `keyboard.rs` — `layerDefaultLegacyKeyboardButtonType`.
-  - `chat_invite.rs` — `layerCaptureChatInviteJoinQueryIDFromWebView`,
-    `layerRequireCapturedChatInviteJoinQueryID`.
-- **Deferred (registered, `Status::Deferred`)**: `layerAdaptLegacyInlineKeyboardRows` (row
-  buttons transitively need the ProfileOnly keyboard-button constructors) and the two
-  `project` hooks `layerProjectEphemeralBotCommand` / `layerProjectLegacyDefaultKeyboardButton`
-  (signatures pin with the emission below). The 17 `old-only` hooks are absent by design
-  (ProfileOnly, follow-up change `add-legacy-layer-constructors`).
+### Tasks open
+- **3.3** result/presence/discard/vector/projection hook call sites (field-shaped hooks are
+  done; the rest follow closed).
+- **4.1** `project` mechanical classes.
+- **5.1** `layerAdaptLegacyInlineKeyboardRows` (marked `Deferred`).
+- **5.3** the two `project` hooks.
+- **5.4** coverage (blocked on 5.1/5.3).
 
-## Next: task 3.3 — policy call-site emission (the linchpin)
+## The linchpin: `emit_profile.rs` policy emission
 
-Everything remaining hangs off emitting the adapter/project hook calls into the generated
-policy bodies and the result path. Steps:
+`crates/rtd-codegen/src/emit_profile.rs`:
 
-1. **Enrich the registry with machine-readable structure.** Today `signature` is an
-   informative string. Emission needs, per obligation/direction: the concrete function
-   path (e.g. `rtd_layerhooks::results::chat_invite_join_result_to_updates`), the
-   parameter list (which canonical/profile fields, in order, and their Rust types), and the
-   return shape (value / tuple / `Option` "drop"). Model this in
-   `rtd-layerhooks-registry` (still dependency-free; use type *strings*).
-2. **Emit hook calls** in `emit_profile.rs`. Consider: an obligation is either
-   *whole-value* (result hooks; `layerAdaptLegacyInlineKeyboardRows`) or *field-shaped*
-   (text/ephemeral/keyboard/chat-invite). Field-shaped hooks read/write specific fields;
-   the emitter must map obligation `field`/`other_field` + `FieldMapping` ordinals to those
-   fields. Result hooks belong on the RPC result path, not the value codec
-   (`body_obligations()` excludes `result`).
-3. **`default` mechanical (task 4.1).** Needs no hook. The 5 obligations:
-   `pageListOrderedItem{Text,Blocks}.num` (canonical optional -> profile mandatory, c2p) and
-   `auth.sentCodePaymentRequired.premium_days` (canonical mandatory, absent in profile, p2c).
-   Add `default_expr(ty) -> Option<String>` for scalar types and fail closed for others.
-4. **`project` action.** `layerProjectEphemeralBotCommand` drops an ephemeral command from a
-   vector; `layerProjectLegacyDefaultKeyboardButton` drops a default-typed button's `type`.
-   Pin shapes with the emission, then implement and flip to `Implemented`.
-5. `layerAdaptLegacyInlineKeyboardRows`: implement a fail-closed version (present-in-both
-   buttons convert; a ProfileOnly button -> `HookError::Unrepresentable`) or keep `Deferred`.
+- `collect_policy_layers(universe, plan, classes, bare_ids, definition)` returns the
+  supported `PolicyLayer`s. A layer is supported when every body obligation is `drop`,
+  `reject-if-present`, `default`, or an `adapter` with a **field-shaped** hook
+  (`rtd_layerhooks_registry::field_convert`); otherwise it fails closed.
+- `collect_field_hooks(...)` validates a field conversion: both directions present, both
+  sides plain value fields, **aligned optionality**, and computes the profile field's inner
+  `RustType`.
+- Encode (`emit_policy_layer_body`): a converted field emits
+  `let __converted = <encode_fn>(binding)?;` then writes the profile inner type.
+- Decode (`emit_policy_decode_fns`): reads the **profile** inner type, then shadows the
+  binding with the canonical value via `<decode_fn>` and `wrap_canonical` (boxes
+  class/object/method fields).
+- `default`: a mandatory profile field whose canonical source is optional writes a scalar
+  default (`default_expr`); a canonical mandatory field absent from the profile is rebuilt
+  from `canonical_defaults` on decode.
+- Hook errors flow through `ProjectionError::Hook` / `AdmitError::Hook`.
 
-### Emitter pitfalls learned (important)
+## Remaining hook shapes to emit (task 3.3 / 5.3 / 4.1)
 
-- `rtd-tg` has TL types literally named `String`/`Bytes`; qualify as `rtd_tg::X`. Zero-field
-  structs take `_value`. Codec names are snake_case.
-- Policy bodies **must** stay isolated per `(container-or-variant, layer)`; inlining made
-  rewrite routes overflow the default 2 MB stack.
-- When a profile field is **mandatory** but its canonical source is **optional** (the
-  `default`/`required` shape), the canonical binding is `Option<T>` while the field type is
-  `T`: encode needs `if let Some(v) = b { .. } else { default }`, decode needs `Some(binding)`.
-- The flags recompute must use the **profile** field's shape for the presence test
-  (mandatory -> always set; `presence_only` -> `if b`; optional -> `if b.is_some()`) and the
-  **canonical** field's `condition.bit` for the bit. The current code uses the canonical
-  field's shape, which is only correct because drop-only layers keep the shapes aligned.
-- `collect_policy_layers` currently allows actions `{"drop","reject-if-present"}`; a layer
-  with any other action fails closed. `every_profile_field_mapped` and `rebuildable` gate
-  which shapes are emittable.
-- `fail-closed` is `ProjectionError::RouteNotEmitted` (encode) / `AdmitError::UnsupportedRoute`
-  (decode); reject uses `ProjectionError::Unrepresentable { layer, wire_id }`.
+Every present-in-both hook-backed obligation must have a call site; the registry
+(`rtd-layerhooks-registry`) is the manifest. Remaining, with suggested emission:
 
-## Build / verify
+1. **require** (`layerRequireLegacyEphemeral{Message,Send,Delete}Peer`, c2p): mandatory
+   profile field, optional canonical source. Reshape the `ephemeral.rs` hooks to return the
+   peer (`fn require<'a>(present: bool, peer: Option<&'a Peer>) -> Result<&'a Peer>`) and
+   add `registry::field_require(name) -> Option<&str>`; encode emits
+   `let __v = <fn>(binding.is_some(), binding.as_deref())?; <write __v>`. Decode already
+   wraps `Some(binding)` for this shape.
+2. **supply** (`layerDefaultLegacyKeyboardButtonType`, p2c): canonical mandatory field absent
+   from the profile; value comes from a hook (like `canonical_defaults` but hooked).
+3. **chat invite** (`layerCaptureChatInviteJoinQueryIDFromWebView` discard +
+   `layerRequireCapturedChatInviteJoinQueryID` required, p2c): the profile carries a
+   `webview: WebViewResult` field the canonical lacks, and the canonical `query_id` is
+   captured from it. Special emission.
+4. **project** (`layerProjectEphemeralBotCommand`, `layerProjectLegacyDefaultKeyboardButton`,
+   c2p): conditional drop. `layerProjectEphemeralBotCommand` drops an ephemeral command from
+   a vector; `layerProjectLegacyDefaultKeyboardButton` drops a default-typed button's `type`.
+   NOTE: `design.md` D31 says these are generated logic, but `validate_resolution` requires a
+   hook, so they are hook-backed; reconcile the prose or the policy.
+5. **rows** (`layerAdaptLegacyInlineKeyboardRows`, both): converting
+   `Vector<KeyboardButtonRow>` <-> `Vector<KeyboardInlineButtonRow>` transitively needs the
+   `ProfileOnly` keyboard-button constructors, so it is deferred to
+   `add-legacy-layer-constructors` (or implemented fail-closed on ProfileOnly buttons).
+
+## Follow-ups after this change
+
+- Archive `complete-multi-layer` (`openspec-archive-change`) once 3.3/4.1/5.1/5.3/5.4 close.
+- **`add-legacy-layer-constructors`**: `ProfileOnly` constructors (`keyboardButtonRequestPhone`
+  etc.), the 17 `old-only` hooks, the rows hook, and removing the profile-only fail-closed
+  clause.
+- **Multi-DC** as its own change (gramsrv v2 is the Edge/Core/Egress/File microservice split,
+  not multiple DCs).
+- **Client library** — to start once the server plan is complete.
+
+## Build / verify / gotchas
 
 ```
-cargo build --workspace
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace --locked
-cargo run -p rtd-codegen -- verify        # freshness, after `generate`
+cargo test --workspace --locked         # includes the slow codegen generator tests
+cargo run -p rtd-codegen -- verify
 ```
-`generate` rewrites `crates/rtd-tg/src/lib.rs`, `crates/rtd-tlprofile/src/lib.rs`,
-`crates/rtd-mt/src/lib.rs` — all committed, never hand-edit. The codegen test suite runs the
-full generator several times (~15 min); prefer `cargo test -p <crate>` and let CI cover the
-rest. PowerShell reports `Exited with code 1` even on success — trust `$LASTEXITCODE` and the
-parsed `test result:` lines. Peer gate (local, no VPN):
-`RTD_PEER_TESTSERVER=C:\Users\roon9e\Documents\github\mtproto-engine\target\release\mtproto-testserver.exe`,
-then `cargo test -p rtd-exchange --test peer_gate`.
+- `generate` rewrites `crates/rtd-{tg,tlprofile,mt}/src/lib.rs`; never hand-edit them.
+- `rtd-tlprofile` now depends on `rtd-layerhooks`; `rtd-codegen` on `rtd-layerhooks-registry`.
+- A new generated enum variant (e.g. `AdmitError::Hook`) requires updating hand-written
+  exhaustive matches (`rtd-server/src/rpc.rs`) — CI caught this once.
+- `rtd-tg` has TL types named `String`/`Bytes`; qualify `rtd_tg::X`. Zero-field structs use
+  `_value`. A variant field may be named `value`, so the enum codec parameter is `__value`.
+- Policy bodies stay isolated per `(container-or-variant, layer)` (inlining overflowed the
+  stack). Decode flags recompute uses the reconstructed profile field's shape.
+- PowerShell reports `Exited with code 1` even on success; trust `$LASTEXITCODE`.

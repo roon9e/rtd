@@ -2,7 +2,8 @@
 //!
 //! The historical ephemeral shapes require an explicit peer, while the canonical
 //! shapes made it optional. Encoding a value without the peer cannot be
-//! represented and fails closed rather than dropping it silently.
+//! represented and fails closed rather than dropping it. These are field-shaped
+//! requirement hooks: they return the peer when present and fail closed when not.
 
 use rtd_tg::{InputPeer, Peer};
 
@@ -14,11 +15,10 @@ use crate::error::{HookError, Result};
 /// # Errors
 ///
 /// Returns [`HookError::Missing`] when the peer is absent.
-pub fn require_message_peer(present: bool, peer: Option<&Peer>) -> Result<()> {
-    if present && peer.is_some() {
-        Ok(())
-    } else {
-        Err(HookError::Missing("ephemeralMessage.peer_id"))
+pub fn require_message_peer(present: bool, peer: Option<&Peer>) -> Result<&Peer> {
+    match peer {
+        Some(peer) if present => Ok(peer),
+        _ => Err(HookError::Missing("ephemeralMessage.peer_id")),
     }
 }
 
@@ -28,11 +28,10 @@ pub fn require_message_peer(present: bool, peer: Option<&Peer>) -> Result<()> {
 /// # Errors
 ///
 /// Returns [`HookError::Missing`] when the peer is absent.
-pub fn require_send_peer(present: bool, peer: Option<&InputPeer>) -> Result<()> {
-    if present && peer.is_some() {
-        Ok(())
-    } else {
-        Err(HookError::Missing("ephemeral.sendMessage.peer"))
+pub fn require_send_peer(present: bool, peer: Option<&InputPeer>) -> Result<&InputPeer> {
+    match peer {
+        Some(peer) if present => Ok(peer),
+        _ => Err(HookError::Missing("ephemeral.sendMessage.peer")),
     }
 }
 
@@ -42,11 +41,10 @@ pub fn require_send_peer(present: bool, peer: Option<&InputPeer>) -> Result<()> 
 /// # Errors
 ///
 /// Returns [`HookError::Missing`] when the peer is absent.
-pub fn require_delete_peer(present: bool, peer: Option<&InputPeer>) -> Result<()> {
-    if present && peer.is_some() {
-        Ok(())
-    } else {
-        Err(HookError::Missing("ephemeral.deleteMessage.peer"))
+pub fn require_delete_peer(present: bool, peer: Option<&InputPeer>) -> Result<&InputPeer> {
+    match peer {
+        Some(peer) if present => Ok(peer),
+        _ => Err(HookError::Missing("ephemeral.deleteMessage.peer")),
     }
 }
 
@@ -62,11 +60,12 @@ mod tests {
     }
 
     #[test]
-    fn present_peer_is_accepted() {
-        assert_eq!(require_message_peer(true, Some(&peer())), Ok(()));
+    fn present_peer_is_returned() {
+        let value = peer();
+        assert_eq!(require_message_peer(true, Some(&value)).unwrap(), &value);
         let input = InputPeer::InputPeerSelf;
-        assert_eq!(require_send_peer(true, Some(&input)), Ok(()));
-        assert_eq!(require_delete_peer(true, Some(&input)), Ok(()));
+        assert_eq!(require_send_peer(true, Some(&input)).unwrap(), &input);
+        assert_eq!(require_delete_peer(true, Some(&input)).unwrap(), &input);
     }
 
     #[test]

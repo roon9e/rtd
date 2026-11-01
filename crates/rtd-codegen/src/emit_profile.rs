@@ -209,6 +209,15 @@ struct FieldHook {
     profile_inner: crate::emit_tg::RustType,
 }
 
+/// The adapter call sites a layer needs: field conversions and field
+/// requirements.
+struct AdapterHooks {
+    /// `canonical field name` to its field conversion.
+    convert: std::collections::BTreeMap<String, FieldHook>,
+    /// `canonical field name` to its field requirement function.
+    require: std::collections::BTreeMap<String, &'static str>,
+}
+
 /// One supported policy layer for a canonical constructor.
 struct PolicyLayer<'a> {
     layer: i32,
@@ -223,25 +232,33 @@ struct PolicyLayer<'a> {
     canonical_defaults: std::collections::BTreeSet<String>,
     /// `canonical field name` to its field adapter conversion.
     field_hooks: std::collections::BTreeMap<String, FieldHook>,
+    /// `canonical field name` to its field requirement function.
+    require_hooks: std::collections::BTreeMap<String, &'static str>,
 }
 
-/// Builds the field adapter conversions for a layer, or `None` when any
-/// obligation needs a shape this generator cannot emit yet (result, presence,
-/// discard, vector or projection hooks), so the layer stays fail-closed.
-fn collect_field_hooks(
+/// Builds the adapter call sites for a layer, or `None` when an obligation needs
+/// a shape this generator cannot emit yet (result, discard, vector or projection
+/// hooks), so the layer stays fail-closed.
+fn collect_adapter_hooks(
     obligations: &[&crate::obligations::Obligation],
     definition: &Definition,
     profile_def: &Definition,
     reverse: &std::collections::BTreeMap<String, String>,
     classes: &std::collections::BTreeSet<String>,
     bare_ids: &std::collections::BTreeMap<String, (String, u32)>,
-) -> Option<std::collections::BTreeMap<String, FieldHook>> {
+) -> Option<AdapterHooks> {
     use crate::model::FieldKind;
 
-    let mut partial: std::collections::BTreeMap<
-        String,
-        (Option<&'static str>, Option<&'static str>),
-    > = std::collections::BTreeMap::new();
+    enum Pending {
+        Convert {
+            encode: Option<&'static str>,
+            decode: Option<&'static str>,
+        },
+        Require(&'static str),
+    }
+
+    let mut pending: std::collections::BTreeMap<String, Pending> =
+        std::collections::BTreeMap::new();
     for obligation in obligations {
         let Some(resolution) = &obligation.resolution else {
             return None;
@@ -249,40 +266,57 @@ fn collect_field_hooks(
         match resolution.action.as_str() {
             "drop" | "reject-if-present" | "default" => {}
             "adapter" => {
-                let convert = rtd_layerhooks_registry::field_convert(&resolution.hook)?;
-                let (canonical, encode, decode) = match obligation.direction {
-                    "canonical-to-profile" => {
-                        (obligation.field.clone(), Some(convert.encode), None)
+                if let Some(convert) = rtd_layerhooks_registry::field_convert(&resolution.hook) {
+                    let (canonical, encode, decode) = match obligation.direction {
+                        "canonical-to-profile" => {
+                            (obligation.field.clone(), Some(convert.encode), None)
+                        }
+                        "profile-to-canonical" => {
+                            (obligation.other_field.clone(), None, Some(convert.decode))
+                        }
+                        _ => return None,
+                    };
+                    let slot = pending.entry(canonical).or_insert(Pending::Convert {
+                        encode: None,
+                        decode: None,
+                    });
+                    let Pending::Convert {
+                        encode: e,
+                        decode: d,
+                    } = slot
+                    else {
+                        return None;
+                    };
+                    if let Some(function) = encode {
+                        if e.is_some() {
+                            return None;
+                        }
+                        *e = Some(function);
                     }
-                    "profile-to-canonical" => {
-                        (obligation.other_field.clone(), None, Some(convert.decode))
+                    if let Some(function) = decode {
+                        if d.is_some() {
+                            return None;
+                        }
+                        *d = Some(function);
                     }
-                    _ => return None,
-                };
-                let slot = partial.entry(canonical).or_insert((None, None));
-                if let Some(function) = encode {
-                    if slot.0.is_some() {
+                } else {
+                    let function = rtd_layerhooks_registry::field_require(&resolution.hook)?;
+                    // A requirement is canonical-to-profile only.
+                    if obligation.direction != "canonical-to-profile" {
                         return None;
                     }
-                    slot.0 = Some(function);
-                }
-                if let Some(function) = decode {
-                    if slot.1.is_some() {
-                        return None;
-                    }
-                    slot.1 = Some(function);
+                    pending.insert(obligation.field.clone(), Pending::Require(function));
                 }
             }
             _ => return None,
         }
     }
-    let mut hooks = std::collections::BTreeMap::new();
-    for (canonical, (encode, decode)) in partial {
-        // Both directions and aligned optionality are required, and the field
-        // must be a plain value on both sides.
-        let (Some(encode), Some(decode)) = (encode, decode) else {
-            return None;
-        };
+
+    let mut adapter = AdapterHooks {
+        convert: std::collections::BTreeMap::new(),
+        require: std::collections::BTreeMap::new(),
+    };
+    for (canonical, entry) in pending {
         let field = definition
             .fields
             .iter()
@@ -306,21 +340,37 @@ fn collect_field_hooks(
             .condition
             .as_ref()
             .is_some_and(|condition| !condition.presence_only);
-        if canonical_optional != profile_optional {
-            return None;
+        match entry {
+            Pending::Convert { encode, decode } => {
+                // Both directions and aligned optionality are required.
+                let (Some(encode), Some(decode)) = (encode, decode) else {
+                    return None;
+                };
+                if canonical_optional != profile_optional {
+                    return None;
+                }
+                let profile_inner =
+                    crate::emit_tg::field_rust_type(profile_field, classes, bare_ids).ok()?;
+                adapter.convert.insert(
+                    canonical,
+                    FieldHook {
+                        encode,
+                        decode,
+                        profile_inner,
+                    },
+                );
+            }
+            Pending::Require(function) => {
+                // A requirement maps an optional canonical field to a mandatory
+                // profile field.
+                if !canonical_optional || profile_optional {
+                    return None;
+                }
+                adapter.require.insert(canonical, function);
+            }
         }
-        let profile_inner =
-            crate::emit_tg::field_rust_type(profile_field, classes, bare_ids).ok()?;
-        hooks.insert(
-            canonical,
-            FieldHook {
-                encode,
-                decode,
-                profile_inner,
-            },
-        );
     }
-    Some(hooks)
+    Some(adapter)
 }
 
 /// Collects the layers with a mechanical policy body: field projection (`drop`),
@@ -396,7 +446,7 @@ fn collect_policy_layers<'a>(
             })
             .map(|obligation| obligation.other_field.clone())
             .collect();
-        let Some(field_hooks) = collect_field_hooks(
+        let Some(adapter) = collect_adapter_hooks(
             &obligations,
             definition,
             profile_def,
@@ -424,7 +474,8 @@ fn collect_policy_layers<'a>(
             mapping,
             reverse,
             canonical_defaults,
-            field_hooks,
+            field_hooks: adapter.convert,
+            require_hooks: adapter.require,
         });
     }
     layers
@@ -552,19 +603,28 @@ fn emit_policy_layer_body(
             .is_some_and(|condition| !condition.presence_only);
         match &profile_field.condition {
             None if source_optional => {
-                // The profile field is mandatory but canonical may omit it; the
-                // reviewed `default` substitutes the absent value.
-                let default = default_expr(ty).ok_or_else(|| {
-                    format!(
-                        "policy: canonical field {canonical} has no scalar default for {}",
-                        definition.key.as_string()
-                    )
-                })?;
-                code.open(&format!("if let Some(value) = {binding} {{"));
-                encode_value(code, ty, "value", true, true);
-                code.close("} else {");
-                encode_value(code, ty, &default, false, true);
-                code.close("}");
+                if let Some(require_fn) = layer.require_hooks.get(canonical) {
+                    // The profile field is mandatory; the requirement hook fails
+                    // closed when the canonical value omits it.
+                    code.line(&format!(
+                        "let __required = {require_fn}({binding}.is_some(), {binding}.as_deref())?;"
+                    ));
+                    encode_value(code, ty, "__required", false, true);
+                } else {
+                    // The profile field is mandatory but canonical may omit it;
+                    // the reviewed `default` substitutes the absent value.
+                    let default = default_expr(ty).ok_or_else(|| {
+                        format!(
+                            "policy: canonical field {canonical} has no scalar default for {}",
+                            definition.key.as_string()
+                        )
+                    })?;
+                    code.open(&format!("if let Some(value) = {binding} {{"));
+                    encode_value(code, ty, "value", true, true);
+                    code.close("} else {");
+                    encode_value(code, ty, &default, false, true);
+                    code.close("}");
+                }
             }
             None => encode_value(code, ty, &binding, true, true),
             Some(_) => {

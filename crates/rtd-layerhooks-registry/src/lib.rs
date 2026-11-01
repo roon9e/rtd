@@ -205,6 +205,23 @@ pub fn field_convert(name: &str) -> Option<FieldConvert> {
     Some(convert)
 }
 
+/// The requirement function for a hook that only requires a field to be present
+/// (canonical optional -> profile mandatory). It takes `(present, value)` and
+/// returns the value, failing closed when absent.
+///
+/// Hooks with any other shape return `None`, so their layer stays fail-closed.
+#[must_use]
+pub fn field_require(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "layerRequireLegacyEphemeralMessagePeer" => {
+            "rtd_layerhooks::ephemeral::require_message_peer"
+        }
+        "layerRequireLegacyEphemeralSendPeer" => "rtd_layerhooks::ephemeral::require_send_peer",
+        "layerRequireLegacyEphemeralDeletePeer" => "rtd_layerhooks::ephemeral::require_delete_peer",
+        _ => return None,
+    })
+}
+
 /// The names of the implemented hooks, for the hooks crate to assert against.
 #[must_use]
 pub fn implemented_names() -> Vec<&'static str> {
