@@ -1,5 +1,7 @@
 //! External-peer gate: run the official engine's test server and complete the
-//! authorization-key exchange against it over a real socket.
+//! authorization-key exchange against it over a real socket, then drive a full
+//! encrypted session by sending an encrypted `ping` and requiring the peer's
+//! matching `pong`.
 //!
 //! The official engine is GPL-2.0 and is never linked or vendored; this test
 //! only *runs* its published binary as a peer. Set `RTD_PEER_TESTSERVER` to the
@@ -9,11 +11,16 @@
 use std::io::{BufRead, BufReader};
 use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
+use std::sync::Arc;
 use std::time::Duration;
 
-use rtd_crypto::SystemRandom;
+use rtd_bin::Writer;
+use rtd_crypto::{AuthKey, EncryptedMessage, MessageHeader, Side, SystemRandom, decrypt, encrypt};
 use rtd_exchange::{ClientConfig, Error, Result, Stream, client_exchange};
-use rtd_proto::{Codec, Intermediate};
+use rtd_mt::{
+    BadMsgNotification, DecodeLimits, Decoder, MessageContainer, Object, Ping, RpcResult,
+};
+use rtd_proto::{Codec, Intermediate, MessageClass, MessageSeq, MessageType, Session};
 use rtd_transport::Obfuscated2;
 use rtd_util::SystemClock;
 
@@ -103,6 +110,118 @@ fn start_peer(binary: &str) -> Peer {
     }
 }
 
+/// A decrypted reply, classified for the full-session gate.
+enum Reply {
+    /// The peer answered with a `pong` carrying the ping id it echoes.
+    Pong(i64),
+    /// The peer reported a stale salt and the salt it expects instead.
+    BadSalt(i64),
+    /// Any other message, described for a divergence report.
+    Other(String),
+}
+
+/// Classifies a decrypted peer body, looking through containers and RPC results.
+fn classify(body: &[u8]) -> Reply {
+    let mut decoder = Decoder::new(body, DecodeLimits::default());
+    match Object::decode(&mut decoder) {
+        Ok(object) => classify_object(&object),
+        Err(error) => Reply::Other(format!("undecodable reply: {error}")),
+    }
+}
+
+/// Classifies one decoded object, unwrapping containers and RPC results.
+fn classify_object(object: &Object) -> Reply {
+    match object {
+        Object::Pong(pong) => Reply::Pong(pong.ping_id),
+        Object::RpcResult(result) => match result.as_ref() {
+            RpcResult::Rpc_result { result, .. } => classify_object(result),
+        },
+        Object::MessageContainer(container) => match container.as_ref() {
+            MessageContainer::Msg_container { messages } => messages
+                .iter()
+                .map(|message| classify_object(&message.body))
+                .find(|reply| !matches!(reply, Reply::Other(_)))
+                .unwrap_or_else(|| Reply::Other("container carried no pong".to_owned())),
+        },
+        Object::BadMsgNotification(note) => match note.as_ref() {
+            BadMsgNotification::Bad_server_salt {
+                new_server_salt, ..
+            } => Reply::BadSalt(*new_server_salt),
+            other => Reply::Other(format!("bad-message notification {other:?}")),
+        },
+        other => Reply::Other(format!("unexpected constructor {:#010x}", other.type_id())),
+    }
+}
+
+/// Encrypts one MTProto 2.0 message from the client and writes it to `stream`.
+fn send_encrypted(
+    stream: &mut CodecStream,
+    auth_key: &AuthKey,
+    session: &Session,
+    message: MessageSeq,
+    body: &[u8],
+    random: &mut SystemRandom,
+) {
+    let header = MessageHeader {
+        salt: session.salt(),
+        session_id: session.session_id(),
+        msg_id: message.msg_id,
+        seq_no: message.seq_no,
+    };
+    let frame = encrypt(auth_key, &header, body, Side::Client, random).encode();
+    stream
+        .send(&frame)
+        .expect("write encrypted message to the peer");
+}
+
+/// Reads one encrypted server message and returns its decrypted body.
+fn recv_encrypted(stream: &mut CodecStream, auth_key: &AuthKey) -> Vec<u8> {
+    let frame = stream.recv().expect("read encrypted message from the peer");
+    let message = EncryptedMessage::decode(&frame).expect("decode the peer's encrypted frame");
+    decrypt(auth_key, &message, Side::Server)
+        .expect("decrypt the peer's message")
+        .body
+}
+
+/// Sends an encrypted service `ping` and returns once the peer answers with a
+/// matching `pong`; a stale-salt notification is adopted and the ping resent.
+fn ping_round_trip(
+    stream: &mut CodecStream,
+    auth_key: &AuthKey,
+    session: &mut Session,
+    ping_id: i64,
+    random: &mut SystemRandom,
+) {
+    let mut writer = Writer::new();
+    Ping { ping_id }.encode(&mut writer);
+    let body = writer.into_vec();
+
+    let message = session.allocate(MessageType::FromClient, MessageClass::Service);
+    send_encrypted(stream, auth_key, session, message, &body, random);
+
+    let mut last = None;
+    for _ in 0..8 {
+        match classify(&recv_encrypted(stream, auth_key)) {
+            Reply::Pong(answered) => {
+                assert_eq!(
+                    answered, ping_id,
+                    "the peer answered ping {ping_id} with a pong for {answered}"
+                );
+                return;
+            }
+            Reply::BadSalt(salt) => {
+                session.set_salt(salt);
+                send_encrypted(stream, auth_key, session, message, &body, random);
+            }
+            Reply::Other(description) => last = Some(description),
+        }
+    }
+    panic!(
+        "the peer did not answer ping {ping_id} with a pong (last reply: {})",
+        last.as_deref().unwrap_or("none")
+    );
+}
+
 #[test]
 fn exchange_completes_against_official_testserver() {
     let Ok(binary) = std::env::var("RTD_PEER_TESTSERVER") else {
@@ -133,4 +252,23 @@ fn exchange_completes_against_official_testserver() {
 
     assert!(!result.auth_key.value.is_zero());
     assert_ne!(result.session_id, 0);
+
+    // Full encrypted session: seed a client session from the exchange and
+    // require the peer's `pong` for an encrypted service `ping`. If the peer
+    // uses a different session salt than the exchange-derived one it first
+    // reports that salt, which `ping_round_trip` adopts before resending.
+    let mut session = Session::with_id(Arc::new(SystemClock), result.session_id);
+    session.set_salt(result.server_salt);
+    let ping_id = i64::from_le_bytes(
+        rtd_crypto::random_bytes(8)
+            .try_into()
+            .expect("eight random bytes"),
+    );
+    ping_round_trip(
+        &mut stream,
+        &result.auth_key,
+        &mut session,
+        ping_id,
+        &mut random,
+    );
 }

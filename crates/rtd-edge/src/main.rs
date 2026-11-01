@@ -1,44 +1,42 @@
-//! The rtd sidecar edge service.
+//! The rtd sidecar edge service binary.
 //!
-//! This is the service binary for the gRPC boundary defined by
-//! [`rtd_edge_proto`]. The protocol edge and its wiring are implemented in the
-//! server stage; today the binary reports the contract's protocol version and can
-//! validate a peer's declared version, which is what the boundary's handshake
-//! checks.
+//! The binary reads its configuration from the command line and environment
+//! (see [`rtd_edge::config`]), builds the edge over either an in-process core or
+//! the configured gRPC core endpoint, and serves until it receives a shutdown
+//! signal.
 #![warn(missing_docs)]
 
-use rtd_edge_proto::{PROTOCOL_VERSION, version_is_supported};
+use std::process::ExitCode;
 
-fn main() {
-    let mut args = std::env::args().skip(1);
-    match args.next().as_deref() {
-        None => {
-            println!("rtd-edge protocol version {PROTOCOL_VERSION}");
-        }
-        Some("--check-version") => {
-            let Some(value) = args.next() else {
-                eprintln!("usage: rtd-edge --check-version <n>");
-                std::process::exit(2);
-            };
-            let version: u32 = match value.parse() {
-                Ok(version) => version,
-                Err(error) => {
-                    eprintln!("invalid version {value:?}: {error}");
-                    std::process::exit(2);
-                }
-            };
-            if version_is_supported(version) {
-                println!("accepted protocol version {version}");
-            } else {
-                eprintln!(
-                    "rejected: unsupported protocol version {version} (expected {PROTOCOL_VERSION})"
-                );
-                std::process::exit(1);
+use rtd_edge::config::USAGE;
+use rtd_edge::{EdgeConfig, EdgeError, service};
+
+#[tokio::main]
+async fn main() -> ExitCode {
+    match run().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("rtd-edge: {error}");
+            if matches!(error, EdgeError::Usage(_)) {
+                eprintln!();
+                eprintln!("{USAGE}");
             }
-        }
-        Some(other) => {
-            eprintln!("unknown argument {other:?}");
-            std::process::exit(2);
+            ExitCode::FAILURE
         }
     }
+}
+
+/// Runs the binary, handling `--help`/`--version` before configuration.
+async fn run() -> Result<(), EdgeError> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|arg| arg == "--help" || arg == "-h") {
+        println!("{USAGE}");
+        return Ok(());
+    }
+    if args.iter().any(|arg| arg == "--version" || arg == "-V") {
+        println!("rtd-edge {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+    let config = EdgeConfig::parse(args, |name| std::env::var(name).ok())?;
+    service::run(config).await
 }

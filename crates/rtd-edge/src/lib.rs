@@ -10,8 +10,21 @@
 //! in-process [`rtd_server::core::LocalCore`] and the remote [`GrpcCore`]
 //! adapter in [`grpc`], which dials a core's `CoreExecService`. The edge runs
 //! with either without changing observable protocol behavior.
+//!
+//! - [`config`] — the command-line and environment configuration.
+//! - [`error`] — the errors reported while constructing or running the edge.
+//! - [`exchange`] — the server-side key exchange supplied to the actor.
+//! - [`service`] — assembling and running the edge from configuration.
+//! - [`grpc`] — the tonic adapter to a core's `CoreExecService`.
 #![warn(missing_docs)]
 
+pub mod config;
+pub mod error;
+pub mod exchange;
 pub mod grpc;
+pub mod service;
 
+pub use config::EdgeConfig;
+pub use error::EdgeError;
+pub use exchange::ServerExchange;
 pub use grpc::GrpcCore;

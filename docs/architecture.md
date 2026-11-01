@@ -1,8 +1,9 @@
 # Architecture
 
-This is a short orientation. The authoritative plan, decisions and requirements live in
-[`openspec/changes/establish-rtd-foundation/`](../openspec/changes/establish-rtd-foundation/)
-(`proposal.md`, `design.md`, `specs/`).
+This is a short orientation. The authoritative decisions live in
+[`openspec/config.yaml`](../openspec/config.yaml), the requirements in
+[`openspec/specs/`](../openspec/specs/), and the foundation plan in the archived change
+[`openspec/changes/archive/2026-11-01-establish-rtd-foundation/`](../openspec/changes/archive/2026-11-01-establish-rtd-foundation/).
 
 ## Layering
 
@@ -55,6 +56,24 @@ provenance-locked layer schemas, `manifest.json` and `policy.json` — plus `sch
 service schema. Output is deterministic and atomic, plans are deduplicated by digest, a
 source-size budget is enforced, and the result is **committed**. CI re-runs the generator
 and fails if the committed output differs.
+
+## Server runtime
+
+`rtd-server` is the runtime edge. An `Ingress` detects and unwraps each inbound connection —
+plain TCP (abridged / intermediate / padded-intermediate / full), obfuscated2,
+FakeTLS/MTProxy and WebSocket — and hands the actor a framed, transport-agnostic stream.
+Each connection is a tokio actor with a single writer that assigns message ids and sequence
+numbers, encrypts with the MTProto 2.0 envelope and serializes writes; the sans-IO
+`rtd-proto` session state machine owns the replay window, salt, acknowledgements and resend
+queue. The actor admits requests through `rtd-tlprofile`, binds the session's layer, and
+dispatches through the `Core` trait. Admission budgets (total connections, per source,
+concurrent handshakes, aggregate frame bytes) shed load without disturbing admitted
+sessions.
+
+The core boundary is an rtd-native trait with two implementations: an in-process core and a
+tonic adapter (`rtd-edge`) that dials a core's `CoreExecService`. The core owns durable
+authorization keys and session-layer evidence; the edge keeps only transient session state
+and an auth-key cache. `rtd-edge` is the runnable sidecar binary.
 
 ## Edge service boundary
 

@@ -15,10 +15,14 @@ workspace = true
 rtd-crypto = { path = "../rtd-crypto" }
 rtd-edge-proto = { path = "../rtd-edge-proto" }
 rtd-error = { path = "../rtd-error" }
+rtd-exchange = { path = "../rtd-exchange" }
 rtd-server = { path = "../rtd-server" }
+rtd-tlprofile = { path = "../rtd-tlprofile" }
+rtd-transport = { path = "../rtd-transport" }
 rtd-util = { path = "../rtd-util" }
 futures-util = "0.3"
 prost = "0.13"
+rsa = "0.9"
 tokio = { version = "1", features = [
     "rt-multi-thread",
     "net",
@@ -33,4 +37,4 @@ tonic = "0.12"
 [dev-dependencies]
 rtd-bin = { path = "../rtd-bin" }
 rtd-tg = { path = "../rtd-tg" }
-rtd-tlprofile = { path = "../rtd-tlprofile" }
+rand = "0.8"

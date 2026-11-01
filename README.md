@@ -91,6 +91,38 @@ RTD_PEER_TESTSERVER=path/to/mtproto-engine/target/release/mtproto-testserver car
 Without `RTD_PEER_TESTSERVER` the gate is skipped; the local `127.0.0.1` peer
 needs no VPN.
 
+## Edge sidecar
+
+`rtd-edge` is the runnable MTProto edge. It reads its configuration from
+command-line flags or the matching environment variables and serves until it
+receives `Ctrl-C`:
+
+| Flag | Environment | Purpose | Default |
+|---|---|---|---|
+| `--bind <ADDR>` | `RTD_EDGE_BIND` | Listen address | `0.0.0.0:443` |
+| `--dc <ID>` | `RTD_EDGE_DC` | Serving datacenter id | `2` |
+| `--rsa-key <PATH>` | `RTD_EDGE_RSA_KEY` | PEM RSA private key for the key exchange | required |
+| `--secret <HEX>` | `RTD_EDGE_SECRET` | MTProxy secret (plain, `dd`, or `ee`) | none |
+| `--websocket` | `RTD_EDGE_WEBSOCKET` | Enable WebSocket ingress | off |
+| `--core <ENDPOINT>` | `RTD_EDGE_CORE` | Core `CoreExecService` gRPC endpoint | none |
+
+With no `--core`, the edge runs against the in-process core and its built-in
+methods:
+
+```console
+cargo run -p rtd-edge -- --bind 127.0.0.1:8443 --dc 2 --rsa-key server.pem
+```
+
+To front a remote core, point `--core` at its gRPC endpoint:
+
+```console
+cargo run -p rtd-edge -- --bind 0.0.0.0:443 --dc 2 --rsa-key server.pem --core http://127.0.0.1:50051
+```
+
+The server-side key-exchange parameters currently come from `rtd-exchange`'s
+fixed development `TestServerRng`; a production parameter generator is a
+follow-up.
+
 ## Workspace conventions
 
 - Edition 2024; the minimum supported Rust version tracks the latest stable toolchain.
