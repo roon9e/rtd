@@ -5,19 +5,19 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 
 ## 1. Workspace and tooling
 
-- [ ] 1.1 Create the cargo workspace with crates `rtd`, `rtd-bin`, `rtd-crypto`, `rtd-proto`, `rtd-transport`, `rtd-mt`, `rtd-tg`, `rtd-tlprofile`, `rtd-error`, `rtd-util`, `rtd-server`, `rtd-edge-proto`, `rtd-edge`, and the `rtd-codegen` tool; verify with `cargo metadata --format-version 1` listing every crate and `cargo build --workspace` succeeding on the skeleton
-- [ ] 1.2 Add `rust-toolchain.toml` (stable) and set `edition = "2024"` plus `rust-version` to the current stable in every crate; verify `cargo build` reports no edition or version errors
-- [ ] 1.3 Add `LICENSE-MIT`, `LICENSE-APACHE`, and a `NOTICE`/`THIRD-PARTY` file retaining the `td`/`gotd` MIT notice; verify each crate declares `license = "MIT OR Apache-2.0"` and the files exist
-- [ ] 1.4 Add `rustfmt.toml`, a clippy baseline that denies warnings, and `.gitignore`; verify `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` pass on the skeleton
-- [ ] 1.5 Add a CI workflow with independent checks — format, clippy, build, workspace tests, and a generation-freshness check that re-running the generator produces no diff — modelled on `td`'s CI; verify the workflow file exists and every command runs successfully locally
-- [ ] 1.6 Configure CI to run on both `dev` and `main`, and document the branch model (development on `dev`, releases merged to `main`) in `CONTRIBUTING.md`; verify `dev` is the current branch and the documented flow matches the workflow triggers
+- [x] 1.1 Create the cargo workspace with crates `rtd`, `rtd-bin`, `rtd-crypto`, `rtd-proto`, `rtd-transport`, `rtd-mt`, `rtd-tg`, `rtd-tlprofile`, `rtd-error`, `rtd-util`, `rtd-server`, `rtd-edge-proto`, `rtd-edge`, and the `rtd-codegen` tool; verify with `cargo metadata --format-version 1` listing every crate and `cargo build --workspace` succeeding on the skeleton
+- [x] 1.2 Add `rust-toolchain.toml` (stable) and set `edition = "2024"` plus `rust-version` to the current stable in every crate; verify `cargo build` reports no edition or version errors
+- [x] 1.3 Add `LICENSE-MIT`, `LICENSE-APACHE`, and a `NOTICE`/`THIRD-PARTY` file retaining the `td`/`gotd` MIT notice; verify each crate declares `license = "MIT OR Apache-2.0"` and the files exist
+- [x] 1.4 Add `rustfmt.toml`, a clippy baseline that denies warnings, and `.gitignore`; verify `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` pass on the skeleton
+- [x] 1.5 Add a CI workflow with independent checks — format, clippy, build, workspace tests, and a generation-freshness check that re-running the generator produces no diff — modelled on `td`'s CI; verify the workflow file exists and every command runs successfully locally
+- [x] 1.6 Configure CI to run on both `dev` and `main`, and document the branch model (development on `dev`, releases merged to `main`) in `CONTRIBUTING.md`; verify `dev` is the current branch and the documented flow matches the workflow triggers
 
 ## 2. `rtd-bin` — TL primitive serialization
 
-- [ ] 2.1 Implement the buffer/cursor over bytes with owned and borrowed modes and a reset/copy escape hatch; verify unit tests for read, skip and copy semantics
-- [ ] 2.2 Implement TL primitives (int, long, double, bool, string, byte string, vector header, int128/int256) with 4-byte padding and the long string form; verify round-trip tests plus golden byte vectors
-- [ ] 2.3 Implement the flags bitfield, checked encoding variants, and the vector preallocation limit; verify tests including invalid-length rejection and negative vector count rejection
-- [ ] 2.4 Document the `rtd-bin` public API and verify `cargo doc -p rtd-bin` builds without warnings
+- [x] 2.1 Implement the buffer/cursor over bytes with owned and borrowed modes and a reset/copy escape hatch; verify unit tests for read, skip and copy semantics
+- [x] 2.2 Implement TL primitives (int, long, double, bool, string, byte string, vector header, int128/int256) with 4-byte padding and the long string form; verify round-trip tests plus golden byte vectors
+- [x] 2.3 Implement the flags bitfield, checked encoding variants, and the vector preallocation limit; verify tests including invalid-length rejection and negative vector count rejection
+- [x] 2.4 Document the `rtd-bin` public API and verify `cargo doc -p rtd-bin` builds without warnings
 
 ## 3. `rtd-crypto` — MTProto cryptography
 
