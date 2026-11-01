@@ -9,6 +9,8 @@
 use core::fmt;
 use std::io::{Read, Write};
 
+use rtd_util::random::{Random, SystemRandom};
+
 /// Maximum transport frame payload accepted by the built-in codecs (16 MiB).
 pub const MAX_MESSAGE_SIZE: usize = 1 << 24;
 
@@ -180,11 +182,6 @@ fn check_protocol_error(payload: Vec<u8>) -> Result<Vec<u8>, CodecError> {
     Ok(payload)
 }
 
-/// Fills `buf` with cryptographically secure random bytes.
-fn fill_random(buf: &mut [u8]) -> Result<(), CodecError> {
-    getrandom::fill(buf).map_err(|err| CodecError::Io(std::io::Error::other(err)))
-}
-
 /// Builds a four-byte little-endian frame length.
 fn length_word(len: usize) -> [u8; 4] {
     (len as u32).to_le_bytes()
@@ -308,10 +305,39 @@ impl Codec for Intermediate {
 ///
 /// Like [`Intermediate`], but the payload is padded to a multiple of four bytes
 /// with a number of random bytes equal to the last payload byte modulo four.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct PaddedIntermediate;
+///
+/// The padding bytes come from an injectable [`Random`] source so the core stays
+/// deterministic; the default is the operating-system CSPRNG.
+#[derive(Debug, Clone, Copy)]
+pub struct PaddedIntermediate<R = SystemRandom> {
+    random: R,
+}
 
-impl Codec for PaddedIntermediate {
+impl PaddedIntermediate<SystemRandom> {
+    /// Creates a padded-intermediate codec that pads frames with the operating
+    /// system CSPRNG.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            random: SystemRandom,
+        }
+    }
+}
+
+impl Default for PaddedIntermediate<SystemRandom> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<R> PaddedIntermediate<R> {
+    /// Creates a padded-intermediate codec that pads frames using `random`.
+    pub const fn with_random(random: R) -> Self {
+        Self { random }
+    }
+}
+
+impl<R: Random> Codec for PaddedIntermediate<R> {
     fn write_header(&mut self, w: &mut dyn Write) -> Result<(), CodecError> {
         w.write_all(&PADDED_INTERMEDIATE_HEADER)?;
         Ok(())
@@ -333,7 +359,7 @@ impl Codec for PaddedIntermediate {
         }
         let padding_len = usize::from(payload[payload.len() - 1] % 4);
         let mut padding = [0u8; 3];
-        fill_random(&mut padding)?;
+        self.random.fill(&mut padding);
         let frame_len = payload.len() + padding_len;
         w.write_all(&length_word(frame_len))?;
         w.write_all(payload)?;
@@ -535,7 +561,7 @@ impl CodecKind {
         match self {
             Self::Abridged => Box::new(Abridged),
             Self::Intermediate => Box::new(Intermediate),
-            Self::PaddedIntermediate => Box::new(PaddedIntermediate),
+            Self::PaddedIntermediate => Box::new(PaddedIntermediate::new()),
             Self::Full => Box::new(Full::new()),
         }
     }
@@ -560,6 +586,8 @@ pub fn detect_codec(header: &[u8]) -> CodecKind {
 
 #[cfg(test)]
 mod tests {
+    use rtd_util::random::DeterministicRandom;
+
     use super::{
         ABRIDGED_HEADER, Abridged, Codec, CodecError, CodecKind, Full, INTERMEDIATE_HEADER,
         Intermediate, MAX_MESSAGE_SIZE, NoHeader, PADDED_INTERMEDIATE_HEADER, PaddedIntermediate,
@@ -654,7 +682,7 @@ mod tests {
 
     #[test]
     fn padded_intermediate_round_trip() {
-        let mut codec = PaddedIntermediate;
+        let mut codec = PaddedIntermediate::new();
         // Last byte four makes the padding length zero.
         round_trip(&mut codec, &[1, 2, 3, 4, 5, 6, 7, 4]);
         // Last byte five makes the padding length one.
@@ -666,9 +694,9 @@ mod tests {
     #[test]
     fn padded_intermediate_header_round_trip() {
         let mut buffer = Vec::new();
-        PaddedIntermediate.write_header(&mut buffer).unwrap();
+        PaddedIntermediate::new().write_header(&mut buffer).unwrap();
         assert_eq!(buffer, PADDED_INTERMEDIATE_HEADER.to_vec());
-        PaddedIntermediate
+        PaddedIntermediate::new()
             .read_header(&mut Cursor::new(buffer))
             .unwrap();
     }
@@ -676,11 +704,26 @@ mod tests {
     #[test]
     fn padded_intermediate_frame_length_tracks_padding() {
         let mut buffer = Vec::new();
-        PaddedIntermediate
+        PaddedIntermediate::new()
             .write_message(&mut buffer, &[1, 2, 3, 4, 5, 6, 7, 5])
             .unwrap();
         let frame_len = u32::from_le_bytes(buffer[..4].try_into().unwrap());
         assert_eq!(frame_len, 9);
+    }
+
+    #[test]
+    fn padded_intermediate_is_deterministic_with_injected_randomness() {
+        fn frame(seed: u64) -> Vec<u8> {
+            let mut codec = PaddedIntermediate::with_random(DeterministicRandom::new(seed));
+            let mut buffer = Vec::new();
+            codec
+                .write_message(&mut buffer, &[1, 2, 3, 4, 5, 6, 7, 7])
+                .unwrap();
+            buffer
+        }
+        // Same seed -> byte-identical frames; different seed -> different padding.
+        assert_eq!(frame(7), frame(7));
+        assert_ne!(frame(7), frame(8));
     }
 
     /// Builds a full frame with the given sequence number and a valid CRC.

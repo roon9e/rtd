@@ -74,10 +74,10 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 
 ## 8. Interop harness
 
-- [ ] 8.1 Add a Go helper that uses `td` to emit shared crypto and framing vectors; verify it runs and writes a vector file
-- [ ] 8.2 Add Rust tests that consume the shared vectors; verify a deliberately altered expected value fails the test
-- [ ] 8.3 Add an injectable clock to `rtd-util`; verify a test that advances the clock changes time-dependent behavior without real waiting
-- [ ] 8.4 Add an injectable random source to the protocol core; verify a fixed source produces byte-identical output across runs
+- [x] 8.1 Add a Go helper that uses `td` to emit shared crypto and framing vectors; verify it runs and writes a vector file
+- [x] 8.2 Add Rust tests that consume the shared vectors; verify a deliberately altered expected value fails the test
+- [x] 8.3 Add an injectable clock to `rtd-util`; verify a test that advances the clock changes time-dependent behavior without real waiting
+- [x] 8.4 Add an injectable random source to the protocol core; verify a fixed source produces byte-identical output across runs
 - [ ] 8.5 External-peer gate: obtain and build the official engine's test server (and its C-ABI library where needed), drive it with a minimal rtd client path (transport + codec + obfuscated2 + auth-key exchange + service ping) and require the handshake and a pong to succeed; verify no crate or build step depends on the official engine's source, and record the gate result
 
 ## 9. Integration verification

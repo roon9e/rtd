@@ -12,6 +12,10 @@ workspace = true
 
 [dependencies]
 rtd-bin = { path = "../rtd-bin" }
+rtd-util = { path = "../rtd-util" }
 flate2 = "1"
 crc32fast = "1"
-getrandom = "0.4"
+
+[dev-dependencies]
+hex = "0.4"
+serde_json = "1"
