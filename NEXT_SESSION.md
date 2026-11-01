@@ -14,21 +14,22 @@ Active OpenSpec change: **`complete-multi-layer`** — `openspec/changes/complet
 
 ## State
 
-`main == origin/main` at **`04da7ef`**; CI green for the last verified push. Sessions since
+`main == origin/main` at **`7f8c367`**; CI green for every verified push. Sessions since
 `b5cb9c1` implemented: mechanical policy routes, `default`, the shared hook registry + gate,
-the present-in-both required/result/discard hooks, field-shaped hook call-site emission, and
-admission of rewrite/policy methods. Sidecar: **12.50 MB / 381,249 lines** (16 MiB / 400k
-budget). Policy coverage: **162 of 179** routes execute (mechanical + `default` + the bot
-text field hooks); 17 stay fail-closed.
+the present-in-both required/result/discard hooks, field-shaped hook call-site emission
+(conversion and requirement shapes), and admission of rewrite/policy methods. Sidecar:
+**12.52 MB / 381,823 lines** (16 MiB / 400k budget). Policy coverage: **165 of 179** routes
+execute (mechanical + `default` + the bot text field **conversion** hooks + the ephemeral
+**requirement** hooks); 14 stay fail-closed.
 
 ### Tasks done
 1.1, 1.2, 2.1, 2.2, 2.3, 3.1, 3.2, 3.4, 3.5, 5.2, 6.1, 6.2, 7.2, 7.3.
 
 ### Tasks open
-- **3.3** result/presence/discard/vector/projection hook call sites (field-shaped hooks are
-  done; the rest follow closed).
+- **3.3** the `supply`, `discard`/capture (chat invite), `project`, and vector-row hook call
+  sites (conversion and requirement shapes are done; the rest fail closed — see design D41).
 - **4.1** `project` mechanical classes.
-- **5.1** `layerAdaptLegacyInlineKeyboardRows` (marked `Deferred`).
+- **5.1** `layerAdaptLegacyInlineKeyboardRows` (marked `Deferred`; needs ProfileOnly).
 - **5.3** the two `project` hooks.
 - **5.4** coverage (blocked on 5.1/5.3).
 
