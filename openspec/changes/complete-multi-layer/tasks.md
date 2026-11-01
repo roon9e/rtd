@@ -8,7 +8,7 @@
 ## 2. Hook-signature registry and `rtd-layerhooks` skeleton
 
 - [ ] 2.1 Define the shared hook-signature registry (name to parameters, returns and direction) for the present-in-both adapter hooks, consuming both the generator and the hooks crate; verify the generator looks up every present-in-both adapter obligation's signature and fails on a missing one
-- [ ] 2.2 Add the `rtd-layerhooks` crate (depends on `rtd-tg`/`rtd-mt`) with a registry type and the field-level hook function shapes; verify it compiles and `cargo clippy -p rtd-layerhooks --all-targets -- -D warnings` is clean
+- [x] 2.2 Add the `rtd-layerhooks` crate (depends on `rtd-tg`/`rtd-mt`) with a registry type and the field-level hook function shapes; verify it compiles and `cargo clippy -p rtd-layerhooks --all-targets -- -D warnings` is clean
 - [ ] 2.3 Wire the coverage gate so generation fails when a present-in-both adapter obligation has no implemented hook or a hook is unused (stale); verify both failures with fixtures
 
 ## 3. Generator — emit present-in-both non-direct bodies

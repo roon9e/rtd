@@ -1055,6 +1055,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rtd-layerhooks"
+version = "0.0.0"
+dependencies = [
+ "rtd-tg",
+]
+
+[[package]]
 name = "rtd-mt"
 version = "0.0.0"
 dependencies = [

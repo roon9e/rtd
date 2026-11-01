@@ -1,0 +1,14 @@
+[package]
+name = "rtd-layerhooks"
+description = "Hand-written per-layer conversion hooks for the multi-layer sidecar"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rtd-tg = { path = "../rtd-tg" }
