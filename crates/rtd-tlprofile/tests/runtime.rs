@@ -8,6 +8,7 @@ use rtd_bin::Writer;
 use rtd_tg::{
     AuthBindTempAuthKey, Bool, ChannelsJoinChannel, Decoder, InitConnection, InputChannel,
     InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, MessagesDeleteMessages, Method, Object,
+    SendMessageAction, Update,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, WrapperKind,
@@ -69,6 +70,40 @@ fn invoke_after_msgs(msg_ids: Vec<i64>, query: Method) -> Method {
         msg_ids,
         query: Box::new(query),
     }))
+}
+
+/// A rewrite route has an identical local body but a nested type that changed in
+/// the older layer. Encoding for the profile must re-identify the nested value,
+/// and decoding must rebuild the canonical value.
+#[test]
+fn rewrite_type_round_trips_on_the_profile() {
+    let value = Object::Update(Box::new(Update::UpdateUserTyping {
+        flags: 0,
+        user_id: 7,
+        top_msg_id: None,
+        action: Box::new(SendMessageAction::SendMessageTypingAction),
+    }));
+    let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode for the profile");
+    let bytes = writer.into_vec();
+
+    // The first word is the profile's wire id for this constructor.
+    let expected = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| {
+            route.profile == 225
+                && rtd_tlprofile::canonical_wire_id(route.semantic) == Some(0x2a17_bf5c)
+        })
+        .map(|route| route.wire_id)
+        .expect("layer-225 route for updateUserTyping");
+    let id = u32::from_le_bytes(bytes[..4].try_into().unwrap());
+    assert_eq!(id, expected);
+
+    let decoded = decode_object(Profile::new(225), &bytes, Limits::default()).expect("decode");
+    assert_eq!(decoded, value);
 }
 
 #[test]

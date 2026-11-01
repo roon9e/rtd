@@ -33,19 +33,19 @@ impl std::fmt::Display for EmitError {
 }
 
 pub(crate) struct Code {
-    out: String,
+    pub(crate) out: String,
     indent: usize,
 }
 
 impl Code {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Code {
             out: String::new(),
             indent: 0,
         }
     }
 
-    fn line(&mut self, text: &str) {
+    pub(crate) fn line(&mut self, text: &str) {
         if text.is_empty() {
             self.out.push('\n');
             return;
@@ -57,12 +57,12 @@ impl Code {
         self.out.push('\n');
     }
 
-    fn open(&mut self, text: &str) {
+    pub(crate) fn open(&mut self, text: &str) {
         self.line(text);
         self.indent += 1;
     }
 
-    fn close(&mut self, text: &str) {
+    pub(crate) fn close(&mut self, text: &str) {
         self.indent = self.indent.saturating_sub(1);
         self.line(text);
     }
@@ -93,6 +93,20 @@ pub(crate) enum RustType {
 
 impl RustType {
     pub(crate) fn rendered(&self) -> String {
+        self.rendered_in(false)
+    }
+
+    /// Renders the type. When `qualify` is set, generated `rtd_tg` type names are
+    /// prefixed, so the profile emitters can avoid importing them (a TL type is
+    /// literally named `String`, which would shadow `std::string::String`).
+    pub(crate) fn rendered_in(&self, qualify: bool) -> String {
+        let name = |name: &str| -> String {
+            if qualify {
+                format!("rtd_tg::{name}")
+            } else {
+                name.to_owned()
+            }
+        };
         match self {
             RustType::U32 => "u32".to_owned(),
             RustType::I32 => "i32".to_owned(),
@@ -103,23 +117,32 @@ impl RustType {
             RustType::String => "::std::string::String".to_owned(),
             RustType::Bytes => "::std::vec::Vec<u8>".to_owned(),
             RustType::Bool => "bool".to_owned(),
-            RustType::Class(name) => format!("::std::boxed::Box<{name}>"),
-            RustType::ClassBare(name, _) => name.clone(),
-            RustType::Object => "::std::boxed::Box<Object>".to_owned(),
-            RustType::Method => "::std::boxed::Box<Method>".to_owned(),
+            RustType::Class(name_inner) => format!("::std::boxed::Box<{}>", name(name_inner)),
+            RustType::ClassBare(name_inner, _) => name(name_inner),
+            RustType::Object => format!("::std::boxed::Box<{}>", name("Object")),
+            RustType::Method => format!("::std::boxed::Box<{}>", name("Method")),
             RustType::VectorBoxed(element) | RustType::VectorBare(element) => {
-                format!("::std::vec::Vec<{}>", element.rendered_vector_element())
+                format!(
+                    "::std::vec::Vec<{}>",
+                    element.rendered_vector_element_in(qualify)
+                )
             }
         }
     }
 
-    fn rendered_vector_element(&self) -> String {
+    fn rendered_vector_element_in(&self, qualify: bool) -> String {
+        let name = |name: &str| -> String {
+            if qualify {
+                format!("rtd_tg::{name}")
+            } else {
+                name.to_owned()
+            }
+        };
         match self {
-            RustType::Class(name) => name.clone(),
-            RustType::ClassBare(name, _) => name.clone(),
-            RustType::Method => "Method".to_owned(),
-            RustType::Object => "Object".to_owned(),
-            other => other.rendered(),
+            RustType::Class(name_inner) | RustType::ClassBare(name_inner, _) => name(name_inner),
+            RustType::Method => name("Method"),
+            RustType::Object => name("Object"),
+            other => other.rendered_in(qualify),
         }
     }
 }
@@ -210,7 +233,8 @@ pub(crate) fn encode_value(
         RustType::Class(name) => {
             if profile {
                 code.line(&format!(
-                    "encode_{name}_profile(profile, ::std::convert::AsRef::as_ref({place}), __w)?;"
+                    "encode_{}_profile(profile, {place}, __w)?;",
+                    crate::emit::to_snake_case(name)
                 ));
             } else {
                 code.line(&format!("{place}.encode(__w);"));
@@ -218,25 +242,24 @@ pub(crate) fn encode_value(
         }
         RustType::ClassBare(name, _) => {
             if profile {
-                code.line(&format!("encode_{name}_profile(profile, &{place}, __w)?;"));
+                code.line(&format!(
+                    "encode_{}_profile(profile, {place}, __w)?;",
+                    crate::emit::to_snake_case(name)
+                ));
             } else {
                 code.line(&format!("{place}.encode_body(__w);"));
             }
         }
         RustType::Object => {
             if profile {
-                code.line(&format!(
-                    "encode_object_profile(profile, ::std::convert::AsRef::as_ref({place}), __w)?;"
-                ));
+                code.line(&format!("encode_object_profile(profile, {place}, __w)?;"));
             } else {
                 code.line(&format!("{place}.encode(__w);"));
             }
         }
         RustType::Method => {
             if profile {
-                code.line(&format!(
-                    "encode_method_profile(profile, ::std::convert::AsRef::as_ref({place}), __w)?;"
-                ));
+                code.line(&format!("encode_method_profile(profile, {place}, __w)?;"));
             } else {
                 code.line(&format!("{place}.encode(__w);"));
             }
@@ -270,7 +293,8 @@ pub(crate) fn decode_expr(ty: &RustType, profile: bool) -> String {
         RustType::Class(name) => {
             if profile {
                 format!(
-                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); ::std::boxed::Box::new(value) }}"
+                    "{{ __d.enter()?; let value = {{ let __id = __d.take_u32()?; decode_{}_profile(profile, __id, __d)? }}; __d.leave(); ::std::boxed::Box::new(value) }}",
+                    crate::emit::to_snake_case(name)
                 )
             } else {
                 format!(
@@ -281,7 +305,8 @@ pub(crate) fn decode_expr(ty: &RustType, profile: bool) -> String {
         RustType::ClassBare(name, id) => {
             if profile {
                 format!(
-                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}"
+                    "{{ __d.enter()?; let value = {{ let __id = __d.take_u32()?; decode_{}_profile(profile, __id, __d)? }}; __d.leave(); value }}",
+                    crate::emit::to_snake_case(name)
                 )
             } else {
                 format!(
@@ -323,7 +348,8 @@ pub(crate) fn decode_element(ty: &RustType, profile: bool) -> String {
         RustType::Class(name) => {
             if profile {
                 format!(
-                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}"
+                    "{{ __d.enter()?; let value = {{ let __id = __d.take_u32()?; decode_{}_profile(profile, __id, __d)? }}; __d.leave(); value }}",
+                    crate::emit::to_snake_case(name)
                 )
             } else {
                 format!("{{ __d.enter()?; let value = {name}::decode(__d)?; __d.leave(); value }}")
@@ -332,7 +358,8 @@ pub(crate) fn decode_element(ty: &RustType, profile: bool) -> String {
         RustType::ClassBare(name, id) => {
             if profile {
                 format!(
-                    "{{ __d.enter()?; let value = decode_{name}_profile(profile, __d)?; __d.leave(); value }}"
+                    "{{ __d.enter()?; let value = {{ let __id = __d.take_u32()?; decode_{}_profile(profile, __id, __d)? }}; __d.leave(); value }}",
+                    crate::emit::to_snake_case(name)
                 )
             } else {
                 format!(
@@ -398,7 +425,7 @@ pub(crate) fn emit_constructor_decode(
         match &field.condition {
             None => code.line(&format!(
                 "let {binding}: {} = {};",
-                ty.rendered(),
+                ty.rendered_in(profile),
                 decode_expr(ty, profile)
             )),
             Some(condition) if condition.presence_only => code.line(&format!(
@@ -408,7 +435,7 @@ pub(crate) fn emit_constructor_decode(
             )),
             Some(condition) => code.line(&format!(
                 "let {binding}: Option<{}> = if {} & (1u32 << {}) != 0 {{ Some({}) }} else {{ None }};",
-                ty.rendered(),
+                ty.rendered_in(profile),
                 field_ident(&condition.word),
                 condition.bit,
                 decode_expr(ty, profile)

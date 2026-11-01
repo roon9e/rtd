@@ -13,8 +13,8 @@
 
 ## 3. Generator — emit present-in-both non-direct bodies
 
-- [ ] 3.1 Emit a body for every present-in-both non-direct route from its conversion plan, deduplicated by digest; verify a unit test per emitted mode and a test that identical bodies share one plan
-- [ ] 3.2 Emit retag as the profile wire id plus the canonical body, and rewrite as a per-profile field-mapped codec recursing into dirty sub-families; verify a rewrite round-trip on a present-in-both family
+- [x] 3.1 Emit a body for every present-in-both non-direct route from its conversion plan, deduplicated by digest; verify a unit test per emitted mode and a test that identical bodies share one plan
+- [x] 3.2 Emit retag as the profile wire id plus the canonical body, and rewrite as a per-profile field-mapped codec recursing into dirty sub-families; verify a rewrite round-trip on a present-in-both family
 - [ ] 3.3 Emit policy call sites using the registry's concrete signatures for present-in-both obligations; verify a policy route invokes its hook
 - [ ] 3.4 Raise the declared profile-sidecar size/line budget to fit the emitted bodies, recording the measured size and the reason; verify `generate` succeeds within budget and `verify` passes
 - [ ] 3.5 Verify deterministic and atomic output: two consecutive generations are byte-identical, and a simulated failure leaves prior output intact

@@ -82,8 +82,402 @@ pub(crate) fn emit(
     emit_invariant(&mut out, universe, table);
     emit_wrappers(&mut out, universe)?;
     emit_runtime(&mut out);
+    emit_profile_codec(&mut out, universe, table)?;
     emit_tests(&mut out);
     Ok(out)
+}
+
+/// Emits the per-profile route codecs: a profile-aware encoder/decoder for every
+/// canonical class, object constructor and method, plus the `Object` and `Method`
+/// dispatchers. A container that is `Direct` or `Retag` in a profile writes or
+/// reads the canonical body; a `Rewrite` container routes every nested class,
+/// object and method through the profile dispatchers, so the whole nested graph is
+/// re-identified for the layer.
+fn emit_profile_codec(
+    out: &mut String,
+    universe: &Universe,
+    table: &RouteTable,
+) -> Result<(), String> {
+    use crate::emit::{ident_for_qname, variant_ident};
+    use crate::emit_tg::class_context;
+
+    let canonical = universe.canonical();
+    let (class_map, classes, bare_ids) = class_context(canonical);
+    let object_constructors: Vec<&Definition> = canonical
+        .definitions
+        .iter()
+        .filter(|definition| {
+            definition.key.category == Category::Type && definition.result.qname == "Object"
+        })
+        .collect();
+    let methods: Vec<&Definition> = canonical
+        .definitions
+        .iter()
+        .filter(|definition| definition.key.category == Category::Function)
+        .collect();
+
+    let semantic = |definition: &Definition| -> Result<u64, String> {
+        table
+            .lookup(canonical.layer, definition.wire_id)
+            .map(|route| route.semantic_id)
+            .ok_or_else(|| format!("no canonical route for {:#010x}", definition.wire_id))
+    };
+
+    let mut class_names: Vec<&String> = class_map.keys().collect();
+    class_names.sort();
+    for qname in class_names {
+        let mut ctors: Vec<&Definition> = class_map[qname].clone();
+        ctors.sort_by(|a, b| a.key.qname.cmp(&b.key.qname));
+        let ident = ident_for_qname(qname);
+        let type_local = qname.rsplit('.').next().unwrap_or(qname);
+        let is_concrete = ctors.len() == 1 && {
+            let ctor_local = ctors[0]
+                .key
+                .qname
+                .rsplit('.')
+                .next()
+                .unwrap_or(&ctors[0].key.qname);
+            type_local.eq_ignore_ascii_case(ctor_local)
+        };
+        if is_concrete {
+            emit_struct_codec(out, &ident, ctors[0], &classes, &bare_ids, &semantic)?;
+        } else {
+            let variants: Vec<(String, &Definition)> = ctors
+                .iter()
+                .map(|ctor| {
+                    let local = ctor.key.qname.rsplit('.').next().unwrap_or(&ctor.key.qname);
+                    (variant_ident(local), *ctor)
+                })
+                .collect();
+            emit_enum_codec(out, &ident, &variants, &classes, &bare_ids, &semantic)?;
+        }
+    }
+    for definition in &object_constructors {
+        let ident = ident_for_qname(&definition.key.qname);
+        emit_struct_codec(out, &ident, definition, &classes, &bare_ids, &semantic)?;
+    }
+    for definition in &methods {
+        let ident = ident_for_qname(&definition.key.qname);
+        emit_struct_codec(out, &ident, definition, &classes, &bare_ids, &semantic)?;
+    }
+
+    emit_object_codec(out, &class_map, &object_constructors);
+    emit_method_codec(out, &methods);
+    Ok(())
+}
+
+/// Emits the profile codec for a single-constructor (struct) container.
+fn emit_struct_codec(
+    out: &mut String,
+    ident: &str,
+    definition: &Definition,
+    classes: &std::collections::BTreeSet<String>,
+    bare_ids: &std::collections::BTreeMap<String, (String, u32)>,
+    semantic: &impl Fn(&Definition) -> Result<u64, String>,
+) -> Result<(), String> {
+    use crate::emit::field_ident;
+    use crate::emit_tg::{Code, emit_constructor_decode, emit_encode_fields, prepare};
+
+    let types = prepare(definition, classes, bare_ids).map_err(|error| error.0)?;
+    let sid = semantic(definition)?;
+    let cid = definition.wire_id;
+    let bindings: Vec<String> = definition
+        .fields
+        .iter()
+        .map(|field| field_ident(&field.name))
+        .collect();
+    let has_fields = !definition.fields.is_empty();
+    let qualified = format!("rtd_tg::{ident}");
+    let fn_name = crate::emit::to_snake_case(ident);
+    let value_param = if has_fields { "value" } else { "_value" };
+
+    let mut code = Code::new();
+    code.open(&format!(
+        "pub fn encode_{fn_name}_profile(profile: Profile, {value_param}: &{qualified}, __w: &mut Writer) -> Result<(), ProjectionError> {{"
+    ));
+    code.line(&format!(
+        "let route = lookup_route_semantic(profile, SemanticId({sid:#018x})).ok_or(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {cid:#010x} }})?;"
+    ));
+    code.open("match route.mode {");
+    code.open("RouteMode::Direct | RouteMode::Retag => {");
+    code.line("__w.put_u32(route.wire_id);");
+    if has_fields {
+        code.line(&format!(
+            "let {qualified} {{ {} }} = value;",
+            bindings.join(", ")
+        ));
+        emit_encode_fields(&mut code, &definition.fields, &types, false, false);
+    }
+    code.line("Ok(())");
+    code.close("}");
+    code.open("RouteMode::Rewrite => {");
+    code.line("__w.put_u32(route.wire_id);");
+    if has_fields {
+        code.line(&format!(
+            "let {qualified} {{ {} }} = value;",
+            bindings.join(", ")
+        ));
+        emit_encode_fields(&mut code, &definition.fields, &types, false, true);
+    }
+    code.line("Ok(())");
+    code.close("}");
+    code.open("_ => {");
+    code.line("Err(ProjectionError::RouteNotEmitted(route))");
+    code.close("}");
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+
+    let mut code = Code::new();
+    code.open(&format!(
+        "pub fn decode_{fn_name}_profile(profile: Profile, id: u32, __d: &mut Decoder<'_>) -> Result<{qualified}, AdmitError> {{"
+    ));
+    code.line("let route = lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId { id, expected: 0 }))?;");
+    code.open("match route.mode {");
+    code.open("RouteMode::Direct | RouteMode::Retag => {");
+    code.line(&format!(
+        "Ok({qualified}::decode_with_id(__d, canonical_wire_id(route.semantic).unwrap_or(id))?)"
+    ));
+    code.close("}");
+    code.open("RouteMode::Rewrite => {");
+    emit_constructor_decode(&mut code, &definition.fields, &types, &qualified, true);
+    code.close("}");
+    code.open("_ => {");
+    code.line("Err(AdmitError::UnsupportedRoute(route))");
+    code.close("}");
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+    Ok(())
+}
+
+/// Emits the profile codec for a multi-constructor (enum) container.
+fn emit_enum_codec(
+    out: &mut String,
+    ident: &str,
+    variants: &[(String, &Definition)],
+    classes: &std::collections::BTreeSet<String>,
+    bare_ids: &std::collections::BTreeMap<String, (String, u32)>,
+    semantic: &impl Fn(&Definition) -> Result<u64, String>,
+) -> Result<(), String> {
+    use crate::emit::field_ident;
+    use crate::emit_tg::{Code, emit_constructor_decode, emit_encode_fields, prepare};
+
+    let mut prepared = Vec::new();
+    for (variant, ctor) in variants {
+        let types = prepare(ctor, classes, bare_ids).map_err(|error| error.0)?;
+        let sid = semantic(ctor)?;
+        let bindings: Vec<String> = ctor.fields.iter().map(|f| field_ident(&f.name)).collect();
+        prepared.push((variant.clone(), *ctor, types, sid, bindings));
+    }
+
+    let qualified = format!("rtd_tg::{ident}");
+    let fn_name = crate::emit::to_snake_case(ident);
+    let mut code = Code::new();
+    code.open(&format!(
+        "pub fn encode_{fn_name}_profile(profile: Profile, value: &{qualified}, __w: &mut Writer) -> Result<(), ProjectionError> {{"
+    ));
+    code.open("match value {");
+    for (variant, ctor, types, sid, bindings) in &prepared {
+        let cid = ctor.wire_id;
+        if ctor.fields.is_empty() {
+            code.open(&format!("{qualified}::{variant} => {{"));
+        } else {
+            code.open(&format!(
+                "{qualified}::{variant} {{ {} }} => {{",
+                bindings.join(", ")
+            ));
+        }
+        code.line(&format!(
+            "let route = lookup_route_semantic(profile, SemanticId({sid:#018x})).ok_or(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {cid:#010x} }})?;"
+        ));
+        code.open("match route.mode {");
+        code.open("RouteMode::Direct | RouteMode::Retag => {");
+        code.line("__w.put_u32(route.wire_id);");
+        if !ctor.fields.is_empty() {
+            emit_encode_fields(&mut code, &ctor.fields, types, false, false);
+        }
+        code.line("Ok(())");
+        code.close("}");
+        code.open("RouteMode::Rewrite => {");
+        code.line("__w.put_u32(route.wire_id);");
+        if !ctor.fields.is_empty() {
+            emit_encode_fields(&mut code, &ctor.fields, types, false, true);
+        }
+        code.line("Ok(())");
+        code.close("}");
+        code.open("_ => {");
+        code.line("Err(ProjectionError::RouteNotEmitted(route))");
+        code.close("}");
+        code.close("}");
+        code.close("}");
+    }
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+
+    let mut code = Code::new();
+    code.open(&format!(
+        "pub fn decode_{fn_name}_profile(profile: Profile, id: u32, __d: &mut Decoder<'_>) -> Result<{qualified}, AdmitError> {{"
+    ));
+    code.line("let route = lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId { id, expected: 0 }))?;");
+    code.open("match route.mode {");
+    code.open("RouteMode::Direct | RouteMode::Retag => {");
+    code.line(&format!(
+        "Ok({qualified}::decode_with_id(__d, canonical_wire_id(route.semantic).unwrap_or(id))?)"
+    ));
+    code.close("}");
+    code.open("RouteMode::Rewrite => {");
+    code.open("match route.semantic.0 {");
+    for (variant, ctor, types, sid, _bindings) in &prepared {
+        code.open(&format!("{sid:#018x} => {{"));
+        emit_constructor_decode(
+            &mut code,
+            &ctor.fields,
+            types,
+            &format!("{qualified}::{variant}"),
+            true,
+        );
+        code.close("}");
+    }
+    code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
+    code.close("}");
+    code.close("}");
+    code.open("_ => {");
+    code.line("Err(AdmitError::UnsupportedRoute(route))");
+    code.close("}");
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+    Ok(())
+}
+
+/// Emits the `Object` profile dispatchers.
+fn emit_object_codec(
+    out: &mut String,
+    class_map: &std::collections::BTreeMap<String, Vec<&Definition>>,
+    object_constructors: &[&Definition],
+) {
+    use crate::emit::ident_for_qname;
+    use crate::emit_tg::Code;
+
+    let mut entries: Vec<(String, String)> = Vec::new();
+    for qname in class_map.keys() {
+        let ident = ident_for_qname(qname);
+        entries.push((ident.clone(), ident));
+    }
+    for definition in object_constructors {
+        let ident = ident_for_qname(&definition.key.qname);
+        entries.push((ident.clone(), ident));
+    }
+    entries.sort();
+    entries.dedup();
+
+    let mut code = Code::new();
+    code.open("pub fn encode_object_profile(profile: Profile, value: &Object, __w: &mut Writer) -> Result<(), ProjectionError> {");
+    code.open("match value {");
+    for (variant, fn_ident) in &entries {
+        let fn_name = crate::emit::to_snake_case(fn_ident);
+        code.line(&format!(
+            "Object::{variant}(value) => encode_{fn_name}_profile(profile, value, __w),"
+        ));
+    }
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+
+    let mut by_id: Vec<(u32, String, String)> = Vec::new();
+    for (qname, ctors) in class_map {
+        let ident = ident_for_qname(qname);
+        for ctor in ctors {
+            by_id.push((ctor.wire_id, ident.clone(), ident.clone()));
+        }
+    }
+    for definition in object_constructors {
+        let ident = ident_for_qname(&definition.key.qname);
+        by_id.push((definition.wire_id, ident.clone(), ident));
+    }
+    by_id.sort();
+    by_id.dedup();
+    let mut code = Code::new();
+    code.open("pub fn decode_object_profile(profile: Profile, __d: &mut Decoder<'_>) -> Result<Object, AdmitError> {");
+    code.line("let id = __d.take_u32()?;");
+    code.line("let route = lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId { id, expected: 0 }))?;");
+    code.line("let canonical = canonical_wire_id(route.semantic).ok_or(AdmitError::UnsupportedRoute(route))?;");
+    code.open("match canonical {");
+    for (cid, variant, fn_ident) in &by_id {
+        let fn_name = crate::emit::to_snake_case(fn_ident);
+        code.line(&format!(
+            "{cid:#010x} => Ok(Object::{variant}(::std::boxed::Box::new(decode_{fn_name}_profile(profile, id, __d)?))),"
+        ));
+    }
+    code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+}
+
+/// Emits the `Method` profile dispatchers.
+fn emit_method_codec(out: &mut String, methods: &[&Definition]) {
+    use crate::emit::ident_for_qname;
+    use crate::emit_tg::Code;
+
+    let mut entries: Vec<(String, String)> = methods
+        .iter()
+        .map(|definition| {
+            let ident = ident_for_qname(&definition.key.qname);
+            (ident.clone(), ident)
+        })
+        .collect();
+    entries.sort();
+    entries.dedup();
+
+    let mut code = Code::new();
+    code.open("pub fn encode_method_profile(profile: Profile, value: &Method, __w: &mut Writer) -> Result<(), ProjectionError> {");
+    code.open("match value {");
+    for (variant, fn_ident) in &entries {
+        let fn_name = crate::emit::to_snake_case(fn_ident);
+        code.line(&format!(
+            "Method::{variant}(value) => encode_{fn_name}_profile(profile, value, __w),"
+        ));
+    }
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+
+    let mut by_id: Vec<(u32, String, String)> = methods
+        .iter()
+        .map(|definition| {
+            let ident = ident_for_qname(&definition.key.qname);
+            (definition.wire_id, ident.clone(), ident)
+        })
+        .collect();
+    by_id.sort();
+    by_id.dedup();
+    let mut code = Code::new();
+    code.open("pub fn decode_method_profile(profile: Profile, __d: &mut Decoder<'_>) -> Result<Method, AdmitError> {");
+    code.line("let id = __d.take_u32()?;");
+    code.line("let route = lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId { id, expected: 0 }))?;");
+    code.line("let canonical = canonical_wire_id(route.semantic).ok_or(AdmitError::UnsupportedRoute(route))?;");
+    code.open("match canonical {");
+    for (cid, variant, fn_ident) in &by_id {
+        let fn_name = crate::emit::to_snake_case(fn_ident);
+        code.line(&format!(
+            "{cid:#010x} => Ok(Method::{variant}(::std::boxed::Box::new(decode_{fn_name}_profile(profile, id, __d)?))),"
+        ));
+    }
+    code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
 }
 
 fn route_mode_variant(mode: RouteMode) -> &'static str {
@@ -769,7 +1163,7 @@ fn admit_impl(
     let mut decoder = Decoder::new(body, limits.decode_limits());
     let decoded = match caller {
         Some(profile) if matches!(mode, AdmitMode::Frozen) && profile.is_supported() => {
-            decode_method(profile, &mut decoder)?
+            decode_method_profile(profile, &mut decoder)?
         }
         _ => Method::decode(&mut decoder)?,
     };
@@ -1033,11 +1427,8 @@ impl FrozenObject {
     /// Returns an error when the profile is unsupported or cannot represent the
     /// value; it never falls back to the canonical encoding.
     pub fn encode(&self, profile: Profile, out: &mut Writer) -> Result<(), ProjectionError> {
-        let route = lookup_route(profile, self.type_id).ok_or(ProjectionError::Unrepresentable {
-            layer: profile.layer,
-            wire_id: self.type_id,
-        })?;
-        encode_route(route, &self.value, out)
+        let _ = self.type_id;
+        encode_object_profile(profile, &self.value, out)
     }
 }
 
@@ -1066,28 +1457,6 @@ pub fn lookup_route_semantic(profile: Profile, semantic: SemanticId) -> Option<R
         .find(|route| route.profile == profile.layer && route.semantic == semantic)
 }
 
-/// Decodes a boxed method for an exact profile, mapping its wire identifier
-/// through the profile's route table.
-///
-/// # Errors
-///
-/// Returns an error when the identifier has no route, or the route needs a
-/// per-route codec not yet emitted.
-fn decode_method(profile: Profile, __d: &mut Decoder<'_>) -> Result<Method, AdmitError> {
-    let id = __d.take_u32()?;
-    let route = lookup_route(profile, id).ok_or(AdmitError::Decode(
-        ::rtd_bin::Error::UnexpectedId { id, expected: 0 },
-    ))?;
-    match route.mode {
-        RouteMode::Direct => Ok(Method::decode_with_id(__d, id)?),
-        RouteMode::Retag => {
-            let canonical = canonical_wire_id(route.semantic)
-                .ok_or(AdmitError::UnsupportedTerminal(id))?;
-            Ok(Method::decode_with_id(__d, canonical)?)
-        }
-        _ => Err(AdmitError::UnsupportedRoute(route)),
-    }
-}
 
 /// Encodes a canonical value according to an exact route.
 ///
@@ -1130,19 +1499,7 @@ pub fn decode_object(
         });
     }
     let mut decoder = Decoder::new(bytes, limits.decode_limits());
-    let id = decoder.take_u32()?;
-    let route = lookup_route(profile, id).ok_or(AdmitError::Decode(
-        ::rtd_bin::Error::UnexpectedId { id, expected: 0 },
-    ))?;
-    let value = match route.mode {
-        RouteMode::Direct => Object::decode_with_id(&mut decoder, id)?,
-        RouteMode::Retag => {
-            let canonical =
-                canonical_wire_id(route.semantic).ok_or(AdmitError::UnsupportedTerminal(id))?;
-            Object::decode_with_id(&mut decoder, canonical)?
-        }
-        _ => return Err(AdmitError::UnsupportedRoute(route)),
-    };
+    let value = decode_object_profile(profile, &mut decoder)?;
     if !decoder.is_empty() {
         return Err(AdmitError::Limit {
             name: "trailing_bytes",
