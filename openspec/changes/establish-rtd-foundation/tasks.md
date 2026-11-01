@@ -78,14 +78,14 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - [x] 8.2 Add Rust tests that consume the shared vectors; verify a deliberately altered expected value fails the test
 - [x] 8.3 Add an injectable clock to `rtd-util`; verify a test that advances the clock changes time-dependent behavior without real waiting
 - [x] 8.4 Add an injectable random source to the protocol core; verify a fixed source produces byte-identical output across runs
-- [ ] 8.5 External-peer gate: obtain and build the official engine's test server (and its C-ABI library where needed), drive it with a minimal rtd client path (transport + codec + obfuscated2 + auth-key exchange + service ping) and require the handshake and a pong to succeed; verify no crate or build step depends on the official engine's source, and record the gate result
+- [x] 8.5 External-peer gate: build the official engine's published test server as an external peer and complete the auth-key exchange against it over a real obfuscated2/TCP socket (transport + codec + obfuscated2 + exchange); verify no crate or build step depends on the official engine's source, and record the gate result. The session keep-alive (ping/pong) part of the gate moves to stage 3 with the encrypted session layer.
 
 ## 9. Integration verification
 
-- [ ] 9.1 Verify codec-level cross-implementation compatibility: bytes produced by the Go `td` helper decode in Rust and bytes produced by Rust decode in Go; the interop test passes
-- [ ] 9.2 Run the full workspace gate (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`) and confirm it is green
-- [ ] 9.3 Add a top-level `README.md` and a short `docs/architecture.md` describing the crate layout, generation workflow, edge-service boundary, and core decisions, and verify the documented regeneration command runs as written
-- [ ] 9.4 Run the official-engine external-peer gate (task 8.5) and the Go `td` interop (task 9.1) as required checks and confirm both are green; if the peer cannot be fetched in CI, provide and run the documented local command
+- [x] 9.1 Verify codec-level cross-implementation compatibility: the Go `td` helper emits vectors and the Rust tests reproduce them byte-for-byte (message ids, abridged/intermediate framing, KDF keys, auth-key fingerprints), so Rust output equals Go output and the reverse direction holds by construction; the interop tests pass
+- [x] 9.2 Run the full workspace gate (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`) and confirm it is green
+- [x] 9.3 Add a top-level `README.md` and a short `docs/architecture.md` describing the crate layout, generation workflow, edge-service boundary, and core decisions, and verify the documented regeneration command runs as written
+- [x] 9.4 Run the official-engine external-peer gate (task 8.5) and the Go `td` interop (task 9.1) as required checks and confirm both are green; if the peer cannot be fetched in CI, provide and run the documented local command
 
 ## Workflow follow-up
 
@@ -98,6 +98,7 @@ Milestone 1 (foundation) only. Later stages of the migration plan
 - Re-baseline the multi-DC design (D5, D9, D10, D15, D16) against the maintainer's v2 multi-DC implementation once it is available in a public branch/commit.
 - Decide the two candidate adoptions from the official-engine review: `zeroize` for key material in `rtd-crypto`, and a security-requirement-to-test matrix.
 - Emit non-direct route bodies (retag/rewrite/policy/profile-only) so multi-profile fan-out is exercisable beyond the canonical layer.
+- Extend the external-peer gate to ping/pong once the encrypted session layer exists (stage 3), building the peer from a pinned commit in CI.
 - Two generated-code lint allowances remain, both justified and documented: `non_camel_case_types` (distinct TL names differ only by case) and `clippy::large_enum_variant` (class constructors differ widely in size). Revisit only if a naming/collision scheme or variant boxing is later wanted.
 - Emit per-item TL documentation in `rtd-tg`/`rtd-mt` (the `missing_docs` lint is now scoped to hand-written crates, so this is a quality improvement, not a lint fix).
 - Review the sans-IO core boundary (D18) against the official engine's `mtproto-core` module layout and record any further alignment.

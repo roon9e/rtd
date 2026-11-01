@@ -637,7 +637,9 @@ dependencies = [
  "rtd-crypto",
  "rtd-mt",
  "rtd-proto",
+ "rtd-transport",
  "rtd-util",
+ "serde_json",
 ]
 
 [[package]]

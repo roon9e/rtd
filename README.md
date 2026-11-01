@@ -76,6 +76,21 @@ cd interop/vectors
 go run . > ../vectors.json
 ```
 
+### External-peer gate
+
+The official Rust engine (`TelegramMessenger/mtproto-engine`) is used as an
+external test peer — its published `mtproto-testserver` binary is run locally, and
+rtd must complete the auth-key exchange against it over a real obfuscated2/TCP
+socket. The engine is never linked or vendored (it is GPL-2.0).
+
+```console
+cargo build --release -p mtproto-testserver --manifest-path path/to/mtproto-engine/Cargo.toml
+RTD_PEER_TESTSERVER=path/to/mtproto-engine/target/release/mtproto-testserver cargo test -p rtd-exchange --test peer_gate
+```
+
+Without `RTD_PEER_TESTSERVER` the gate is skipped; the local `127.0.0.1` peer
+needs no VPN.
+
 ## Workspace conventions
 
 - Edition 2024; the minimum supported Rust version tracks the latest stable toolchain.
