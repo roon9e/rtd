@@ -845,10 +845,14 @@ fn emit_object(
     code.open("match self {");
     for class_qname in &class_names {
         let ident = ident_for_qname(class_qname);
-        code.line(&format!("Object::{ident}(value) => value.encode_body(__w),"));
+        code.line(&format!(
+            "Object::{ident}(value) => value.encode_body(__w),"
+        ));
     }
     for ident in &object_names {
-        code.line(&format!("Object::{ident}(value) => value.encode_body(__w),"));
+        code.line(&format!(
+            "Object::{ident}(value) => value.encode_body(__w),"
+        ));
     }
     code.close("}");
     code.close("}");
@@ -935,7 +939,9 @@ fn emit_method_enum(code: &mut Code, methods: &[&Definition]) -> Result<(), Emit
     code.open("match self {");
     for method in methods {
         let ident = ident_for_qname(&method.key.qname);
-        code.line(&format!("Method::{ident}(value) => value.encode_body(__w),"));
+        code.line(&format!(
+            "Method::{ident}(value) => value.encode_body(__w),"
+        ));
     }
     code.close("}");
     code.close("}");

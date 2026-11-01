@@ -767,7 +767,12 @@ fn admit_impl(
         });
     }
     let mut decoder = Decoder::new(body, limits.decode_limits());
-    let decoded = Method::decode(&mut decoder)?;
+    let decoded = match caller {
+        Some(profile) if matches!(mode, AdmitMode::Frozen) && profile.is_supported() => {
+            decode_method(profile, &mut decoder)?
+        }
+        _ => Method::decode(&mut decoder)?,
+    };
     if !decoder.is_empty() {
         return Err(AdmitError::Limit {
             name: "trailing_bytes",
@@ -823,30 +828,35 @@ fn admit_impl(
     };
 
     let mut admitted_profile: Option<Profile> = None;
+    let mut admitted_wire_id = terminal_id;
+    let semantic;
     if let Some(profile) = effective {
         if !profile.is_supported() {
             return Err(AdmitError::UnsupportedLayer(profile.layer));
         }
-        let route = lookup_route(profile, terminal_id)
+        // The terminal is canonical after decoding, so resolve its route by
+        // semantic identity, which is stable across layers.
+        let canonical_semantic = semantic_for_wire_id(Profile::new(CANONICAL_LAYER), terminal_id)
             .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?;
-        if route.mode != RouteMode::Direct {
+        let route = lookup_route_semantic(profile, canonical_semantic)
+            .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?;
+        if !matches!(route.mode, RouteMode::Direct | RouteMode::Retag) {
             return Err(AdmitError::UnsupportedRoute(route));
         }
         admitted_profile = Some(profile);
-    } else if !is_invariant_terminal(terminal_id) {
-        return Err(AdmitError::RequiresProfile(terminal_id));
+        admitted_wire_id = route.wire_id;
+        semantic = canonical_semantic;
+    } else {
+        if !is_invariant_terminal(terminal_id) {
+            return Err(AdmitError::RequiresProfile(terminal_id));
+        }
+        semantic = semantic_for_invariant(terminal_id)
+            .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?;
     }
-
-    let semantic = match admitted_profile {
-        Some(profile) => semantic_for_wire_id(profile, terminal_id)
-            .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?,
-        None => semantic_for_invariant(terminal_id)
-            .ok_or(AdmitError::UnsupportedTerminal(terminal_id))?,
-    };
 
     let call_identity = CallIdentity {
         semantic,
-        wire_id: terminal_id,
+        wire_id: admitted_wire_id,
         ordering: OrderingKey { msg_ids: ordering },
     };
     let mut wire_digest = [0u8; 32];
@@ -854,7 +864,7 @@ fn admit_impl(
     Ok(Admission {
         effective_profile: admitted_profile,
         explicit_profile: explicit.map(Profile::new),
-        wire_id: terminal_id,
+        wire_id: admitted_wire_id,
         semantic,
         request: decoded,
         wire_size: body.len(),
@@ -1031,15 +1041,68 @@ impl FrozenObject {
     }
 }
 
+/// Returns the canonical wire identifier for a semantic identity, when the
+/// canonical layer defines it.
+#[must_use]
+pub fn canonical_wire_id(semantic: SemanticId) -> Option<u32> {
+    ROUTES
+        .iter()
+        .find(|route| route.profile == CANONICAL_LAYER && route.semantic == semantic)
+        .map(|route| route.wire_id)
+}
+
+/// The full route table, for diagnostics and tests.
+#[must_use]
+pub fn routes() -> &'static [Route] {
+    ROUTES
+}
+
+/// Returns the route for a `(profile, semantic identity)` pair.
+#[must_use]
+pub fn lookup_route_semantic(profile: Profile, semantic: SemanticId) -> Option<Route> {
+    ROUTES
+        .iter()
+        .copied()
+        .find(|route| route.profile == profile.layer && route.semantic == semantic)
+}
+
+/// Decodes a boxed method for an exact profile, mapping its wire identifier
+/// through the profile's route table.
+///
+/// # Errors
+///
+/// Returns an error when the identifier has no route, or the route needs a
+/// per-route codec not yet emitted.
+fn decode_method(profile: Profile, __d: &mut Decoder<'_>) -> Result<Method, AdmitError> {
+    let id = __d.take_u32()?;
+    let route = lookup_route(profile, id).ok_or(AdmitError::Decode(
+        ::rtd_bin::Error::UnexpectedId { id, expected: 0 },
+    ))?;
+    match route.mode {
+        RouteMode::Direct => Ok(Method::decode_with_id(__d, id)?),
+        RouteMode::Retag => {
+            let canonical = canonical_wire_id(route.semantic)
+                .ok_or(AdmitError::UnsupportedTerminal(id))?;
+            Ok(Method::decode_with_id(__d, canonical)?)
+        }
+        _ => Err(AdmitError::UnsupportedRoute(route)),
+    }
+}
+
 /// Encodes a canonical value according to an exact route.
 ///
 /// # Errors
 ///
-/// Returns an error for non-direct routes, which require per-route codecs.
+/// Returns an error for routes that require per-route codecs not yet emitted.
 pub fn encode_route(route: Route, value: &Object, out: &mut Writer) -> Result<(), ProjectionError> {
     match route.mode {
         RouteMode::Direct => {
             value.encode(out);
+            Ok(())
+        }
+        RouteMode::Retag => {
+            out.put_u32(route.wire_id);
+            value.encode_body(out);
             Ok(())
         }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
@@ -1067,17 +1130,24 @@ pub fn decode_object(
         });
     }
     let mut decoder = Decoder::new(bytes, limits.decode_limits());
-    let value = Object::decode(&mut decoder)?;
+    let id = decoder.take_u32()?;
+    let route = lookup_route(profile, id).ok_or(AdmitError::Decode(
+        ::rtd_bin::Error::UnexpectedId { id, expected: 0 },
+    ))?;
+    let value = match route.mode {
+        RouteMode::Direct => Object::decode_with_id(&mut decoder, id)?,
+        RouteMode::Retag => {
+            let canonical =
+                canonical_wire_id(route.semantic).ok_or(AdmitError::UnsupportedTerminal(id))?;
+            Object::decode_with_id(&mut decoder, canonical)?
+        }
+        _ => return Err(AdmitError::UnsupportedRoute(route)),
+    };
     if !decoder.is_empty() {
         return Err(AdmitError::Limit {
             name: "trailing_bytes",
             value: decoder.remaining(),
         });
-    }
-    let route = lookup_route(profile, value.type_id())
-        .ok_or(AdmitError::UnsupportedTerminal(value.type_id()))?;
-    if route.mode != RouteMode::Direct {
-        return Err(AdmitError::UnsupportedRoute(route));
     }
     Ok(value)
 }

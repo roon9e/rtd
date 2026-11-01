@@ -6,8 +6,8 @@
 
 use rtd_bin::Writer;
 use rtd_tg::{
-    AuthBindTempAuthKey, Bool, Decoder, InitConnection, InvokeAfterMsg, InvokeAfterMsgs,
-    InvokeWithLayer, MessagesDeleteMessages, Method, Object,
+    AuthBindTempAuthKey, Bool, ChannelsJoinChannel, Decoder, InitConnection, InputChannel,
+    InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, MessagesDeleteMessages, Method, Object,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, WrapperKind,
@@ -69,6 +69,32 @@ fn invoke_after_msgs(msg_ids: Vec<i64>, query: Method) -> Method {
         msg_ids,
         query: Box::new(query),
     }))
+}
+
+#[test]
+fn retag_method_admits_on_the_profile() {
+    // `channels.joinChannel` has a different wire id in layer 225 but an
+    // identical body, so a layer-225 request is the profile id followed by the
+    // canonical body. Admission must map it back to the canonical method.
+    let method = Method::ChannelsJoinChannel(Box::new(ChannelsJoinChannel {
+        channel: Box::new(InputChannel::InputChannel {
+            channel_id: 7,
+            access_hash: 11,
+        }),
+    }));
+    let mut writer = Writer::new();
+    writer.put_u32(0x24b5_24c5);
+    method.encode_body(&mut writer);
+    let body = writer.into_vec();
+
+    let admission = admit(Profile::new(225), &body).expect("retag admits");
+    assert_eq!(admission.effective_profile, Some(Profile::new(225)));
+    assert_eq!(admission.wire_id, 0x24b5_24c5);
+    assert_eq!(admission.request, method);
+    assert_eq!(
+        admission.semantic,
+        semantic_for_wire_id(Profile::new(232), 0x7f6a_1e22).unwrap()
+    );
 }
 
 #[test]
