@@ -9,7 +9,7 @@
 
 - [x] 2.1 Define the shared hook-signature registry (name to parameters, returns and direction) for the present-in-both adapter hooks, consuming both the generator and the hooks crate; verify the generator looks up every present-in-both adapter obligation's signature and fails on a missing one (new dependency-free `rtd-layerhooks-registry` crate; `rtd-codegen::check_hook_registry` gates direction coverage and staleness, and tests assert a missing/direction-mismatched/stale signature fails; `rtd-layerhooks` asserts its `IMPLEMENTED_HOOKS` equals the registry's implemented set)
 - [x] 2.2 Add the `rtd-layerhooks` crate (depends on `rtd-tg`/`rtd-mt`) with a registry type and the field-level hook function shapes; verify it compiles and `cargo clippy -p rtd-layerhooks --all-targets -- -D warnings` is clean
-- [ ] 2.3 Wire the coverage gate so generation fails when a present-in-both adapter obligation has no implemented hook or a hook is unused (stale); verify both failures with fixtures
+- [x] 2.3 Wire the coverage gate so generation fails when a present-in-both adapter obligation has no implemented hook or a hook is unused (stale); verify both failures with fixtures (`check_hook_registry` fails on a missing signature, a direction mismatch, an unimplemented (`Pending`) hook and a stale entry; fixtures assert each; the one `Deferred` hook, `layerAdaptLegacyInlineKeyboardRows`, is documented as depending on the ProfileOnly follow-up)
 
 ## 3. Generator — emit present-in-both non-direct bodies
 
@@ -25,9 +25,9 @@
 
 ## 5. Present-in-both adapter hooks
 
-- [ ] 5.1 Implement the `incompatible` adapter hooks; verify a test per hook
-- [ ] 5.2 Implement the `required` and `result` adapter hooks; verify a test per hook
-- [ ] 5.3 Implement the `field-projection` and `discard` adapter hooks; verify a test per hook
+- [ ] 5.1 Implement the `incompatible` adapter hooks; verify a test per hook (the bot-verification text family — `layerBotVerificationText`, `layerBotVerifierSettingsText`, `layerBotsSetCustomVerificationText` — is implemented with tests; `layerAdaptLegacyInlineKeyboardRows` is `Deferred` because the row buttons transitively need the ProfileOnly keyboard-button constructors)
+- [x] 5.2 Implement the `required` and `result` adapter hooks; verify a test per hook (`required`: `layerRequireLegacyEphemeral{Message,Send,Delete}Peer`, `layerRequireCapturedChatInviteJoinQueryID`, `layerDefaultLegacyKeyboardButtonType`; `result`: `layerAdaptBotGuestChatResult`, `layerAdapt{UpdatesToChatInviteJoinResult,ChatInviteJoinResultToUpdates,WebBrowserSettingsExceptionResult}` — each has a unit test including the fail-closed case)
+- [ ] 5.3 Implement the `field-projection` and `discard` adapter hooks; verify a test per hook (`layerCaptureChatInviteJoinQueryIDFromWebView` (discard) is implemented with tests; the `project` hooks `layerProjectEphemeralBotCommand` and `layerProjectLegacyDefaultKeyboardButton` need the policy call-site emission before their exact signatures are fixed, so they land with task 3.3)
 - [ ] 5.4 Verify coverage: every present-in-both adapter obligation is implemented and no present-in-both hook is unused
 
 ## 6. Runtime execution and fan-out

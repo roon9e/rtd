@@ -13,18 +13,32 @@
 //! silent lossy projection.
 #![warn(missing_docs)]
 
+pub mod chat_invite;
+pub mod ephemeral;
 pub mod error;
+pub mod keyboard;
+pub mod results;
 pub mod text;
 
 pub use error::{HookError, Result};
 
 /// The hook names implemented in this crate, for the generation-time coverage
-/// gate. Every present-in-both adapter obligation must name one of these, and
-/// every name here must be referenced by an obligation.
+/// gate. It must match the registry's implemented set exactly; a test enforces
+/// that.
 pub const IMPLEMENTED_HOOKS: &[&str] = &[
+    "layerAdaptBotGuestChatResult",
+    "layerAdaptChatInviteJoinResultToUpdates",
+    "layerAdaptUpdatesToChatInviteJoinResult",
+    "layerAdaptWebBrowserSettingsExceptionResult",
     "layerBotVerificationText",
     "layerBotVerifierSettingsText",
     "layerBotsSetCustomVerificationText",
+    "layerCaptureChatInviteJoinQueryIDFromWebView",
+    "layerDefaultLegacyKeyboardButtonType",
+    "layerRequireCapturedChatInviteJoinQueryID",
+    "layerRequireLegacyEphemeralDeletePeer",
+    "layerRequireLegacyEphemeralMessagePeer",
+    "layerRequireLegacyEphemeralSendPeer",
 ];
 
 #[cfg(test)]

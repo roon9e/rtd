@@ -152,6 +152,14 @@ fn check_hook_registry(
                 obligation.direction
             ));
         }
+        if spec.status == rtd_layerhooks_registry::Status::Pending {
+            return Err(format!(
+                "E_UNIMPLEMENTED_HOOK: {} names hook {:?}, which is registered but not \
+                 yet implemented",
+                obligation.summary(),
+                spec.name
+            ));
+        }
         referenced.insert(spec.name);
     }
     for spec in hooks {
@@ -252,6 +260,21 @@ mod tests {
         spec.direction = Direction::ProfileToCanonical;
         let error = check_hook_registry(&plan, &hooks).unwrap_err();
         assert!(error.contains("E_HOOK_DIRECTION"), "{error}");
+    }
+
+    #[test]
+    fn hook_registry_fails_on_an_unimplemented_hook() {
+        use rtd_layerhooks_registry::Status;
+
+        let plan = reviewed_plan();
+        let mut hooks = rtd_layerhooks_registry::HOOKS.to_vec();
+        let spec = hooks
+            .iter_mut()
+            .find(|spec| spec.name == "layerBotVerificationText")
+            .expect("text hook is registered");
+        spec.status = Status::Pending;
+        let error = check_hook_registry(&plan, &hooks).unwrap_err();
+        assert!(error.contains("E_UNIMPLEMENTED_HOOK"), "{error}");
     }
 
     #[test]

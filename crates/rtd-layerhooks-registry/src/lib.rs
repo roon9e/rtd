@@ -42,6 +42,9 @@ pub enum Status {
     Implemented,
     /// Registered but not yet implemented; generation fails closed on it.
     Pending,
+    /// Present-in-both but deferred because it transitively needs a `ProfileOnly`
+    /// constructor; generation fails closed at runtime for the affected values.
+    Deferred,
 }
 
 /// One hook's signature, keyed by the name used in the reviewed policy.
@@ -62,31 +65,34 @@ pub const HOOKS: &[HookSpec] = &[
     HookSpec {
         name: "layerAdaptBotGuestChatResult",
         direction: Direction::CanonicalToProfile,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerAdaptBotGuestChatResult(_ LayerProfile, messageID InputBotInlineMessageID) (Bool, error)",
     },
     HookSpec {
         name: "layerAdaptChatInviteJoinResultToUpdates",
         direction: Direction::CanonicalToProfile,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerAdaptChatInviteJoinResultToUpdates(_ LayerProfile, result MessagesChatInviteJoinResult) (Updates, error)",
     },
     HookSpec {
         name: "layerAdaptLegacyInlineKeyboardRows",
         direction: Direction::Both,
-        status: Status::Pending,
+        // Converting the button rows transitively needs the `ProfileOnly`
+        // keyboard-button constructors (deferred to
+        // `add-legacy-layer-constructors`); a row containing one fails closed.
+        status: Status::Deferred,
         signature: "layerAdaptLegacyInlineKeyboardRows(_ LayerProfile, rows Vector<KeyboardButtonRow>/Vector<KeyboardInlineButtonRow>) (Vector<...>, error)",
     },
     HookSpec {
         name: "layerAdaptUpdatesToChatInviteJoinResult",
         direction: Direction::ProfileToCanonical,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerAdaptUpdatesToChatInviteJoinResult(_ LayerProfile, updates Updates) (MessagesChatInviteJoinResult, error)",
     },
     HookSpec {
         name: "layerAdaptWebBrowserSettingsExceptionResult",
         direction: Direction::CanonicalToProfile,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerAdaptWebBrowserSettingsExceptionResult(_ LayerProfile, updates Updates) (bool, error)",
     },
     HookSpec {
@@ -110,37 +116,37 @@ pub const HOOKS: &[HookSpec] = &[
     HookSpec {
         name: "layerCaptureChatInviteJoinQueryIDFromWebView",
         direction: Direction::ProfileToCanonical,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerCaptureChatInviteJoinQueryIDFromWebView(_ LayerProfile, value MessagesChatInviteJoinResultWebView, webview WebViewResult) error",
     },
     HookSpec {
         name: "layerDefaultLegacyKeyboardButtonType",
         direction: Direction::ProfileToCanonical,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerDefaultLegacyKeyboardButtonTypeDecode(_ LayerProfile, value *KeyboardButton) (ButtonType, error)",
     },
     HookSpec {
         name: "layerRequireCapturedChatInviteJoinQueryID",
         direction: Direction::ProfileToCanonical,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerRequireCapturedChatInviteJoinQueryIDDecode(_ LayerProfile, value MessagesChatInviteJoinResultWebView) (int64, error)",
     },
     HookSpec {
         name: "layerRequireLegacyEphemeralDeletePeer",
         direction: Direction::CanonicalToProfile,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerRequireLegacyEphemeralDeletePeerEncode(_ LayerProfile, _ *EphemeralDeleteMessage, present bool, peer InputPeer) (InputPeer, error)",
     },
     HookSpec {
         name: "layerRequireLegacyEphemeralMessagePeer",
         direction: Direction::CanonicalToProfile,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerRequireLegacyEphemeralMessagePeerEncode(_ LayerProfile, _ *EphemeralMessage, present bool, peer Peer) (Peer, error)",
     },
     HookSpec {
         name: "layerRequireLegacyEphemeralSendPeer",
         direction: Direction::CanonicalToProfile,
-        status: Status::Pending,
+        status: Status::Implemented,
         signature: "layerRequireLegacyEphemeralSendPeerEncode(_ LayerProfile, _ *EphemeralSendMessage, present bool, peer InputPeer) (InputPeer, error)",
     },
 ];
