@@ -59,7 +59,10 @@ pub use rsa::{
     decode_rsa_pad, parse_rsa_private_key, parse_rsa_public_key, parse_rsa_public_keys,
     rsa_fingerprint, rsa_pad,
 };
-pub use srp::{Answer, Input, hash as srp_hash, new_hash, new_hash_with_random};
+pub use srp::{
+    Answer, Challenge, Input, challenge, hash as srp_hash, new_hash, new_hash_with_random, verifier,
+    verify,
+};
 pub use temp_keys::{
     decrypt_exchange_answer, encrypt_exchange_answer, nonce_hash1, server_salt, temp_aes_keys,
 };
