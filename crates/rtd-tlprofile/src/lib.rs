@@ -184816,8 +184816,103 @@ pub fn encode_keyboard_button_profile(
             encode_button_type_profile(profile, type_, __w)?;
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                225 => encode_policy_keyboard_button_225(profile, value, __w)?,
+                226 => encode_policy_keyboard_button_226(profile, value, __w)?,
+                227 => encode_policy_keyboard_button_227(profile, value, __w)?,
+                228 => encode_policy_keyboard_button_228(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_keyboard_button_225(
+    profile: Profile,
+    value: &rtd_tg::KeyboardButton,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::KeyboardButton { style, text, .. } = value;
+    if rtd_layerhooks::keyboard::project_default_button_type(value)?.is_none() {
+        return Err(ProjectionError::Dropped);
+    }
+    let mut __flags_flags = 0u32;
+    if style.is_some() {
+        __flags_flags |= 1u32 << 10;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = style {
+        encode_keyboard_button_style_profile(profile, value, __w)?;
+    }
+    __w.put_string(text.as_str());
+    Ok(())
+}
+
+fn encode_policy_keyboard_button_226(
+    profile: Profile,
+    value: &rtd_tg::KeyboardButton,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::KeyboardButton { style, text, .. } = value;
+    if rtd_layerhooks::keyboard::project_default_button_type(value)?.is_none() {
+        return Err(ProjectionError::Dropped);
+    }
+    let mut __flags_flags = 0u32;
+    if style.is_some() {
+        __flags_flags |= 1u32 << 10;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = style {
+        encode_keyboard_button_style_profile(profile, value, __w)?;
+    }
+    __w.put_string(text.as_str());
+    Ok(())
+}
+
+fn encode_policy_keyboard_button_227(
+    profile: Profile,
+    value: &rtd_tg::KeyboardButton,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::KeyboardButton { style, text, .. } = value;
+    if rtd_layerhooks::keyboard::project_default_button_type(value)?.is_none() {
+        return Err(ProjectionError::Dropped);
+    }
+    let mut __flags_flags = 0u32;
+    if style.is_some() {
+        __flags_flags |= 1u32 << 10;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = style {
+        encode_keyboard_button_style_profile(profile, value, __w)?;
+    }
+    __w.put_string(text.as_str());
+    Ok(())
+}
+
+fn encode_policy_keyboard_button_228(
+    profile: Profile,
+    value: &rtd_tg::KeyboardButton,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::KeyboardButton { style, text, .. } = value;
+    if rtd_layerhooks::keyboard::project_default_button_type(value)?.is_none() {
+        return Err(ProjectionError::Dropped);
+    }
+    let mut __flags_flags = 0u32;
+    if style.is_some() {
+        __flags_flags |= 1u32 << 10;
+    }
+    __w.put_u32(__flags_flags);
+    if let Some(value) = style {
+        encode_keyboard_button_style_profile(profile, value, __w)?;
+    }
+    __w.put_string(text.as_str());
+    Ok(())
 }
 
 pub fn decode_keyboard_button_profile(
@@ -184868,8 +184963,151 @@ pub fn decode_keyboard_button_profile(
                 type_,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            225 => decode_policy_keyboard_button_225(profile, __d),
+            226 => decode_policy_keyboard_button_226(profile, __d),
+            227 => decode_policy_keyboard_button_227(profile, __d),
+            228 => decode_policy_keyboard_button_228(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_keyboard_button_225(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::KeyboardButton, AdmitError> {
+    let flags = __d.take_u32()?;
+    let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> = if flags & (1u32 << 10) != 0
+    {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_keyboard_button_style_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let text: ::std::string::String = __d.take_string()?.to_owned();
+    let type_: ::std::boxed::Box<rtd_tg::ButtonType> =
+        ::std::boxed::Box::new(rtd_layerhooks::keyboard::supply_default_button_type());
+    let mut flags = 0u32;
+    if style.is_some() {
+        flags |= 1u32 << 10;
+    }
+    Ok(rtd_tg::KeyboardButton {
+        flags,
+        style,
+        text,
+        type_,
+    })
+}
+
+fn decode_policy_keyboard_button_226(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::KeyboardButton, AdmitError> {
+    let flags = __d.take_u32()?;
+    let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> = if flags & (1u32 << 10) != 0
+    {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_keyboard_button_style_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let text: ::std::string::String = __d.take_string()?.to_owned();
+    let type_: ::std::boxed::Box<rtd_tg::ButtonType> =
+        ::std::boxed::Box::new(rtd_layerhooks::keyboard::supply_default_button_type());
+    let mut flags = 0u32;
+    if style.is_some() {
+        flags |= 1u32 << 10;
+    }
+    Ok(rtd_tg::KeyboardButton {
+        flags,
+        style,
+        text,
+        type_,
+    })
+}
+
+fn decode_policy_keyboard_button_227(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::KeyboardButton, AdmitError> {
+    let flags = __d.take_u32()?;
+    let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> = if flags & (1u32 << 10) != 0
+    {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_keyboard_button_style_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let text: ::std::string::String = __d.take_string()?.to_owned();
+    let type_: ::std::boxed::Box<rtd_tg::ButtonType> =
+        ::std::boxed::Box::new(rtd_layerhooks::keyboard::supply_default_button_type());
+    let mut flags = 0u32;
+    if style.is_some() {
+        flags |= 1u32 << 10;
+    }
+    Ok(rtd_tg::KeyboardButton {
+        flags,
+        style,
+        text,
+        type_,
+    })
+}
+
+fn decode_policy_keyboard_button_228(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::KeyboardButton, AdmitError> {
+    let flags = __d.take_u32()?;
+    let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> = if flags & (1u32 << 10) != 0
+    {
+        Some({
+            __d.enter()?;
+            let value = {
+                let __id = __d.take_u32()?;
+                decode_keyboard_button_style_profile(profile, __id, __d)?
+            };
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        })
+    } else {
+        None
+    };
+    let text: ::std::string::String = __d.take_string()?.to_owned();
+    let type_: ::std::boxed::Box<rtd_tg::ButtonType> =
+        ::std::boxed::Box::new(rtd_layerhooks::keyboard::supply_default_button_type());
+    let mut flags = 0u32;
+    if style.is_some() {
+        flags |= 1u32 << 10;
+    }
+    Ok(rtd_tg::KeyboardButton {
+        flags,
+        style,
+        text,
+        type_,
+    })
 }
 
 pub fn encode_keyboard_button_row_profile(

@@ -6,10 +6,10 @@
 
 use rtd_bin::Writer;
 use rtd_tg::{
-    AuthBindTempAuthKey, Bool, BotCommand, BotInfo, BotVerification, ChannelsJoinChannel,
-    ChatAdminRights, Decoder, InitConnection, InputChannel, InputInvoice, InputPeer,
-    InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, MessageEntity, MessagesDeleteMessages,
-    Method, Object, SendMessageAction, TextWithEntities, Update,
+    AuthBindTempAuthKey, Bool, BotCommand, BotInfo, BotVerification, ButtonType,
+    ChannelsJoinChannel, ChatAdminRights, Decoder, InitConnection, InputChannel, InputInvoice,
+    InputPeer, InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, KeyboardButton, MessageEntity,
+    MessagesDeleteMessages, Method, Object, SendMessageAction, TextWithEntities, Update,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, RouteMode,
@@ -633,6 +633,38 @@ fn policy_projection_drops_a_vector_element() {
     assert_eq!(commands.len(), 1, "the ephemeral command is dropped");
     assert_eq!(commands[0].command, "a");
     assert!(!commands[0].ephemeral);
+}
+
+/// `keyboardButton` must project a non-default button type away and supply the
+/// default type when decoding the historical typeless button.
+#[test]
+fn policy_keyboard_button_supplies_and_projects_the_type() {
+    let value = Object::KeyboardButton(Box::new(KeyboardButton {
+        flags: 0,
+        style: None,
+        text: "OK".to_owned(),
+        type_: Box::new(ButtonType::ButtonTypeDefault),
+    }));
+    let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode a default-typed button");
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    assert_eq!(decoded, value);
+
+    let non_default = FrozenObject::freeze(Object::KeyboardButton(Box::new(KeyboardButton {
+        flags: 0,
+        style: None,
+        text: "OK".to_owned(),
+        type_: Box::new(ButtonType::ButtonTypeRequestPhone),
+    })))
+    .expect("freeze");
+    let error = non_default
+        .encode(Profile::new(225), &mut Writer::new())
+        .expect_err("a non-default button type is projected away");
+    assert_eq!(error, ProjectionError::Dropped);
 }
 
 /// A second present-in-both family fans out across the enabled set: layer 225..=228

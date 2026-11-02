@@ -218,6 +218,8 @@ struct AdapterHooks {
     require: std::collections::BTreeMap<String, &'static str>,
     /// `canonical field name` to its value projection function.
     project: std::collections::BTreeMap<String, &'static str>,
+    /// `canonical field name` to its supply function.
+    supply: std::collections::BTreeMap<String, &'static str>,
 }
 
 /// One supported policy layer for a canonical constructor.
@@ -238,6 +240,8 @@ struct PolicyLayer<'a> {
     require_hooks: std::collections::BTreeMap<String, &'static str>,
     /// `canonical field name` to its value projection function.
     project_hooks: std::collections::BTreeMap<String, &'static str>,
+    /// `canonical field name` to its supply function.
+    supply_hooks: std::collections::BTreeMap<String, &'static str>,
 }
 
 /// Builds the adapter call sites for a layer, or `None` when an obligation needs
@@ -259,10 +263,15 @@ fn collect_adapter_hooks(
             decode: Option<&'static str>,
         },
         Require(&'static str),
-        Project(&'static str),
+        Supply(&'static str),
     }
 
+    // Field shapes are keyed by canonical field, but a projection and a field
+    // shape may target the same field (e.g. `keyboardButton.type`), so
+    // projections live in their own map.
     let mut pending: std::collections::BTreeMap<String, Pending> =
+        std::collections::BTreeMap::new();
+    let mut project_pending: std::collections::BTreeMap<String, &'static str> =
         std::collections::BTreeMap::new();
     for obligation in obligations {
         let Some(resolution) = &obligation.resolution else {
@@ -304,13 +313,21 @@ fn collect_adapter_hooks(
                         }
                         *d = Some(function);
                     }
-                } else {
-                    let function = rtd_layerhooks_registry::field_require(&resolution.hook)?;
+                } else if let Some(function) =
+                    rtd_layerhooks_registry::field_require(&resolution.hook)
+                {
                     // A requirement is canonical-to-profile only.
                     if obligation.direction != "canonical-to-profile" {
                         return None;
                     }
                     pending.insert(obligation.field.clone(), Pending::Require(function));
+                } else {
+                    let function = rtd_layerhooks_registry::field_supply(&resolution.hook)?;
+                    // A supply is profile-to-canonical only.
+                    if obligation.direction != "profile-to-canonical" {
+                        return None;
+                    }
+                    pending.insert(obligation.other_field.clone(), Pending::Supply(function));
                 }
             }
             "project" => {
@@ -319,7 +336,7 @@ fn collect_adapter_hooks(
                 if obligation.direction != "canonical-to-profile" {
                     return None;
                 }
-                pending.insert(obligation.field.clone(), Pending::Project(function));
+                project_pending.insert(obligation.field.clone(), function);
             }
             _ => return None,
         }
@@ -329,6 +346,7 @@ fn collect_adapter_hooks(
         convert: std::collections::BTreeMap::new(),
         require: std::collections::BTreeMap::new(),
         project: std::collections::BTreeMap::new(),
+        supply: std::collections::BTreeMap::new(),
     };
     for (canonical, entry) in pending {
         let field = definition
@@ -343,11 +361,6 @@ fn collect_adapter_hooks(
             .as_ref()
             .is_some_and(|condition| !condition.presence_only);
         match entry {
-            Pending::Project(function) => {
-                // A projection gates the whole value on a canonical field; it
-                // needs no profile counterpart.
-                adapter.project.insert(canonical, function);
-            }
             Pending::Convert { encode, decode } => {
                 // Both directions and aligned optionality are required.
                 let (Some(encode), Some(decode)) = (encode, decode) else {
@@ -399,7 +412,24 @@ fn collect_adapter_hooks(
                 }
                 adapter.require.insert(canonical, function);
             }
+            Pending::Supply(function) => {
+                // A supply fills a mandatory canonical field the profile omits.
+                if canonical_optional || reverse.contains_key(&canonical) {
+                    return None;
+                }
+                adapter.supply.insert(canonical, function);
+            }
         }
+    }
+    for (canonical, function) in project_pending {
+        let field = definition
+            .fields
+            .iter()
+            .find(|field| field.name == canonical)?;
+        if field.kind != FieldKind::Value {
+            return None;
+        }
+        adapter.project.insert(canonical, function);
     }
     Some(adapter)
 }
@@ -494,6 +524,7 @@ fn collect_policy_layers<'a>(
                 || field.kind == FieldKind::FlagsWord
                 || field.condition.is_some()
                 || canonical_defaults.contains(&field.name)
+                || adapter.supply.contains_key(&field.name)
         });
         if !rebuildable {
             continue;
@@ -508,6 +539,7 @@ fn collect_policy_layers<'a>(
             field_hooks: adapter.convert,
             require_hooks: adapter.require,
             project_hooks: adapter.project,
+            supply_hooks: adapter.supply,
         });
     }
     layers
@@ -817,7 +849,14 @@ fn emit_policy_encode_fns(
             }
         }
         for canonical in layer.project_hooks.keys() {
-            if !used.contains(canonical) {
+            // A projection gate reads the field binding only when the field is
+            // conditional; a mandatory field is judged from `value` alone.
+            let conditional = definition
+                .fields
+                .iter()
+                .find(|field| &field.name == canonical)
+                .is_some_and(|field| field.condition.is_some());
+            if conditional && !used.contains(canonical) {
                 used.push(canonical.clone());
             }
         }
@@ -979,6 +1018,18 @@ fn emit_policy_decode_fns(
                 code.line(&format!("let {binding}: {canonical_ty} = {converted};"));
             }
         }
+        // Supply a mandatory canonical field the profile omits.
+        for (canonical, supply_fn) in &layer.supply_hooks {
+            let name = field_ident(canonical);
+            let ordinal = definition
+                .fields
+                .iter()
+                .position(|field| &field.name == canonical)
+                .ok_or_else(|| format!("policy: canonical field {canonical} missing"))?;
+            let canonical_ty = types[ordinal].rendered_in(true);
+            let supplied = wrap_canonical(&types[ordinal], &format!("{supply_fn}()"));
+            code.line(&format!("let {name}: {canonical_ty} = {supplied};"));
+        }
         let mut fields = Vec::new();
         for (index, field) in definition.fields.iter().enumerate() {
             let name = field_ident(&field.name);
@@ -1051,6 +1102,11 @@ fn emit_policy_decode_fns(
                 } else {
                     fields.push(format!("{name}: {expr}"));
                 }
+                continue;
+            }
+            if layer.supply_hooks.contains_key(&field.name) {
+                // The canonical field was supplied by a hook above.
+                fields.push(name);
                 continue;
             }
             if layer.canonical_defaults.contains(&field.name) {

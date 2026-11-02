@@ -134,10 +134,8 @@ pub const HOOKS: &[HookSpec] = &[
     HookSpec {
         name: "layerProjectLegacyDefaultKeyboardButton",
         direction: Direction::CanonicalToProfile,
-        // Projects a default-typed keyboard button's `type` away; pinned with the
-        // policy emission (task 3.3).
-        status: Status::Deferred,
-        signature: "layerProjectLegacyDefaultKeyboardButtonProject(profile, value *KeyboardButton, buttonType ButtonType) (*KeyboardButton, bool, error)",
+        status: Status::Implemented,
+        signature: "project_default_button_type(value *KeyboardButton) (*KeyboardButton, error); None drops the value",
     },
     HookSpec {
         name: "layerRequireCapturedChatInviteJoinQueryID",
@@ -213,6 +211,23 @@ pub fn field_project(name: &str) -> Option<&'static str> {
     Some(match name {
         "layerProjectEphemeralBotCommand" => {
             "rtd_layerhooks::projection::project_ephemeral_bot_command"
+        }
+        "layerProjectLegacyDefaultKeyboardButton" => {
+            "rtd_layerhooks::keyboard::project_default_button_type"
+        }
+        _ => return None,
+    })
+}
+
+/// The supply function for a hook that supplies a mandatory canonical field the
+/// profile omits. It takes no arguments and returns the canonical value.
+///
+/// Hooks with any other shape return `None`, so their layer stays fail-closed.
+#[must_use]
+pub fn field_supply(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "layerDefaultLegacyKeyboardButtonType" => {
+            "rtd_layerhooks::keyboard::supply_default_button_type"
         }
         _ => return None,
     })

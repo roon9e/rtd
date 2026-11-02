@@ -37,6 +37,7 @@ pub const IMPLEMENTED_HOOKS: &[&str] = &[
     "layerCaptureChatInviteJoinQueryIDFromWebView",
     "layerDefaultLegacyKeyboardButtonType",
     "layerProjectEphemeralBotCommand",
+    "layerProjectLegacyDefaultKeyboardButton",
     "layerRequireCapturedChatInviteJoinQueryID",
     "layerRequireLegacyEphemeralDeletePeer",
     "layerRequireLegacyEphemeralMessagePeer",
