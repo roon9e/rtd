@@ -168,15 +168,15 @@ impl EdgeConfig {
                 .transpose()?
                 .unwrap_or(false),
         };
-        if websocket_origins.is_empty() {
-            if let Some(value) = env("RTD_EDGE_WEBSOCKET_ORIGINS") {
-                websocket_origins = value
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|origin| !origin.is_empty())
-                    .map(str::to_owned)
-                    .collect();
-            }
+        if websocket_origins.is_empty()
+            && let Some(value) = env("RTD_EDGE_WEBSOCKET_ORIGINS")
+        {
+            websocket_origins = value
+                .split(',')
+                .map(str::trim)
+                .filter(|origin| !origin.is_empty())
+                .map(str::to_owned)
+                .collect();
         }
         let core_endpoint = core.or_else(|| env("RTD_EDGE_CORE"));
         let core_token = core_token.or_else(|| env("RTD_EDGE_CORE_TOKEN"));

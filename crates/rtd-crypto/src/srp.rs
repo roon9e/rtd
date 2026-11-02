@@ -442,14 +442,7 @@ mod tests {
         let challenge = challenge(&v, &input, &mut rng).unwrap();
 
         let answer = hash(&password, &challenge.public, &set_byte(1), &input).unwrap();
-        let m2 = verify(
-            &v,
-            &challenge.secret,
-            &answer.a,
-            &answer.m1,
-            &input,
-        )
-        .unwrap();
+        let m2 = verify(&v, &challenge.secret, &answer.a, &answer.m1, &input).unwrap();
         assert!(m2.is_some());
     }
 

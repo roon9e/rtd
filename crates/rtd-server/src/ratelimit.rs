@@ -162,8 +162,8 @@ impl RateLimiter {
             last_ms: now_ms,
         });
         let elapsed = now_ms.saturating_sub(bucket.last_ms) as f64 / 1000.0;
-        bucket.tokens =
-            (bucket.tokens + elapsed * f64::from(limit.refill_per_second)).min(f64::from(limit.burst));
+        bucket.tokens = (bucket.tokens + elapsed * f64::from(limit.refill_per_second))
+            .min(f64::from(limit.burst));
         bucket.last_ms = now_ms;
         if bucket.tokens >= 1.0 {
             bucket.tokens -= 1.0;
@@ -196,12 +196,22 @@ mod tests {
 
     #[test]
     fn a_burst_is_limited_and_recovers() {
-        let mut config = RateLimitConfig::default();
-        config.login = super::ClassLimit::new(2, 1);
+        let config = RateLimitConfig {
+            login: super::ClassLimit::new(2, 1),
+            ..RateLimitConfig::default()
+        };
         let limiter = RateLimiter::new(config);
 
-        assert!(limiter.check_at(MethodClass::Login, 7, Duration::ZERO).is_ok());
-        assert!(limiter.check_at(MethodClass::Login, 7, Duration::ZERO).is_ok());
+        assert!(
+            limiter
+                .check_at(MethodClass::Login, 7, Duration::ZERO)
+                .is_ok()
+        );
+        assert!(
+            limiter
+                .check_at(MethodClass::Login, 7, Duration::ZERO)
+                .is_ok()
+        );
         let wait = limiter
             .check_at(MethodClass::Login, 7, Duration::ZERO)
             .expect_err("the bucket is empty");
@@ -217,12 +227,22 @@ mod tests {
 
     #[test]
     fn identities_are_isolated() {
-        let mut config = RateLimitConfig::default();
-        config.login = super::ClassLimit::new(1, 1);
+        let config = RateLimitConfig {
+            login: super::ClassLimit::new(1, 1),
+            ..RateLimitConfig::default()
+        };
         let limiter = RateLimiter::new(config);
-        assert!(limiter.check_at(MethodClass::Login, 1, Duration::ZERO).is_ok());
+        assert!(
+            limiter
+                .check_at(MethodClass::Login, 1, Duration::ZERO)
+                .is_ok()
+        );
         // A different identity has its own bucket.
-        assert!(limiter.check_at(MethodClass::Login, 2, Duration::ZERO).is_ok());
+        assert!(
+            limiter
+                .check_at(MethodClass::Login, 2, Duration::ZERO)
+                .is_ok()
+        );
         assert!(
             limiter
                 .check_at(MethodClass::Login, 1, Duration::ZERO)

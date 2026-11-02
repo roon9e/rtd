@@ -60,8 +60,8 @@ pub use rsa::{
     rsa_fingerprint, rsa_pad,
 };
 pub use srp::{
-    Answer, Challenge, Input, challenge, hash as srp_hash, new_hash, new_hash_with_random, verifier,
-    verify,
+    Answer, Challenge, Input, challenge, hash as srp_hash, new_hash, new_hash_with_random,
+    verifier, verify,
 };
 pub use temp_keys::{
     decrypt_exchange_answer, encrypt_exchange_answer, nonce_hash1, server_salt, temp_aes_keys,

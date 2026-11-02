@@ -36,13 +36,15 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
 
 /// The length of an obfuscated2 init/header on the wire.
 const OBFUSCATED2_INIT_LEN: usize = 64;
 
 /// Smallest full-framing frame: `length | seq_no | crc`.
 const FULL_MIN_FRAME_LEN: usize = 3 * 4;
+
+/// Largest HTTP header block accepted before a WebSocket upgrade.
+const MAX_HTTP_HEAD: usize = 16 * 1024;
 
 /// How a connection's MTProto byte stream was wrapped on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -338,33 +340,71 @@ where
             let secret = config.faketls_secret()?;
             fake_tls_connection(stream, prefix, secret).await
         }
-        Wire::Http => {
-            if !config.websocket {
-                return Err(IngressError::Rejected("websocket ingress is not enabled"));
-            }
-            let origins = config.websocket_origins.clone();
-            let upgraded = tokio_tungstenite::accept_hdr_async(
-                Prefixed::new(prefix, stream),
-                move |request: &Request, response: Response| {
-                    if !origins.is_empty() {
-                        let allowed = request
-                            .headers()
-                            .get("origin")
-                            .and_then(|value| value.to_str().ok())
-                            .is_some_and(|origin| {
-                                origins.iter().any(|a| a.eq_ignore_ascii_case(origin))
-                            });
-                        if !allowed {
-                            return Err(ErrorResponse::new(Some("origin not allowed".to_owned())));
-                        }
-                    }
-                    Ok(response)
-                },
-            )
-            .await
-            .map_err(|err| IngressError::WebSocket(Box::new(err)))?;
-            websocket_connection(WsStream::new(upgraded), config).await
+        Wire::Http => http_connection(prefix, stream, config).await,
+    }
+}
+
+/// Reads the HTTP head, enforces the WebSocket origin allowlist, and upgrades.
+async fn http_connection<S>(
+    prefix: Vec<u8>,
+    stream: S,
+    config: &IngressConfig,
+) -> Result<Connection, IngressError>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    if !config.websocket {
+        return Err(IngressError::Rejected("websocket ingress is not enabled"));
+    }
+
+    // Read up to the end of the header block so the Origin header is available.
+    let mut prefixed = Prefixed::new(prefix, stream);
+    let mut head = Vec::new();
+    let mut byte = [0u8; 1];
+    loop {
+        if head.len() >= MAX_HTTP_HEAD {
+            return Err(IngressError::Rejected("http header block too large"));
         }
+        prefixed
+            .read_exact(&mut byte)
+            .await
+            .map_err(IngressError::Io)?;
+        head.push(byte[0]);
+        if head.ends_with(b"\r\n\r\n") {
+            break;
+        }
+    }
+
+    if !origin_allowed(&head, &config.websocket_origins) {
+        return Err(IngressError::Rejected("websocket origin not allowed"));
+    }
+
+    let (_, inner) = prefixed.into_parts();
+    let upgraded = tokio_tungstenite::accept_async(Prefixed::new(head, inner))
+        .await
+        .map_err(|err| IngressError::WebSocket(Box::new(err)))?;
+    websocket_connection(WsStream::new(upgraded), config).await
+}
+
+/// Returns whether the request head's `Origin` is allowed.
+///
+/// An empty allowlist accepts every origin; a non-empty allowlist requires an
+/// `Origin` header matching one of its entries (case-insensitively).
+fn origin_allowed(head: &[u8], origins: &[String]) -> bool {
+    if origins.is_empty() {
+        return true;
+    }
+    let text = String::from_utf8_lossy(head);
+    let origin = text.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case("origin")
+            .then(|| value.trim().to_owned())
+    });
+    match origin {
+        Some(value) => origins
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(&value)),
+        None => false,
     }
 }
 
@@ -560,6 +600,11 @@ impl<S> Prefixed<S> {
             pos: 0,
             inner,
         }
+    }
+
+    /// Splits the wrapper into its original buffer and the inner stream.
+    fn into_parts(self) -> (Vec<u8>, S) {
+        (self.prefix, self.inner)
     }
 }
 

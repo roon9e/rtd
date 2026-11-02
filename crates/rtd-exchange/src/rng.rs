@@ -228,9 +228,6 @@ mod tests {
     #[test]
     fn system_rng_uses_the_known_prime() {
         let mut rng = SystemServerRng;
-        assert_eq!(
-            rng.dh_prime().unwrap(),
-            TestServerRng.dh_prime().unwrap()
-        );
+        assert_eq!(rng.dh_prime().unwrap(), TestServerRng.dh_prime().unwrap());
     }
 }
