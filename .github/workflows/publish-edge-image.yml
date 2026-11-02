@@ -97,13 +97,3 @@ jobs:
 
       - name: Inspect manifest
         run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
-
-      # GHCR packages are private on first publish. Make this one public so the
-      # gramsrv overlay can pull it without credentials. Best effort: the
-      # default token may lack the packages permission, in which case flip the
-      # package once in the UI (Profile -> Packages -> rtd-edge -> Settings).
-      - name: Make the package public
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api -X PATCH "/user/packages/container/rtd-edge" -f visibility=public
