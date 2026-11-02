@@ -1,0 +1,26 @@
+# Tasks
+
+## 1. Per-profile legacy field codecs
+
+- [ ] 1.1 Emit a per-profile value type and field codec for every `ProfileOnly` constructor the enabled layers need (`keyboardButtonRequestPhone`, the older `replyInlineMarkup` row buttons, and the rest of the 73 `ProfileOnly` policy entries); verify a generated round trip for one legacy constructor on the layer that defines it
+- [ ] 1.2 Wire the legacy codecs into `emit_profile`'s profile codec and dispatchers, deduplicated by plan digest; verify generation stays deterministic and within a recorded budget
+
+## 2. `old-only` adapter hooks
+
+- [ ] 2.1 Implement the 17 `old-only` hooks in `rtd-layerhooks` from `td/tlprofile/adapters.go`; verify a unit test per hook including the fail-closed case
+- [ ] 2.2 Register the emitted legacy codecs and the `old-only` hooks in `rtd-layerhooks-registry` and flip them to `Implemented`; verify the generation gate covers every `old-only` obligation and reports none stale
+
+## 3. Row adapter
+
+- [ ] 3.1 Implement `layerAdaptLegacyInlineKeyboardRows` over the legacy button hooks; verify a row round trip and fail-closed on an unrepresentable button
+- [ ] 3.2 Emit the row adapter call site; verify the `replyInlineMarkup` policy route on an older layer executes
+
+## 4. Runtime and clause removal
+
+- [ ] 4.1 Serve `ProfileOnly` routes in admission, per-profile encode and decode with no canonical fallback; verify a `ProfileOnly` method and object round trip and fail-closed on a genuinely unrepresentable value
+- [ ] 4.2 Retire the `multi-layer-tl` "profile-only fails closed" clause with a MODIFIED requirement once `complete-multi-layer` is archived
+
+## 5. Verification
+
+- [ ] 5.1 Add per-layer round-trip tests for the legacy constructors and a route-completeness test asserting an explicit action for every profile-only `(wire × profile)` pair
+- [ ] 5.2 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace`, generation freshness) and confirm all are green
