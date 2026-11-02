@@ -15,7 +15,7 @@ use rtd_proto::{
 };
 use rtd_tg::{
     AuthAuthorization, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder,
-    HelpGetConfig, InitConnection, InvokeWithLayer, LAYER, Method, Object,
+    HelpGetConfig, InitConnection, InvokeWithLayer, LAYER, Method, Object, Update, Updates,
 };
 use rtd_util::Clock;
 
@@ -57,6 +57,7 @@ pub struct Client<T: Transport> {
     session: ClientSession,
     random: SystemRandom,
     initialized: bool,
+    handler: Option<Box<dyn FnMut(Updates) + Send>>,
 }
 
 /// One inbound message, reduced to what the caller cares about.
@@ -111,6 +112,7 @@ impl<T: Transport> Client<T> {
             session: ClientSession::new(auth_key, session_id, salt, clock),
             random: SystemRandom,
             initialized: false,
+            handler: None,
         }
     }
 
@@ -137,6 +139,15 @@ impl<T: Transport> Client<T> {
     ) -> Self {
         let auth_key = Key::from_array(data.auth_key).with_id();
         Self::new(transport, auth_key, data.session_id, data.salt, clock)
+    }
+
+    /// Sets the handler invoked for server updates received while a call awaits
+    /// its reply.
+    ///
+    /// An `Updates` envelope is passed as decoded; a bare `Update` is wrapped in
+    /// [`Updates::UpdateShort`].
+    pub fn set_update_handler(&mut self, handler: impl FnMut(Updates) + Send + 'static) {
+        self.handler = Some(Box::new(handler));
     }
 
     /// Establishes the session with `invokeWithLayer`/`initConnection` at the
@@ -323,8 +334,36 @@ impl<T: Transport> Client<T> {
                 Ok(Reply::BadSalt)
             }
             BAD_MSG_NOTIFICATION_ID => Ok(Reply::Ignored),
-            _ => Ok(Reply::Ignored),
+            _ => {
+                self.dispatch_update(body);
+                Ok(Reply::Ignored)
+            }
         }
+    }
+
+    /// Offers a non-result message to the update handler; returns whether it was
+    /// recognised as an update.
+    fn dispatch_update(&mut self, body: &[u8]) -> bool {
+        if self.handler.is_none() {
+            return false;
+        }
+        let mut decoder = Decoder::new(body, DecodeLimits::default());
+        let updates = if let Ok(updates) = Updates::decode(&mut decoder) {
+            updates
+        } else {
+            let mut decoder = Decoder::new(body, DecodeLimits::default());
+            match Update::decode(&mut decoder) {
+                Ok(update) => Updates::UpdateShort {
+                    update: Box::new(update),
+                    date: 0,
+                },
+                Err(_) => return false,
+            }
+        };
+        if let Some(handler) = self.handler.as_mut() {
+            handler(updates);
+        }
+        true
     }
 
     fn ungzip(&self, payload: &[u8]) -> Result<Vec<u8>> {
