@@ -83,6 +83,7 @@ fn make_options() -> ServerOptions {
                 &rtd_exchange::ServerConfig {
                     dc: DC,
                     key: key.as_ref(),
+                    strict_dc: true,
                 },
                 &mut parameters,
                 clock,

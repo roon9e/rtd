@@ -26,6 +26,14 @@ pub struct ServerConfig<'a> {
     pub dc: i32,
     /// The server's RSA private key.
     pub key: &'a RsaPrivateKey,
+    /// Whether to reject a client that selects a different datacenter label.
+    ///
+    /// The reference edge runs with this **off** (`strict_dc_check: false`): a
+    /// single physical backend accepts every wire datacenter label, and the
+    /// label never changes key persistence or session identity. Clients commonly
+    /// try several labels (for example 2, 3, 4) before one succeeds, so a strict
+    /// server drops their handshakes.
+    pub strict_dc: bool,
 }
 
 /// Result of a completed server exchange.
@@ -125,7 +133,7 @@ pub fn server_exchange(
         } => (
             nonce,
             server_nonce,
-            check_dc(config.dc, dc).map(|()| new_nonce)?,
+            accept_dc(config, dc).map(|()| new_nonce)?,
         ),
         P_Q_inner_data::P_q_inner_data_temp_dc {
             nonce,
@@ -136,7 +144,7 @@ pub fn server_exchange(
         } => (
             nonce,
             server_nonce,
-            check_dc(config.dc, dc).map(|()| new_nonce)?,
+            accept_dc(config, dc).map(|()| new_nonce)?,
         ),
     };
     if nonce != client_nonce || request_server_nonce != server_nonce {
@@ -217,6 +225,15 @@ fn check_dc(want: i32, got: i32) -> Result<()> {
         Ok(())
     } else {
         Err(Error::WrongDc { want, got })
+    }
+}
+
+/// Accepts a client-selected datacenter label, honouring `strict_dc`.
+fn accept_dc(config: &ServerConfig<'_>, got: i32) -> Result<()> {
+    if config.strict_dc {
+        check_dc(config.dc, got)
+    } else {
+        Ok(())
     }
 }
 

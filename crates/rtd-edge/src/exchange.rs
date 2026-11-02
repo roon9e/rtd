@@ -40,7 +40,14 @@ impl Exchange for ServerExchange {
         random: &mut dyn rtd_crypto::RandomSource,
     ) -> rtd_exchange::Result<ServerExchangeResult> {
         let key: &RsaPrivateKey = &self.key;
-        let config = ServerConfig { dc: self.dc, key };
+        // Match the reference edge's `strict_dc_check: false`: accept every DC
+        // label, since one physical edge answers for all of them and clients try
+        // several before one sticks.
+        let config = ServerConfig {
+            dc: self.dc,
+            key,
+            strict_dc: false,
+        };
         let mut rng = TestServerRng;
         let mut stream = StreamRef(stream);
         let mut random = RandomRef(random);

@@ -80,6 +80,7 @@ fn spawn_server(
             &ServerConfig {
                 dc: 2,
                 key: &private,
+                strict_dc: true,
             },
             &mut parameters,
             &clock,
