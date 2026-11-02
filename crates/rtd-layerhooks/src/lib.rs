@@ -17,6 +17,7 @@ pub mod chat_invite;
 pub mod ephemeral;
 pub mod error;
 pub mod keyboard;
+pub mod legacy;
 pub mod projection;
 pub mod results;
 pub mod text;

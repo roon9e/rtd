@@ -7,7 +7,7 @@
 
 ## 2. `old-only` adapter hooks
 
-- [ ] 2.1 Implement the 17 `old-only` hooks in `rtd-layerhooks` from `td/tlprofile/adapters.go`; verify a unit test per hook including the fail-closed case
+- [x] 2.1 Implement the 17 `old-only` hooks in `rtd-layerhooks` from `td/tlprofile/adapters.go`; verify a unit test per hook including the fail-closed case (`legacy.rs`: 6 `KeyboardButton` + 11 `KeyboardInlineButton` hook pairs, each a `-> canonical` builder and a `-> fields` extractor that fails closed with `HookError::WrongVariant`; tests cover the built type, the extracted fields and the wrong-variant path)
 - [ ] 2.2 Register the emitted legacy codecs and the `old-only` hooks in `rtd-layerhooks-registry` and flip them to `Implemented`; verify the generation gate covers every `old-only` obligation and reports none stale
 
 ## 3. Row adapter
