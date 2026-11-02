@@ -275216,10 +275216,32 @@ pub fn encode_messages_chat_invite_join_result_profile(
                     }
                     Ok(())
                 }
+                RouteMode::Policy => {
+                    __w.put_u32(route.wire_id);
+                    match profile.layer {
+                        227 => encode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(profile, __value, __w)?,
+                        _ => return Err(ProjectionError::RouteNotEmitted(route)),
+                    }
+                    Ok(())
+                }
                 _ => Err(ProjectionError::RouteNotEmitted(route)),
             }
         }
     }
+}
+
+fn encode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(
+    profile: Profile,
+    value: &rtd_tg::MessagesChatInviteJoinResult,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultWebView { .. } = value else {
+        unreachable!()
+    };
+    Err(ProjectionError::Unrepresentable {
+        layer: profile.layer,
+        wire_id: 0x61ca29d3,
+    })
 }
 
 pub fn decode_messages_chat_invite_join_result_profile(
@@ -275234,55 +275256,78 @@ pub fn decode_messages_chat_invite_join_result_profile(
         }))?;
     match route.mode {
         RouteMode::Direct | RouteMode::Retag => {
-            Ok(rtd_tg::MessagesChatInviteJoinResult::decode_with_id(
-                __d,
-                canonical_wire_id(route.semantic).unwrap_or(id),
-            )?)
+            Ok(rtd_tg::MessagesChatInviteJoinResult::decode_with_id(__d, canonical_wire_id(route.semantic).unwrap_or(id))?)
         }
-        RouteMode::Rewrite => match route.semantic.0 {
-            0x110d741747488ce9 => {
-                let updates: ::std::boxed::Box<rtd_tg::Updates> = {
-                    __d.enter()?;
-                    let value = {
-                        let __id = __d.take_u32()?;
-                        decode_updates_profile(profile, __id, __d)?
-                    };
-                    __d.leave();
-                    ::std::boxed::Box::new(value)
-                };
-                Ok(rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultOk { updates })
+        RouteMode::Rewrite => {
+            match route.semantic.0 {
+                0x110d741747488ce9 => {
+                    let updates: ::std::boxed::Box<rtd_tg::Updates> = { __d.enter()?; let value = { let __id = __d.take_u32()?; decode_updates_profile(profile, __id, __d)? }; __d.leave(); ::std::boxed::Box::new(value) };
+                    Ok(rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultOk { updates })
+                }
+                0xff56c36068d38f95 => {
+                    let bot_id: i64 = __d.take_i64()?;
+                    let query_id: i64 = __d.take_i64()?;
+                    let users: ::std::vec::Vec<rtd_tg::User> = { let n = __d.take_vector_header()?; let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n)); for _ in 0..n { items.push({ __d.enter()?; let value = { let __id = __d.take_u32()?; decode_user_profile(profile, __id, __d)? }; __d.leave(); value }); } items };
+                    Ok(rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultWebView { bot_id, query_id, users })
+                }
+                _ => Err(AdmitError::UnsupportedRoute(route)),
             }
-            0xff56c36068d38f95 => {
-                let bot_id: i64 = __d.take_i64()?;
-                let query_id: i64 = __d.take_i64()?;
-                let users: ::std::vec::Vec<rtd_tg::User> = {
-                    let n = __d.take_vector_header()?;
-                    let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
-                    for _ in 0..n {
-                        items.push({
-                            __d.enter()?;
-                            let value = {
-                                let __id = __d.take_u32()?;
-                                decode_user_profile(profile, __id, __d)?
-                            };
-                            __d.leave();
-                            value
-                        });
+        }
+        RouteMode::Policy => {
+            match route.semantic.0 {
+                0xff56c36068d38f95 => {
+                    match profile.layer {
+                        227 => decode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(profile, __d),
+                        _ => Err(AdmitError::UnsupportedRoute(route)),
                     }
-                    items
-                };
-                Ok(
-                    rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultWebView {
-                        bot_id,
-                        query_id,
-                        users,
-                    },
-                )
+                }
+                _ => Err(AdmitError::UnsupportedRoute(route)),
             }
-            _ => Err(AdmitError::UnsupportedRoute(route)),
-        },
-        _ => Err(AdmitError::UnsupportedRoute(route)),
+        }
+        _ => {
+            Err(AdmitError::UnsupportedRoute(route))
+        }
     }
+}
+
+fn decode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(
+    profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::MessagesChatInviteJoinResult, AdmitError> {
+    let bot_id: i64 = __d.take_i64()?;
+    let webview: ::std::boxed::Box<rtd_tg::WebViewResult> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_web_view_result_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let users: ::std::vec::Vec<rtd_tg::User> = {
+        let n = __d.take_vector_header()?;
+        let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+        for _ in 0..n {
+            items.push({
+                __d.enter()?;
+                let value = {
+                    let __id = __d.take_u32()?;
+                    decode_user_profile(profile, __id, __d)?
+                };
+                __d.leave();
+                value
+            });
+        }
+        items
+    };
+    let query_id: i64 = rtd_layerhooks::chat_invite::capture_query_id_from_webview(&webview)?;
+    Ok(
+        rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultWebView {
+            bot_id,
+            query_id,
+            users,
+        },
+    )
 }
 
 pub fn encode_messages_chats_profile(

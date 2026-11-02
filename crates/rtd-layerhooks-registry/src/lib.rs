@@ -233,6 +233,31 @@ pub fn field_supply(name: &str) -> Option<&'static str> {
     })
 }
 
+/// A capture hook: a mandatory canonical field the profile omits is derived from
+/// another profile field (e.g. the chat invite query id captured from `webview`).
+#[derive(Debug, Clone, Copy)]
+pub struct Capture {
+    /// The capture function, taking the source profile field by reference.
+    pub function: &'static str,
+    /// The canonical field the capture fills.
+    pub target: &'static str,
+}
+
+/// The capture hook for a name, when it is a capture.
+///
+/// Hooks with any other shape return `None`, so their layer stays fail-closed.
+#[must_use]
+pub fn field_capture(name: &str) -> Option<Capture> {
+    Some(match name {
+        "layerCaptureChatInviteJoinQueryIDFromWebView"
+        | "layerRequireCapturedChatInviteJoinQueryID" => Capture {
+            function: "rtd_layerhooks::chat_invite::capture_query_id_from_webview",
+            target: "query_id",
+        },
+        _ => return None,
+    })
+}
+
 /// The requirement function for a hook that only requires a field to be present
 /// (canonical optional -> profile mandatory). It takes `(present, value)` and
 /// returns the value, failing closed when absent.

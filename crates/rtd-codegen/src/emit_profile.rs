@@ -220,6 +220,17 @@ struct AdapterHooks {
     project: std::collections::BTreeMap<String, &'static str>,
     /// `canonical field name` to its supply function.
     supply: std::collections::BTreeMap<String, &'static str>,
+    /// `canonical field name` to a capture from a profile field.
+    captures: std::collections::BTreeMap<String, CaptureHook>,
+}
+
+/// A capture: a canonical field derived from a profile field.
+struct CaptureHook {
+    function: &'static str,
+    /// The source profile field name.
+    source: String,
+    /// The source field's Rust type.
+    source_inner: crate::emit_tg::RustType,
 }
 
 /// One supported policy layer for a canonical constructor.
@@ -242,6 +253,8 @@ struct PolicyLayer<'a> {
     project_hooks: std::collections::BTreeMap<String, &'static str>,
     /// `canonical field name` to its supply function.
     supply_hooks: std::collections::BTreeMap<String, &'static str>,
+    /// `canonical field name` to a capture from a profile field.
+    captures: std::collections::BTreeMap<String, CaptureHook>,
 }
 
 /// Builds the adapter call sites for a layer, or `None` when an obligation needs
@@ -273,12 +286,22 @@ fn collect_adapter_hooks(
         std::collections::BTreeMap::new();
     let mut project_pending: std::collections::BTreeMap<String, &'static str> =
         std::collections::BTreeMap::new();
+    // canonical target -> (capture function, source profile field)
+    let mut pending_captures: std::collections::BTreeMap<String, (&'static str, Option<String>)> =
+        std::collections::BTreeMap::new();
     for obligation in obligations {
         let Some(resolution) = &obligation.resolution else {
             return None;
         };
         match resolution.action.as_str() {
             "drop" | "reject-if-present" | "default" => {}
+            "reject" => {
+                // Only a canonical-to-profile reject is emittable; a profile-side
+                // reject has no decode error channel yet.
+                if matches!(obligation.direction, "profile-to-canonical" | "both") {
+                    return None;
+                }
+            }
             "adapter" => {
                 if let Some(convert) = rtd_layerhooks_registry::field_convert(&resolution.hook) {
                     let (canonical, encode, decode) = match obligation.direction {
@@ -321,13 +344,31 @@ fn collect_adapter_hooks(
                         return None;
                     }
                     pending.insert(obligation.field.clone(), Pending::Require(function));
-                } else {
-                    let function = rtd_layerhooks_registry::field_supply(&resolution.hook)?;
+                } else if let Some(function) =
+                    rtd_layerhooks_registry::field_supply(&resolution.hook)
+                {
                     // A supply is profile-to-canonical only.
                     if obligation.direction != "profile-to-canonical" {
                         return None;
                     }
                     pending.insert(obligation.other_field.clone(), Pending::Supply(function));
+                } else {
+                    let capture = rtd_layerhooks_registry::field_capture(&resolution.hook)?;
+                    // A capture is profile-to-canonical only.
+                    if obligation.direction != "profile-to-canonical" {
+                        return None;
+                    }
+                    let entry = pending_captures
+                        .entry(capture.target.to_owned())
+                        .or_insert((capture.function, None));
+                    // The discard obligation names the source profile field; the
+                    // paired requirement obligation names the target only.
+                    if !obligation.field.is_empty() {
+                        if entry.1.is_some() {
+                            return None;
+                        }
+                        entry.1 = Some(obligation.field.clone());
+                    }
                 }
             }
             "project" => {
@@ -347,6 +388,7 @@ fn collect_adapter_hooks(
         require: std::collections::BTreeMap::new(),
         project: std::collections::BTreeMap::new(),
         supply: std::collections::BTreeMap::new(),
+        captures: std::collections::BTreeMap::new(),
     };
     for (canonical, entry) in pending {
         let field = definition
@@ -431,6 +473,33 @@ fn collect_adapter_hooks(
         }
         adapter.project.insert(canonical, function);
     }
+    for (target, (function, source)) in pending_captures {
+        let source = source?;
+        let target_field = definition
+            .fields
+            .iter()
+            .find(|field| field.name == target)?;
+        if target_field.kind != FieldKind::Value {
+            return None;
+        }
+        let source_field = profile_def
+            .fields
+            .iter()
+            .find(|field| field.name == source)?;
+        // A capture source is a mandatory value field read once.
+        if source_field.kind != FieldKind::Value || source_field.condition.is_some() {
+            return None;
+        }
+        let source_inner = crate::emit_tg::field_rust_type(source_field, classes, bare_ids).ok()?;
+        adapter.captures.insert(
+            target,
+            CaptureHook {
+                function,
+                source,
+                source_inner,
+            },
+        );
+    }
     Some(adapter)
 }
 
@@ -479,16 +548,6 @@ fn collect_policy_layers<'a>(
             .filter(|m| !m.canonical_name.is_empty())
             .map(|m| (m.profile_name.clone(), m.canonical_name.clone()))
             .collect();
-        // Every profile value field and presence bit must have a canonical
-        // source; a profile-only field would need a default value, so it stays
-        // fail-closed.
-        if !profile_def
-            .fields
-            .iter()
-            .all(|field| field.kind == FieldKind::FlagsWord || mapping.contains_key(&field.name))
-        {
-            continue;
-        }
         let reverse: std::collections::BTreeMap<String, String> = mapping
             .iter()
             .map(|(profile_name, canonical_name)| (canonical_name.clone(), profile_name.clone()))
@@ -517,14 +576,28 @@ fn collect_policy_layers<'a>(
         ) else {
             continue;
         };
-        // Every canonical field the layer dropped must be optional (or defaulted)
-        // so the canonical value can be rebuilt; otherwise it stays fail-closed.
+        // Every profile value field and presence bit must have a canonical
+        // source, unless it is a capture source read only to fill a canonical
+        // field; otherwise the layer stays fail-closed.
+        let is_capture_source =
+            |name: &str| adapter.captures.values().any(|hook| hook.source == name);
+        if !profile_def.fields.iter().all(|field| {
+            field.kind == FieldKind::FlagsWord
+                || mapping.contains_key(&field.name)
+                || is_capture_source(&field.name)
+        }) {
+            continue;
+        }
+        // Every canonical field the layer dropped must be optional (or defaulted
+        // or supplied or captured) so the canonical value can be rebuilt;
+        // otherwise it stays fail-closed.
         let rebuildable = definition.fields.iter().all(|field| {
             reverse.contains_key(&field.name)
                 || field.kind == FieldKind::FlagsWord
                 || field.condition.is_some()
                 || canonical_defaults.contains(&field.name)
                 || adapter.supply.contains_key(&field.name)
+                || adapter.captures.contains_key(&field.name)
         });
         if !rebuildable {
             continue;
@@ -540,21 +613,39 @@ fn collect_policy_layers<'a>(
             require_hooks: adapter.require,
             project_hooks: adapter.project,
             supply_hooks: adapter.supply,
+            captures: adapter.captures,
         });
     }
     layers
 }
 
 /// Emits the body that writes a canonical value into one policy layer's shape.
+///
+/// Returns whether the caller should append `Ok(())`; a whole-value `reject`
+/// emits its own tail expression.
 fn emit_policy_layer_body(
     code: &mut crate::emit_tg::Code,
     definition: &Definition,
     types: &[crate::emit_tg::RustType],
     layer: &PolicyLayer<'_>,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     use crate::emit::field_ident;
     use crate::emit_tg::encode_value;
     use crate::model::FieldKind;
+
+    // A canonical-to-profile `reject` fails the whole conversion.
+    if layer.obligations.iter().any(|obligation| {
+        obligation
+            .resolution
+            .as_ref()
+            .is_some_and(|resolution| resolution.action == "reject")
+    }) {
+        code.line(&format!(
+            "Err(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {:#010x} }})",
+            definition.wire_id
+        ));
+        return Ok(false);
+    }
 
     // A value projection gates the whole value: a canonical value the older
     // layer cannot represent is projected away rather than encoded lossily. A
@@ -723,7 +814,7 @@ fn emit_policy_layer_body(
             }
         }
     }
-    Ok(())
+    Ok(true)
 }
 
 /// Whether encoding or decoding a value of `ty` recurses through the profile
@@ -860,6 +951,16 @@ fn emit_policy_encode_fns(
                 used.push(canonical.clone());
             }
         }
+        // A whole-value `reject` body is just its tail expression, so it binds
+        // nothing (any binding would be unused).
+        if layer.obligations.iter().any(|obligation| {
+            obligation
+                .resolution
+                .as_ref()
+                .is_some_and(|resolution| resolution.action == "reject")
+        }) {
+            used.clear();
+        }
         used.sort();
         let bindings: Vec<String> = used
             .iter()
@@ -883,8 +984,9 @@ fn emit_policy_encode_fns(
             layer.layer
         ));
         code.line(&extract);
-        emit_policy_layer_body(&mut code, definition, types, layer)?;
-        code.line("Ok(())");
+        if emit_policy_layer_body(&mut code, definition, types, layer)? {
+            code.line("Ok(())");
+        }
         code.close("}");
         out.push_str(&code.out);
         out.push('\n');
@@ -952,6 +1054,21 @@ fn emit_policy_decode_fns(
                 } else {
                     code.line("let _ = __d.take_u32()?;");
                 }
+                continue;
+            }
+            // A capture source is a profile-only field read to fill a canonical
+            // field; it has no canonical counterpart of its own.
+            if let Some(capture) = layer
+                .captures
+                .values()
+                .find(|hook| hook.source == profile_field.name)
+            {
+                let read_ty = &capture.source_inner;
+                code.line(&format!(
+                    "let {binding}: {} = {};",
+                    read_ty.rendered_in(true),
+                    decode_expr(read_ty, true)
+                ));
                 continue;
             }
             let canonical = layer.mapping.get(&profile_field.name).ok_or_else(|| {
@@ -1030,6 +1147,21 @@ fn emit_policy_decode_fns(
             let supplied = wrap_canonical(&types[ordinal], &format!("{supply_fn}()"));
             code.line(&format!("let {name}: {canonical_ty} = {supplied};"));
         }
+        // Derive a canonical field from a profile-only source field.
+        for (target, hook) in &layer.captures {
+            let name = field_ident(target);
+            let ordinal = definition
+                .fields
+                .iter()
+                .position(|field| &field.name == target)
+                .ok_or_else(|| format!("policy: canonical field {target} missing"))?;
+            let canonical_ty = types[ordinal].rendered_in(true);
+            let source_binding = field_ident(&hook.source);
+            let function = hook.function;
+            let captured =
+                wrap_canonical(&types[ordinal], &format!("{function}(&{source_binding})?"));
+            code.line(&format!("let {name}: {canonical_ty} = {captured};"));
+        }
         let mut fields = Vec::new();
         for (index, field) in definition.fields.iter().enumerate() {
             let name = field_ident(&field.name);
@@ -1104,8 +1236,10 @@ fn emit_policy_decode_fns(
                 }
                 continue;
             }
-            if layer.supply_hooks.contains_key(&field.name) {
-                // The canonical field was supplied by a hook above.
+            if layer.supply_hooks.contains_key(&field.name)
+                || layer.captures.contains_key(&field.name)
+            {
+                // The canonical field was supplied or captured above.
                 fields.push(name);
                 continue;
             }

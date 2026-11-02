@@ -9,7 +9,8 @@ use rtd_tg::{
     AuthBindTempAuthKey, Bool, BotCommand, BotInfo, BotVerification, ButtonType,
     ChannelsJoinChannel, ChatAdminRights, Decoder, InitConnection, InputChannel, InputInvoice,
     InputPeer, InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, KeyboardButton, MessageEntity,
-    MessagesDeleteMessages, Method, Object, SendMessageAction, TextWithEntities, Update,
+    MessagesChatInviteJoinResult, MessagesDeleteMessages, Method, Object, SendMessageAction,
+    TextWithEntities, Update, WebViewResult,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, RouteMode,
@@ -665,6 +666,47 @@ fn policy_keyboard_button_supplies_and_projects_the_type() {
         .encode(Profile::new(225), &mut Writer::new())
         .expect_err("a non-default button type is projected away");
     assert_eq!(error, ProjectionError::Dropped);
+}
+
+/// A capture hook derives a canonical field from a profile-only field: layer 227
+/// `chatInviteJoinResultWebView` carries the join query id inside `webview`, and
+/// decoding captures it into the canonical `query_id`.
+#[test]
+fn policy_capture_derives_a_canonical_field() {
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| route.profile == 227 && route.wire_id == 0x2f51_c337)
+        .copied()
+        .expect("layer 227 chatInviteJoinResultWebView route");
+    assert_eq!(route.mode, RouteMode::Policy);
+
+    let mut writer = Writer::new();
+    writer.put_u32(route.wire_id);
+    writer.put_i64(42); // bot_id
+    WebViewResult::WebViewResultUrl {
+        flags: 0,
+        fullsize: false,
+        fullscreen: false,
+        same_origin: false,
+        query_id: Some(7),
+        url: "https://example.test".to_owned(),
+    }
+    .encode(&mut writer);
+    writer.put_vector_header(0); // users
+
+    let decoded =
+        decode_object(Profile::new(227), &writer.into_vec(), Limits::default()).expect("decode");
+    let Object::MessagesChatInviteJoinResult(result) = decoded else {
+        panic!("expected chatInviteJoinResult");
+    };
+    let MessagesChatInviteJoinResult::ChatInviteJoinResultWebView {
+        bot_id, query_id, ..
+    } = *result
+    else {
+        panic!("expected the webview variant");
+    };
+    assert_eq!(bot_id, 42);
+    assert_eq!(query_id, 7);
 }
 
 /// A second present-in-both family fans out across the enabled set: layer 225..=228
