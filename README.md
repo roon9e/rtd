@@ -8,10 +8,28 @@ protocol core and a multi-datacenter, Telegram-compatible server runtime.
 Telegram-compatible server can support **exact multi-layer operation** and **multiple
 datacenters** from the start.
 
-> **Status: early.** The protocol primitives (serialization, crypto, framing,
-> transports), the injectable clock/randomness, and the Go cross-check harness are
-> implemented. The multi-layer generator, the server edge/RPC runtime, and the multi-DC
-> runtime are in progress. See [`openspec/`](openspec/) for the plan.
+> **Status: in progress.** The sans-IO protocol core (serialization, crypto, framing,
+> transports, injectable clock/randomness, the Go cross-check harness, and the generated
+> `rtd-tg`/`rtd-mt` value and service models), the multi-layer admission/routing runtime
+> (`rtd-tlprofile`), and the server edge/RPC runtime (`rtd-server`, `rtd-edge`) are
+> implemented. Multi-layer conversion coverage is being completed; a client library and
+> multi-DC routing are not started. See [`openspec/`](openspec/) for the plan.
+
+## Progress
+
+| Stage | OpenSpec change | Status |
+|---|---|---|
+| Foundation — protocol core, generator, manifests | `establish-rtd-foundation` | done (archived) |
+| Server runtime — edge, RPC dispatch, in-process core | `add-server-runtime` | done (archived) |
+| Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | in progress |
+| Multi-DC — routing, migration, authorization transfer, delivery | planned | not started |
+| Client library | planned | not started |
+
+Within `complete-multi-layer`, layers 225–232 are enabled and the generated sidecar
+executes direct, retag and rewrite routes plus the mechanical policy conversions and the
+emitted hook shapes; the remaining conversion shapes fail closed. See
+[`openspec/changes/complete-multi-layer/`](openspec/changes/complete-multi-layer/) for the
+task list and decisions.
 
 ## Goals
 
@@ -39,6 +57,7 @@ Core (sans-IO, no runtime, no I/O):
 | `rtd-tlprofile` | generated multi-layer routing + admission runtime |
 | `rtd-error` | Telegram TL error parsing |
 | `rtd-util` | injectable clock and randomness |
+| `rtd-tmap` | typed map helpers |
 
 Runtime and tooling:
 
@@ -47,6 +66,8 @@ Runtime and tooling:
 | `rtd-server` | server edge, RPC dispatch, multi-DC runtime |
 | `rtd-edge-proto` | gRPC contract between the edge and a core service |
 | `rtd-edge` | the sidecar edge service binary |
+| `rtd-layerhooks-registry` | shared hook-signature registry (generator + hooks) |
+| `rtd-layerhooks` | hand-written per-layer conversion hooks the sidecar calls |
 | `rtd-codegen` | the multi-layer TL code generator (tool) |
 | `rtd` | facade re-exporting the public surface |
 
@@ -129,6 +150,8 @@ follow-up.
 - `unsafe` code is forbidden workspace-wide.
 - Public items are documented; clippy warnings are denied.
 - Generated crates are produced by `rtd-codegen` and never edited by hand.
+- `NEXT_SESSION.md` is a local, gitignored session handoff; it is not part of the
+  repository.
 
 ## Compatibility targets
 

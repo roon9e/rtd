@@ -5,6 +5,9 @@
 # OpenSpec local state
 openspec/.openspec/
 
+# Local session handoff
+NEXT_SESSION.md
+
 # Editors / OS
 .vscode/
 .idea/
