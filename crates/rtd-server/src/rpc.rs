@@ -25,12 +25,16 @@ use rtd_tlprofile::{
     ProjectionError, SemanticId, WrapperKind, resolve_profile,
 };
 
+use crate::ratelimit::{MethodClass, RateLimiter};
+
 /// TL error code for a method the router does not handle.
 pub const CODE_NOT_FOUND: i32 = 404;
 /// TL error code for a malformed or rejected request.
 pub const CODE_BAD_REQUEST: i32 = 400;
 /// TL error code for an internal failure.
 pub const CODE_INTERNAL: i32 = 500;
+/// TL error code telling a client to wait before retrying.
+pub const CODE_FLOOD_WAIT: i32 = 420;
 
 /// TL error message for an unknown method.
 pub const ERR_METHOD_NOT_FOUND: &str = "METHOD_NOT_FOUND";
@@ -54,6 +58,12 @@ pub fn unknown_method_error() -> RtdError {
 #[must_use]
 pub fn result_identity_error() -> RtdError {
     RtdError::new(CODE_INTERNAL, ERR_RESULT_IDENTITY)
+}
+
+/// Returns the `FLOOD_WAIT_<seconds>` TL error.
+#[must_use]
+pub fn flood_wait_error(seconds: u64) -> RtdError {
+    RtdError::new(CODE_FLOOD_WAIT, format!("FLOOD_WAIT_{seconds}"))
 }
 
 /// Returns the TL error for call metadata that differs from the request.
@@ -238,6 +248,7 @@ pub trait Router: Send + Sync {
 /// The default [`Router`], backed by a semantic handler map.
 pub struct HandlerRouter {
     handlers: HashMap<u64, Box<dyn Handler + Send + Sync>>,
+    rate_limit: Option<RateLimiter>,
 }
 
 impl HandlerRouter {
@@ -246,7 +257,15 @@ impl HandlerRouter {
     pub fn new() -> Self {
         Self {
             handlers: HashMap::new(),
+            rate_limit: None,
         }
+    }
+
+    /// Attaches a per-method rate limiter consulted before dispatch.
+    #[must_use]
+    pub fn with_rate_limit(mut self, limiter: RateLimiter) -> Self {
+        self.rate_limit = Some(limiter);
+        self
     }
 
     /// Creates a router serving the built-in methods configured by `config`.
@@ -270,6 +289,14 @@ impl Router for HandlerRouter {
     }
 
     fn route(&self, admission: &Admission) -> Result<RoutedResult, RtdError> {
+        if let Some(limiter) = &self.rate_limit {
+            // The identity is deployment-global for now; per-session identity is a
+            // later refinement that the actor can supply.
+            let class = MethodClass::of(admission.semantic);
+            limiter
+                .check(class, 0)
+                .map_err(|wait| flood_wait_error(wait.as_secs().max(1)))?;
+        }
         let handler = self
             .handlers
             .get(&admission.semantic.get())
