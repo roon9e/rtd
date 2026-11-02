@@ -17,4 +17,6 @@ pub use client::{Client, InitParams};
 pub use error::{Error, Result};
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
 pub use session::{ClientSession, SaltStore, SessionData};
-pub use transport::{DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp};
+pub use transport::{
+    DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp, dial_tcp,
+};

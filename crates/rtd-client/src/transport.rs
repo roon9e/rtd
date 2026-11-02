@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use rtd_proto::{Abridged, Codec, CodecKind, Full, Intermediate, PaddedIntermediate};
-use rtd_transport::Obfuscated2;
+use rtd_transport::{DefaultDialer, Dialer as _, Obfuscated2, Secret};
 
 use crate::error::{Error, Result};
 
@@ -147,6 +147,26 @@ pub fn connect_tcp(
         .obfuscated_tag()
         .ok_or_else(|| Error::Transport("full framing has no obfuscation tag".to_owned()))?;
     let stream = Obfuscated2::handshake(socket, tag, dc, secret)
+        .map_err(|error| Error::Transport(error.to_string()))?;
+    Framed::new(Box::new(stream) as Box<dyn ReadWrite>, codec, false)
+}
+
+/// Dials `address` and applies the MTProxy layer selected by `secret`.
+///
+/// Unlike [`connect_tcp`], this selects FakeTLS for an `ee` secret and derives
+/// the keys from the parsed secret; plain TCP is [`connect_tcp`] with no
+/// `obfuscation`.
+///
+/// # Errors
+///
+/// Returns [`Error::Io`] when the socket cannot be created, [`Error::Transport`]
+/// when the handshake fails, and an error for full framing (it has no tag).
+pub fn dial_tcp(address: &str, dc: u16, codec: CodecKind, secret: &Secret) -> Result<TcpTransport> {
+    let tag = codec
+        .obfuscated_tag()
+        .ok_or_else(|| Error::Transport("full framing has no obfuscation tag".to_owned()))?;
+    let stream = DefaultDialer
+        .dial(address, dc, tag, secret)
         .map_err(|error| Error::Transport(error.to_string()))?;
     Framed::new(Box::new(stream) as Box<dyn ReadWrite>, codec, false)
 }

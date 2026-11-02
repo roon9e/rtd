@@ -13,11 +13,13 @@
 //! (plain, secured `dd`, or FakeTLS `ee`) and key, so a configuration string can
 //! be composed with the layer it selects.
 
+pub mod dialer;
 pub mod error;
 pub mod faketls;
 pub mod obfuscated2;
 pub mod secret;
 
+pub use dialer::{DefaultDialer, Dialer, Stream};
 pub use error::{Error, Result};
 pub use faketls::{
     FakeTls, MAX_HANDSHAKE_RECORDS, RANDOM_LENGTH, RANDOM_OFFSET, RECORD_TYPE_ALERT,
