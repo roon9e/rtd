@@ -213,6 +213,18 @@ fn debug() -> Result<(), String> {
         routes.routes.len(),
         modes,
     );
+    for route in routes
+        .routes
+        .iter()
+        .filter(|route| route.mode.as_str() == "profile-only")
+    {
+        println!(
+            "  profile_only layer={} semantic={} wire_id={:#010x}",
+            route.layer,
+            route.semantic.as_string(),
+            route.wire_id,
+        );
+    }
     for route in routes.routes.iter().take(5) {
         match routes.wire_id(route.layer, &route.semantic) {
             Some(wire_id) => println!(

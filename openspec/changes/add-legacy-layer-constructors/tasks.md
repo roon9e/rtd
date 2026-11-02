@@ -2,7 +2,7 @@
 
 ## 1. Per-profile legacy field codecs
 
-- [ ] 1.1 Emit a per-profile value type and field codec for every `ProfileOnly` constructor the enabled layers need (`keyboardButtonRequestPhone`, the older `replyInlineMarkup` row buttons, and the rest of the 73 `ProfileOnly` policy entries); verify a generated round trip for one legacy constructor on the layer that defines it
+- [ ] 1.1 Emit a per-profile value type and field codec for every `ProfileOnly` constructor the enabled layers need; verify a generated round trip for one legacy constructor on the layer that defines it (the surface is exactly **18 keyboard-button constructors** on layers 225–228 — `keyboardButton{Url,Callback,RequestPhone,RequestGeoLocation,RequestPoll,RequestPeer,SwitchInline,Game,Buy,UrlAuth,UserProfile,WebView,SimpleWebView,Copy}`, `inputKeyboardButton{RequestPeer,UrlAuth,UserProfile}`, `inputPasskeyCredentialFirebasePNV` — plus `inputPasskeyCredentialFirebasePNV` alone on 229; `cargo run -p rtd-codegen -- debug` lists them: `profile_only` lines)
 - [ ] 1.2 Wire the legacy codecs into `emit_profile`'s profile codec and dispatchers, deduplicated by plan digest; verify generation stays deterministic and within a recorded budget
 
 ## 2. `old-only` adapter hooks
