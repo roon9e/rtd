@@ -18,7 +18,7 @@
 ## 4. Runtime and clause removal
 
 - [x] 4.1 Serve `ProfileOnly` routes in per-profile encode and decode with no canonical route fallback; verify a `ProfileOnly` object round trip and fail-closed on a genuinely unrepresentable value (`profile_only_keyboard_button_round_trips`, `profile_only_keyboard_inline_button_round_trips`; `profile_only_route_without_a_hook_fails_closed` refuses `inputPasskeyCredentialFirebasePNV`; there are no `ProfileOnly` *methods*, so the skeleton-admission path is unchanged)
-- [ ] 4.2 Retire the `multi-layer-tl` "profile-only fails closed" clause with a MODIFIED requirement once `complete-multi-layer` is archived
+- [x] 4.2 Retire the `multi-layer-tl` "profile-only fails closed" clause with a MODIFIED requirement once `complete-multi-layer` is archived (`complete-multi-layer` archived 2026-11-02; `add-legacy-layer-constructors/specs/multi-layer-tl/spec.md` MODIFIES "Present-family non-direct route execution" so a target-only route is served through its `old-only` hook and only an absent or hookless route fails closed; `.../specs/layer-conversion-policy/spec.md` ADDs "Old-only constructors are converted through reviewed hooks")
 
 ## 5. Verification
 

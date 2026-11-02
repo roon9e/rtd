@@ -21,20 +21,18 @@ datacenters** from the start.
 |---|---|---|
 | Foundation — protocol core, generator, manifests | `establish-rtd-foundation` | done (archived) |
 | Server runtime — edge, RPC dispatch, in-process core | `add-server-runtime` | done (archived) |
-| Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | in progress (17/20; 179/179 policy routes) |
-| Multi-layer — legacy `ProfileOnly` constructors | `add-legacy-layer-constructors` | in progress (9/10; legacy rows adapter and `ProfileOnly` routes served) |
+| Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | done (archived) |
+| Multi-layer — legacy `ProfileOnly` constructors | `add-legacy-layer-constructors` | done (archived) |
 | Multi-DC — routing, migration, authorization transfer, delivery | planned | not started |
 | Client library | planned | not started |
 
-Within `complete-multi-layer`, layers 225–232 are enabled and the generated sidecar
-executes direct, retag and rewrite routes plus the mechanical policy conversions and the
-emitted hook shapes. The legacy keyboard-rows adapter (`layerAdaptLegacyInlineKeyboardRows`)
-is emitted as a nested codec so `replyInlineMarkup.rows` is served on layers 225–228, and the
-`ProfileOnly` keyboard-button constructors are served through the reviewed `old-only` hooks
-(tracked by `add-legacy-layer-constructors`); only `inputPasskeyCredentialFirebasePNV` (no
-hook) still fails closed. See
-[`openspec/changes/complete-multi-layer/`](openspec/changes/complete-multi-layer/) for the
-task list and decisions.
+Layers 225–232 are enabled and the generated sidecar executes direct, retag and rewrite
+routes plus every policy conversion: the mechanical classes, the present-in-both hooks, the
+nested legacy keyboard-rows adapter (`replyInlineMarkup.rows` on 225–228), and the legacy
+`ProfileOnly` button constructors (decoded into the canonical class through the reviewed
+`old-only` hooks). Only `inputPasskeyCredentialFirebasePNV` (no hook) fails closed. See
+[`openspec/specs/`](openspec/specs/) for the capability specs and
+[`openspec/changes/archive/`](openspec/changes/archive/) for the completed changes.
 
 ## Goals
 

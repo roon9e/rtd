@@ -53,9 +53,12 @@ only present-in-both hook deferred from `complete-multi-layer`.
 
 ### D4. Removing the fail-closed clause
 
-`multi-layer-tl`'s "profile-only fails closed" clause is retired with a MODIFIED requirement
-once `complete-multi-layer` is archived; until then this change's spec delta ADDs the
-`legacy-layer-constructors` capability only.
+`multi-layer-tl`'s "profile-only fails closed" clause — the "Absent or target-only route fails
+closed" scenario of "Present-family non-direct route execution" — is retired by a MODIFIED
+requirement: a target-only route is served through its `old-only` hook, and only an absent or
+hookless route fails closed. This lands after `complete-multi-layer` is archived (done:
+archived 2026-11-02). A small ADDED requirement in `layer-conversion-policy` documents the
+`old-only` hooks and the generation gate.
 
 ### D5. The rows codec is generator-emitted field logic over field-value hooks
 
