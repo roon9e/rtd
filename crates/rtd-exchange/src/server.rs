@@ -43,6 +43,14 @@ pub struct ServerExchangeResult {
     pub auth_key: AuthKey,
     /// The initial server salt.
     pub server_salt: i64,
+    /// The key's absolute expiry as a Unix timestamp, or `0` when the client
+    /// requested a persistent key.
+    ///
+    /// A client that asks for a temporary key (`p_q_inner_data_temp_dc`) must
+    /// have it persisted with a live expiry: the core only accepts
+    /// `auth.bindTempAuthKey` when the temporary key is not yet expired and the
+    /// permanent key never expires.
+    pub expires_at: i32,
 }
 
 /// Runs the server side of the authorization-key exchange.
@@ -117,13 +125,13 @@ pub fn server_exchange(
     // 2. Unwrap the RSA-padded inner data and validate the requested datacenter.
     let inner_bytes = rtd_crypto::decode_rsa_pad(&request.encrypted_data, config.key)?;
     let inner = decode_with(&inner_bytes, P_Q_inner_data::decode)?;
-    let (nonce, request_server_nonce, new_nonce) = match inner {
+    let (nonce, request_server_nonce, new_nonce, expires_in) = match inner {
         P_Q_inner_data::P_q_inner_data {
             nonce,
             server_nonce,
             new_nonce,
             ..
-        } => (nonce, server_nonce, new_nonce),
+        } => (nonce, server_nonce, new_nonce, None),
         P_Q_inner_data::P_q_inner_data_dc {
             nonce,
             server_nonce,
@@ -134,17 +142,20 @@ pub fn server_exchange(
             nonce,
             server_nonce,
             accept_dc(config, dc).map(|()| new_nonce)?,
+            None,
         ),
         P_Q_inner_data::P_q_inner_data_temp_dc {
             nonce,
             server_nonce,
             new_nonce,
             dc,
+            expires_in,
             ..
         } => (
             nonce,
             server_nonce,
             accept_dc(config, dc).map(|()| new_nonce)?,
+            Some(expires_in),
         ),
     };
     if nonce != client_nonce || request_server_nonce != server_nonce {
@@ -213,9 +224,11 @@ pub fn server_exchange(
         writer.as_slice(),
     )?;
 
+    let expires_at = expires_in.map_or(0, |secs| unix_seconds(clock) + secs);
     Ok(ServerExchangeResult {
         auth_key: AuthKey::new(key_value),
         server_salt: rtd_crypto::server_salt(new_nonce_bytes, server_nonce_bytes),
+        expires_at,
     })
 }
 

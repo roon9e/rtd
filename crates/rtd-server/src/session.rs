@@ -240,11 +240,12 @@ fn auth_key_from_record(record: &AuthKeyRecord) -> Result<AuthKey, RtdError> {
 
 /// Returns the durable record for an authorization key.
 #[must_use]
-fn record_for(key: &AuthKey, dc: i32) -> AuthKeyRecord {
+fn record_for(key: &AuthKey, dc: i32, expires_at: i32) -> AuthKeyRecord {
     AuthKeyRecord {
         id: AuthKeyId(key.id),
         dc,
         key: key.value.as_bytes().to_vec(),
+        expires_at,
     }
 }
 
@@ -263,8 +264,9 @@ pub async fn save_auth_key_before_confirm(
     cache: &AuthKeyCache,
     key: &AuthKey,
     dc: i32,
+    expires_at: i32,
 ) -> Result<AuthKeyRecord, RtdError> {
-    let record = record_for(key, dc);
+    let record = record_for(key, dc, expires_at);
     core.save_auth_key(record.clone()).await?;
     cache.insert(*key).await;
     Ok(record)
@@ -524,7 +526,7 @@ mod tests {
         let core = FakeCore::new();
         let cache = AuthKeyCache::new();
         let key = key(3);
-        let record = save_auth_key_before_confirm(&core, &cache, &key, 2)
+        let record = save_auth_key_before_confirm(&core, &cache, &key, 2, 0)
             .await
             .expect("save");
         assert_eq!(record.id, AuthKeyId(key.id));
@@ -546,7 +548,7 @@ mod tests {
         core.fail_save.store(true, Ordering::Relaxed);
         let cache = AuthKeyCache::new();
         let key = key(5);
-        let error = save_auth_key_before_confirm(&core, &cache, &key, 2)
+        let error = save_auth_key_before_confirm(&core, &cache, &key, 2, 0)
             .await
             .expect_err("save fails");
         assert_eq!(error.message(), "CORE_FAILURE");
@@ -563,7 +565,7 @@ mod tests {
     #[tokio::test]
     async fn fetch_on_unknown_resolves_from_core_and_caches() {
         let key = key(9);
-        let record = record_for(&key, 2);
+        let record = record_for(&key, 2, 0);
         let core = FakeCore::with_key(record.clone());
         let cache = AuthKeyCache::new();
 

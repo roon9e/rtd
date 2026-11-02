@@ -14,7 +14,7 @@ use rtd_server::actor::{BudgetLimits, Exchange, Server, ServerOptions};
 use rtd_server::core::{Core, LocalCore};
 use rtd_server::ingress::IngressConfig;
 use rtd_server::rpc::{DataCenter, ServerConfig};
-use rtd_tlprofile::{CANONICAL_LAYER, Profile};
+use rtd_tlprofile::Profile;
 use rtd_util::SystemClock;
 use tonic::transport::Endpoint;
 
@@ -43,7 +43,7 @@ pub async fn bind(config: EdgeConfig) -> Result<Server, EdgeError> {
         dc: config.dc,
         clock: Arc::new(SystemClock),
         exchange,
-        layer: Profile::new(CANONICAL_LAYER),
+        layer: Profile::new(config.layer),
         idle_timeout: IDLE_TIMEOUT,
         budget_limits: BudgetLimits::default(),
     };
@@ -130,6 +130,7 @@ mod tests {
         let config = EdgeConfig {
             bind: "127.0.0.1:0".to_owned(),
             dc: 2,
+            layer: rtd_tlprofile::CANONICAL_LAYER,
             rsa_key_path: "key.pem".into(),
             secret: Some(rtd_transport::Secret::parse("00112233445566778899aabbccddeeff").unwrap()),
             websocket: true,
@@ -156,6 +157,7 @@ mod tests {
         let config = EdgeConfig {
             bind: "127.0.0.1:0".to_owned(),
             dc: 2,
+            layer: rtd_tlprofile::CANONICAL_LAYER,
             rsa_key_path: "does-not-exist.pem".into(),
             secret: None,
             websocket: false,

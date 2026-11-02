@@ -46,6 +46,10 @@ pub struct AuthKeyRecord {
     pub dc: i32,
     /// The raw authorization-key bytes.
     pub key: Vec<u8>,
+    /// The key's absolute expiry as a Unix timestamp, or `0` for a persistent
+    /// key. A temporary key must carry a live expiry so the core can validate a
+    /// later `auth.bindTempAuthKey`.
+    pub expires_at: i32,
 }
 
 /// Durable session-layer evidence.
@@ -374,6 +378,7 @@ mod tests {
             id,
             dc: 2,
             key: vec![0xaa; 256],
+            expires_at: 0,
         };
         core.save_auth_key(record.clone()).await.expect("save");
         assert_eq!(core.get_auth_key(id).await.expect("get"), Some(record));

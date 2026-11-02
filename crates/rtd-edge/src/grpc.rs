@@ -196,7 +196,11 @@ impl Core for GrpcCore {
                 session_id: call.session.0,
                 msg_id: call.msg_id,
                 admission_seq: 0,
-                profile_evidence_fresh: false,
+                // The edge admits every dispatch from a live inbound frame, so the
+                // profile evidence is current. Sending `false` makes the core treat
+                // layer-sensitive RPCs (for example `auth.bindTempAuthKey`) as stale
+                // replay evidence and reject them.
+                profile_evidence_fresh: true,
                 identity_hint: None,
                 client_ip: String::new(),
             };
@@ -241,6 +245,7 @@ impl Core for GrpcCore {
                 id,
                 dc: 0,
                 key: record.value,
+                expires_at: record.expires_at,
             }))
         })
     }
@@ -371,7 +376,7 @@ fn auth_key_to_proto(key: AuthKeyRecord) -> ProtoAuthKeyRecord {
         value: key.key,
         server_salt: 0,
         created_at: 0,
-        expires_at: 0,
+        expires_at: key.expires_at,
         layer: 0,
         layer_observation_id: 0,
         device_model: String::new(),
@@ -622,6 +627,7 @@ mod tests {
                         id,
                         dc: 0,
                         key: record.value,
+                        expires_at: record.expires_at,
                     };
                     let response = match core.save_auth_key(native).await {
                         Ok(()) => ErrorResponse {
@@ -661,7 +667,7 @@ mod tests {
                                 value: record.key,
                                 server_salt: 0,
                                 created_at: 0,
-                                expires_at: 0,
+                                expires_at: record.expires_at,
                                 layer: 0,
                                 layer_observation_id: 0,
                                 device_model: String::new(),
@@ -1053,6 +1059,7 @@ mod tests {
                 id,
                 dc: 2,
                 key: vec![0xaa; 32],
+                expires_at: 0,
             })
             .await
             .expect("save");

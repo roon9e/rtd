@@ -71,6 +71,7 @@ async fn binds_from_configuration_with_an_in_process_core() {
     let config = EdgeConfig {
         bind: "127.0.0.1:0".to_owned(),
         dc: 2,
+        layer: rtd_tlprofile::CANONICAL_LAYER,
         rsa_key_path: path.clone(),
         secret: None,
         websocket: false,

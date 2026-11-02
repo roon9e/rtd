@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rsa::RsaPrivateKey;
+use rtd_tlprofile::CANONICAL_LAYER;
 use rtd_transport::Secret;
 
 use crate::error::EdgeError;
@@ -18,6 +19,13 @@ pub const DEFAULT_BIND: &str = "0.0.0.0:443";
 
 /// The default serving datacenter identifier.
 pub const DEFAULT_DC: i32 = 2;
+
+/// The default layer profile the edge admits bare requests under.
+///
+/// This must match the layer the backing core can re-admit. A gramsrv v2 core
+/// pins the layer-229 schema, so a 232 default makes every bare request (for
+/// example `auth.bindTempAuthKey` or a ping) fail admission at the core.
+pub const DEFAULT_LAYER: i32 = CANONICAL_LAYER;
 
 /// The `--help` text.
 pub const USAGE: &str = "\
@@ -29,6 +37,7 @@ USAGE:
 OPTIONS:
     --bind <ADDR>      Address to listen on [env: RTD_EDGE_BIND] [default: 0.0.0.0:443]
     --dc <ID>          Serving datacenter id [env: RTD_EDGE_DC] [default: 2]
+    --layer <N>        Layer profile for bare requests [env: RTD_EDGE_LAYER] [default: 232]
     --rsa-key <PATH>   PEM RSA private key file [env: RTD_EDGE_RSA_KEY]
     --secret <HEX>     MTProxy secret: plain, `dd`, or `ee` [env: RTD_EDGE_SECRET]
     --websocket        Enable WebSocket ingress [env: RTD_EDGE_WEBSOCKET]
@@ -45,6 +54,8 @@ pub struct EdgeConfig {
     pub bind: String,
     /// The datacenter this edge serves.
     pub dc: i32,
+    /// The layer profile the edge admits bare requests under.
+    pub layer: i32,
     /// The path to the PEM RSA private key used for the key exchange.
     pub rsa_key_path: PathBuf,
     /// The optional MTProxy secret, parsed from its human string.
@@ -73,6 +84,7 @@ impl EdgeConfig {
         let args: Vec<String> = args.into_iter().collect();
         let mut bind = None;
         let mut dc = None;
+        let mut layer = None;
         let mut rsa_key = None;
         let mut secret = None;
         let mut websocket = None;
@@ -88,6 +100,7 @@ impl EdgeConfig {
             match name.as_str() {
                 "--bind" => bind = Some(take(&args, &mut index, inline, &name)?),
                 "--dc" => dc = Some(take(&args, &mut index, inline, &name)?),
+                "--layer" => layer = Some(take(&args, &mut index, inline, &name)?),
                 "--rsa-key" => rsa_key = Some(take(&args, &mut index, inline, &name)?),
                 "--secret" => secret = Some(take(&args, &mut index, inline, &name)?),
                 "--core" => core = Some(take(&args, &mut index, inline, &name)?),
@@ -114,6 +127,12 @@ impl EdgeConfig {
                 .map_err(|_| EdgeError::Usage(format!("invalid --dc value {value:?}")))?,
             None => DEFAULT_DC,
         };
+        let layer = match layer.or_else(|| env("RTD_EDGE_LAYER")) {
+            Some(value) => value
+                .parse()
+                .map_err(|_| EdgeError::Usage(format!("invalid --layer value {value:?}")))?,
+            None => DEFAULT_LAYER,
+        };
         let rsa_key = rsa_key.or_else(|| env("RTD_EDGE_RSA_KEY")).ok_or_else(|| {
             EdgeError::Usage("the --rsa-key option (or RTD_EDGE_RSA_KEY) is required".to_owned())
         })?;
@@ -137,6 +156,7 @@ impl EdgeConfig {
         Ok(Self {
             bind,
             dc,
+            layer,
             rsa_key_path: PathBuf::from(rsa_key),
             secret,
             websocket,

@@ -84,6 +84,8 @@ const ID_DH_GEN_OK: u32 = 0x3bcb_f734;
 const ID_DH_GEN_RETRY: u32 = 0x46dc_1fb9;
 /// `set_client_DH_params_answer`/`dh_gen_fail` constructor identifier.
 const ID_DH_GEN_FAIL: u32 = 0xa69d_ae02;
+/// `msg_container` constructor identifier.
+const ID_MSG_CONTAINER: u32 = 0x73f1_f8dc;
 
 /// A caller-supplied source identity for the per-source connection budget.
 ///
@@ -969,31 +971,62 @@ impl ExchangeStream for ChannelStream {
 }
 
 /// Drives the connection's handshake phase.
+///
+/// A real client may run more than one key exchange on the same connection
+/// before it starts encrypting: Telegram Desktop performs a persistent exchange
+/// and then a temporary one, and a client whose `resPQ` nonce desyncs can resend
+/// `req_pq`. The reference edge services handshake frames until it sees an
+/// encrypted frame, so we do the same: run exchanges back to back until a frame
+/// with a non-zero auth-key id arrives, remembering the most recent key.
 async fn run_handshake(
     inbound: &mut mpsc::Receiver<Vec<u8>>,
     writer: &WriterHandle,
     context: &ConnContext,
 ) -> Result<HandshakeOutcome, ActorError> {
-    let first = match inbound.recv().await {
-        Some(frame) => frame,
-        None => {
-            return Ok(HandshakeOutcome {
-                auth_key: None,
-                salt: 0,
-                pending: None,
-            });
-        }
-    };
+    let mut auth_key: Option<AuthKey> = None;
+    let mut salt = 0;
+    let mut pending: Option<Vec<u8>> = None;
 
-    // A peer that already holds a key skips the exchange.
-    if is_encrypted(&first) {
-        return Ok(HandshakeOutcome {
-            auth_key: None,
-            salt: 0,
-            pending: Some(first),
-        });
+    loop {
+        let first = match pending.take() {
+            Some(frame) => frame,
+            None => match inbound.recv().await {
+                Some(frame) => frame,
+                None => break,
+            },
+        };
+
+        // A peer that already holds a key skips straight to the session.
+        if is_encrypted(&first) {
+            pending = Some(first);
+            break;
+        }
+
+        let outcome = run_one_exchange(inbound, writer, context, first).await?;
+        if let Some(key) = outcome.auth_key {
+            auth_key = Some(key);
+            salt = outcome.salt;
+        }
+        if let Some(frame) = outcome.pending {
+            pending = Some(frame);
+            break;
+        }
     }
 
+    Ok(HandshakeOutcome {
+        auth_key,
+        salt,
+        pending,
+    })
+}
+
+/// Runs a single authorization-key exchange.
+async fn run_one_exchange(
+    inbound: &mut mpsc::Receiver<Vec<u8>>,
+    writer: &WriterHandle,
+    context: &ConnContext,
+    first: Vec<u8>,
+) -> Result<HandshakeOutcome, ActorError> {
     let (request_tx, request_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let (response_tx, mut response_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let exchange = context.options.exchange.clone();
@@ -1014,6 +1047,10 @@ async fn run_handshake(
 
     while finished.is_none() {
         tokio::select! {
+            // Prefer joining a finished exchange so a frame that arrives after it
+            // completes is left in `inbound` for the next exchange instead of
+            // being forwarded into the exchange's now-dead request channel.
+            biased;
             joined = &mut handle => {
                 finished = Some(joined.expect("exchange thread panicked"));
             }
@@ -1063,6 +1100,7 @@ async fn run_handshake(
                 &context.cache,
                 &result.auth_key,
                 context.options.dc,
+                result.expires_at,
             )
             .await
             .is_err()
@@ -1269,6 +1307,21 @@ impl Actor {
         body: &[u8],
     ) -> Result<bool, ActorError> {
         match peek_id(body) {
+            ID_MSG_CONTAINER => {
+                if let Some(messages) = decode_container(body) {
+                    for (msg_id, inner) in messages {
+                        let inner_header = MessageHeader {
+                            salt: header.salt,
+                            session_id: header.session_id,
+                            msg_id,
+                            seq_no: header.seq_no,
+                        };
+                        if !Box::pin(self.handle_body(inner_header, &inner)).await? {
+                            return Ok(false);
+                        }
+                    }
+                }
+            }
             Ping::TYPE_ID => {
                 if let Some(ping) = decode_body(body, Ping::decode) {
                     self.send_pong(header.msg_id, ping.ping_id).await?;
@@ -1550,6 +1603,34 @@ fn is_encrypted(frame: &[u8]) -> bool {
     auth_key_id(frame).is_some_and(|id| id != [0u8; 8])
 }
 
+/// Decodes a `msg_container` into its inner `(msg_id, body)` pairs.
+///
+/// The inner body is handed to the core verbatim, so the raw bytes are returned
+/// instead of a re-encoded form. Returns `None` when the body is not a
+/// well-formed container.
+fn decode_container(body: &[u8]) -> Option<Vec<(i64, Vec<u8>)>> {
+    let mut reader = rtd_bin::Reader::new(body);
+    if reader.take_u32().ok()? != ID_MSG_CONTAINER {
+        return None;
+    }
+    let count = reader.take_i32().ok()?;
+    if count < 0 {
+        return None;
+    }
+    let mut messages = Vec::with_capacity(count as usize);
+    for _ in 0..count {
+        let msg_id = reader.take_i64().ok()?;
+        let _seq_no = reader.take_i32().ok()?;
+        let length = reader.take_i32().ok()?;
+        if length < 0 {
+            return None;
+        }
+        let inner = reader.take_raw(length as usize).ok()?;
+        messages.push((msg_id, inner.to_vec()));
+    }
+    Some(messages)
+}
+
 /// Returns `true` when `frame` is a `set_client_DH_params_answer`.
 fn is_exchange_answer(frame: &[u8]) -> bool {
     let Ok(message) = UnencryptedMessage::decode(frame) else {
@@ -1637,6 +1718,7 @@ mod tests {
             id: AuthKeyId(key.id),
             dc: 2,
             key: key.value.as_bytes().to_vec(),
+            expires_at: 0,
         }
     }
 
@@ -1790,6 +1872,7 @@ mod tests {
                 Ok(rtd_exchange::ServerExchangeResult {
                     auth_key: key,
                     server_salt: salt,
+                    expires_at: 0,
                 })
             },
         )
