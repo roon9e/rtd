@@ -14,8 +14,9 @@ use rtd_proto::{
     RPC_RESULT_TYPE_ID, RpcResult,
 };
 use rtd_tg::{
-    AuthAuthorization, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder,
-    HelpGetConfig, InitConnection, InvokeWithLayer, LAYER, Method, Object, Update, Updates,
+    AuthAuthorization, AuthImportBotAuthorization, AuthSendCode, AuthSentCode, AuthSignIn,
+    CodeSettings, DecodeLimits, Decoder, HelpGetConfig, InitConnection, InvokeWithLayer, LAYER,
+    Method, Object, Update, Updates,
 };
 use rtd_util::Clock;
 
@@ -266,6 +267,30 @@ impl<T: Transport> Client<T> {
         match self.invoke(query)? {
             Object::AuthAuthorization(authorization) => Ok(*authorization),
             other => Err(unexpected("auth.signIn", &other)),
+        }
+    }
+
+    /// Authorizes a bot with a token (`auth.importBotAuthorization`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a different constructor.
+    pub fn bot_sign_in(
+        &mut self,
+        token: &str,
+        api_id: i32,
+        api_hash: &str,
+    ) -> Result<AuthAuthorization> {
+        let query = Method::AuthImportBotAuthorization(Box::new(AuthImportBotAuthorization {
+            flags: 0,
+            api_id,
+            api_hash: api_hash.to_owned(),
+            bot_auth_token: token.to_owned(),
+        }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.importBotAuthorization", &other)),
         }
     }
 
