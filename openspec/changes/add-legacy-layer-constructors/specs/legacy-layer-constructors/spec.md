@@ -3,7 +3,7 @@
 ## Purpose
 
 Defines how a constructor that exists only in an older layer (`ProfileOnly`) is served: a
-generated per-profile field codec, the reviewed `old-only` conversion hooks, and the row
+generated `ProfileOnly` dispatch over the reviewed `old-only` conversion hooks, and the row
 adapter that composes them.
 
 ## ADDED Requirements
@@ -11,19 +11,27 @@ adapter that composes them.
 ### Requirement: Per-profile legacy codecs
 
 For every `ProfileOnly` constructor an enabled layer needs, the generator SHALL emit a
-per-profile value type and field codec so the constructor can be decoded and re-encoded
-without a canonical counterpart.
+`ProfileOnly` dispatch in the canonical class's profile codec: it reads the older layer's own
+field layout and calls the reviewed `old-only` hook to obtain the canonical class value, and
+encoding a canonical value reverses it. There is no canonical route fallback.
 
 #### Scenario: A legacy constructor round trips on its layer
 
 - **WHEN** a legacy constructor defined only in an older layer is decoded and re-encoded for
   that layer
-- **THEN** the value survives the round trip in the layer's own field layout
+- **THEN** the value survives the round trip through the `old-only` hook
 
-#### Scenario: A legacy constructor has no canonical value
+#### Scenario: A legacy constructor is served, not refused
 
-- **WHEN** a `ProfileOnly` route is admitted on an older layer
-- **THEN** it is decoded into the profile model directly, with no canonical fallback emitted
+- **WHEN** a `ProfileOnly` route with a registered `old-only` hook is decoded on its older
+  layer
+- **THEN** it is converted into the canonical class value, and a canonical value of the
+  matching type is encoded back into the legacy constructor
+
+#### Scenario: A legacy constructor without a hook fails closed
+
+- **WHEN** a `ProfileOnly` route has no registered `old-only` hook
+- **THEN** decoding fails closed with an unsupported-route error
 
 ### Requirement: Reviewed `old-only` conversions
 

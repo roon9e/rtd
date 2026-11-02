@@ -6,9 +6,11 @@
 //! hooks crate consume, so a hook cannot be referenced without a signature and a
 //! signature cannot go stale.
 //!
-//! Only the **present-in-both** adapter hooks are registered here. Hooks whose
-//! family exists only in an older layer (`old-only` / `ProfileOnly`) are deferred
-//! to the `add-legacy-layer-constructors` change and are absent by design.
+//! Besides the **present-in-both** hooks in [`HOOKS`], this crate registers the
+//! **`old-only`** hooks in [`LEGACY_HOOKS`]: the constructors that exist only in
+//! an older layer (`ProfileOnly`) and map to the canonical class they replaced.
+//! Generation cannot reference a hook without a signature here, and a
+//! generation-time gate rejects a stale or missing registration.
 #![warn(missing_docs)]
 
 /// The direction a hook converts.
@@ -214,7 +216,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         encode: "rtd_layerhooks::legacy::input_keyboard_button_request_peer_fields",
     },
     OldOnlyHook {
-        name: "layerAdaptLegacyKeyboardButtonBuy",
+        name: "layerAdaptLegacyKeyboardInlineButtonBuy",
         wire_id: 0x3fa5_3905,
         canonical: LegacyCanonical::KeyboardInlineButton,
         variant: "InlineButtonTypeBuy",
@@ -390,7 +392,7 @@ pub fn legacy_params(name: &str) -> Option<&'static [&'static str]> {
             "peer_type",
             "max_quantity",
         ],
-        "layerAdaptLegacyKeyboardButtonBuy"
+        "layerAdaptLegacyKeyboardInlineButtonBuy"
         | "layerAdaptLegacyKeyboardButtonRequestPhone"
         | "layerAdaptLegacyKeyboardButtonRequestGeoLocation"
         | "layerAdaptLegacyKeyboardInlineButtonGame" => &["style", "text"],
@@ -434,6 +436,17 @@ pub struct FieldConvert {
     pub encode: &'static str,
     /// Profile field value to the canonical field value.
     pub decode: &'static str,
+}
+
+/// The number of leading value fields a legacy hook packs into a single tuple
+/// argument, because the hook would otherwise exceed the lint's argument limit.
+/// The default is one argument per field.
+#[must_use]
+pub fn legacy_param_tuple_prefix(name: &str) -> usize {
+    match name {
+        "layerAdaptLegacyInputKeyboardButtonRequestPeer" => 3,
+        _ => 1,
+    }
 }
 
 /// The field-conversion functions for a hook, when it is field-shaped.
@@ -544,8 +557,8 @@ pub fn implemented_names() -> Vec<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Direction, HOOKS, LEGACY_HOOKS, Status, implemented_names, legacy_for_wire, legacy_rows,
-        lookup,
+        Direction, HOOKS, LEGACY_HOOKS, Status, implemented_names, legacy_for_wire,
+        legacy_param_tuple_prefix, legacy_params, legacy_rows, lookup,
     };
 
     #[test]
@@ -619,6 +632,23 @@ mod tests {
                 "duplicate variant {variant}"
             );
         }
+    }
+
+    #[test]
+    fn legacy_tuple_prefix_stays_within_the_fields() {
+        for hook in LEGACY_HOOKS {
+            let prefix = legacy_param_tuple_prefix(hook.name);
+            let params = legacy_params(hook.name).expect("params");
+            assert!(
+                (1..=params.len()).contains(&prefix),
+                "hook {} has a bad tuple prefix {prefix}",
+                hook.name
+            );
+        }
+        assert_eq!(
+            legacy_param_tuple_prefix("layerAdaptLegacyInputKeyboardButtonRequestPeer"),
+            3
+        );
     }
 
     #[test]

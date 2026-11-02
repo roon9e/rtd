@@ -155,6 +155,15 @@ fn emit_profile_codec(
         bare_ids: &bare_ids,
         semantic: &semantic,
     };
+    let unit_variants = canonical_unit_variants(universe);
+    let legacy_classes = {
+        let env = AdapterEnv {
+            classes: &classes,
+            bare_ids: &bare_ids,
+            unit_variants: &unit_variants,
+        };
+        collect_legacy_classes(universe, plan, &env)
+    };
 
     let mut class_names: Vec<&String> = class_map.keys().collect();
     class_names.sort();
@@ -173,7 +182,7 @@ fn emit_profile_codec(
             type_local.eq_ignore_ascii_case(ctor_local)
         };
         if is_concrete {
-            emit_struct_codec(out, &ctx, &ident, ctors[0])?;
+            emit_struct_codec(out, &ctx, &ident, ctors[0], legacy_classes.get(qname))?;
         } else {
             let variants: Vec<(String, &Definition)> = ctors
                 .iter()
@@ -187,14 +196,14 @@ fn emit_profile_codec(
     }
     for definition in &object_constructors {
         let ident = ident_for_qname(&definition.key.qname);
-        emit_struct_codec(out, &ctx, &ident, definition)?;
+        emit_struct_codec(out, &ctx, &ident, definition, None)?;
     }
     for definition in &methods {
         let ident = ident_for_qname(&definition.key.qname);
-        emit_struct_codec(out, &ctx, &ident, definition)?;
+        emit_struct_codec(out, &ctx, &ident, definition, None)?;
     }
 
-    emit_object_codec(out, &class_map, &object_constructors);
+    emit_object_codec(out, &class_map, &object_constructors, &legacy_classes);
     emit_method_codec(out, &methods);
     Ok(())
 }
@@ -281,6 +290,8 @@ struct LegacyButton {
     decode_fn: &'static str,
     /// Canonical-to-profile field extractor.
     encode_fn: &'static str,
+    /// How many leading value fields the hook packs into one tuple argument.
+    tuple_prefix: usize,
     /// The legacy constructor's fields, in declaration order.
     fields: Vec<crate::model::Field>,
     /// The Rust type of each field (parallel to `fields`).
@@ -295,6 +306,91 @@ struct AdapterEnv<'a> {
     bare_ids: &'a std::collections::BTreeMap<String, (String, u32)>,
     /// Canonical enum variant name to whether it is a unit variant.
     unit_variants: &'a std::collections::BTreeMap<String, bool>,
+}
+
+/// The canonical enum name for an `old-only` adapter's canonical kind.
+fn legacy_enum_name(canonical: rtd_layerhooks_registry::LegacyCanonical) -> &'static str {
+    match canonical {
+        rtd_layerhooks_registry::LegacyCanonical::KeyboardInlineButton => "InlineButtonType",
+        rtd_layerhooks_registry::LegacyCanonical::KeyboardButton => "ButtonType",
+    }
+}
+
+/// The canonical class qname for an `old-only` adapter's canonical kind.
+fn legacy_class_qname(canonical: rtd_layerhooks_registry::LegacyCanonical) -> &'static str {
+    match canonical {
+        rtd_layerhooks_registry::LegacyCanonical::KeyboardInlineButton => "KeyboardInlineButton",
+        rtd_layerhooks_registry::LegacyCanonical::KeyboardButton => "KeyboardButton",
+    }
+}
+
+/// The `ProfileOnly` constructors of one canonical class, per older layer.
+///
+/// The canonical class codec serves these directly (`RouteMode::ProfileOnly`),
+/// decoding to and encoding from the canonical class value through the
+/// `old-only` hooks, so an older-layer constructor has no canonical fallback.
+struct LegacyClass {
+    /// The canonical kind every constructor maps to.
+    canonical: rtd_layerhooks_registry::LegacyCanonical,
+    /// Older layer to its legacy constructors, in wire-id order.
+    layers: std::collections::BTreeMap<i32, Vec<LegacyButton>>,
+}
+
+/// Collects the `ProfileOnly` button constructors per canonical class from the
+/// plan's `old-only` obligations.
+fn collect_legacy_classes(
+    universe: &Universe,
+    plan: &ConversionPlan,
+    env: &AdapterEnv<'_>,
+) -> std::collections::BTreeMap<String, LegacyClass> {
+    let mut classes: std::collections::BTreeMap<String, LegacyClass> =
+        std::collections::BTreeMap::new();
+    for obligation in &plan.obligations {
+        if obligation.kind != "old-only" || obligation.direction != "profile-to-canonical" {
+            continue;
+        }
+        let Some(hook) = rtd_layerhooks_registry::legacy_for_wire(obligation.other_wire_id)
+            .or_else(|| rtd_layerhooks_registry::legacy_for_wire(obligation.wire_id))
+        else {
+            continue;
+        };
+        let Some(schema) = universe.schemas.get(&obligation.layer) else {
+            continue;
+        };
+        let Some(ctor) = schema.find_wire(hook.wire_id) else {
+            continue;
+        };
+        let Ok(types) = crate::emit_tg::prepare(ctor, env.classes, env.bare_ids) else {
+            continue;
+        };
+        let class = classes
+            .entry(legacy_class_qname(hook.canonical).to_owned())
+            .or_insert_with(|| LegacyClass {
+                canonical: hook.canonical,
+                layers: std::collections::BTreeMap::new(),
+            });
+        class
+            .layers
+            .entry(obligation.layer)
+            .or_default()
+            .push(LegacyButton {
+                wire_id: hook.wire_id,
+                variant: hook.variant,
+                unit_variant: *env.unit_variants.get(hook.variant).unwrap_or(&false),
+                decode_fn: hook.decode,
+                encode_fn: hook.encode,
+                tuple_prefix: rtd_layerhooks_registry::legacy_param_tuple_prefix(hook.name),
+                fields: ctor.fields.clone(),
+                types,
+            });
+    }
+    for class in classes.values_mut() {
+        for buttons in class.layers.values_mut() {
+            buttons.sort_by_key(|button| button.wire_id);
+            buttons.dedup_by_key(|button| button.wire_id);
+        }
+    }
+    classes
 }
 
 /// A capture: a canonical field derived from a profile field.
@@ -379,6 +475,7 @@ fn collect_legacy_rows(
             unit_variant: *env.unit_variants.get(hook.variant).unwrap_or(&false),
             decode_fn: hook.decode,
             encode_fn: hook.encode,
+            tuple_prefix: rtd_layerhooks_registry::legacy_param_tuple_prefix(hook.name),
             fields: ctor.fields.clone(),
             types,
         });
@@ -387,13 +484,9 @@ fn collect_legacy_rows(
         return None;
     }
     buttons.sort_by_key(|button| button.wire_id);
-    let enum_name = match shape.canonical {
-        rtd_layerhooks_registry::LegacyCanonical::KeyboardInlineButton => "InlineButtonType",
-        rtd_layerhooks_registry::LegacyCanonical::KeyboardButton => "ButtonType",
-    };
     Some(LegacyRowsHook {
         row_wire_id,
-        enum_name,
+        enum_name: legacy_enum_name(shape.canonical),
         buttons,
     })
 }
@@ -705,6 +798,27 @@ fn collect_adapter_hooks(
     Some(adapter)
 }
 
+/// The canonical enum variants' unit-ness, keyed by Rust variant name, so the
+/// legacy encoders match a unit variant without a struct pattern (clippy
+/// `unneeded_struct_pattern`).
+fn canonical_unit_variants(universe: &Universe) -> std::collections::BTreeMap<String, bool> {
+    use crate::model::FieldKind;
+    let canonical = universe.canonical();
+    let mut unit_variants: std::collections::BTreeMap<String, bool> =
+        std::collections::BTreeMap::new();
+    for class in ["InlineButtonType", "ButtonType"] {
+        for ctor in canonical.class_constructors(class) {
+            let local = ctor.key.qname.rsplit('.').next().unwrap_or(&ctor.key.qname);
+            let has_value = ctor
+                .fields
+                .iter()
+                .any(|field| field.kind == FieldKind::Value);
+            unit_variants.insert(crate::emit::variant_ident(local), !has_value);
+        }
+    }
+    unit_variants
+}
+
 /// Collects the layers with a mechanical policy body: field projection (`drop`),
 /// presence rejection (`reject-if-present`), a recorded `default`, or a
 /// field-shaped adapter conversion. Any layer needing another shape stays
@@ -719,21 +833,7 @@ fn collect_policy_layers<'a>(
     use crate::model::FieldKind;
     use crate::obligations::Availability;
 
-    // The canonical enum variants' unit-ness, so the rows encoder matches a unit
-    // variant without a struct pattern (clippy `unneeded_struct_pattern`).
-    let canonical = universe.canonical();
-    let mut unit_variants: std::collections::BTreeMap<String, bool> =
-        std::collections::BTreeMap::new();
-    for class in ["InlineButtonType", "ButtonType"] {
-        for ctor in canonical.class_constructors(class) {
-            let local = ctor.key.qname.rsplit('.').next().unwrap_or(&ctor.key.qname);
-            let has_value = ctor
-                .fields
-                .iter()
-                .any(|field| field.kind == FieldKind::Value);
-            unit_variants.insert(crate::emit::variant_ident(local), !has_value);
-        }
-    }
+    let unit_variants = canonical_unit_variants(universe);
     let env = AdapterEnv {
         classes,
         bare_ids,
@@ -1174,21 +1274,57 @@ fn legacy_hook_argument(button: &LegacyButton, field_name: &str) -> String {
     }
 }
 
-/// Emits the decode of one legacy keyboard row's button, dispatching on the
-/// legacy constructor wire id and building the canonical button through its
-/// `old-only` hook, and pushes it onto `__legacy_buttons`.
-fn emit_legacy_button_decode_arm(code: &mut crate::emit_tg::Code, button: &LegacyButton) {
+/// The hook call arguments for one legacy button, packing the declared leading
+/// fields into a single tuple argument when the hook requires it.
+fn legacy_button_arguments(button: &LegacyButton) -> Vec<String> {
     use crate::model::FieldKind;
-
-    code.open(&format!("{:#010x} => {{", button.wire_id));
-    emit_legacy_button_reads(code, button);
     let arguments: Vec<String> = button
         .fields
         .iter()
         .filter(|field| field.kind != FieldKind::FlagsWord)
         .map(|field| legacy_hook_argument(button, &field.name))
         .collect();
-    code.line(&format!("{}({})", button.decode_fn, arguments.join(", ")));
+    pack_legacy_tuple(arguments, button.tuple_prefix)
+}
+
+/// The `let` destructuring pattern for one legacy button's hook result, matching
+/// the hook's (possibly packed) arguments.
+fn legacy_button_pattern(button: &LegacyButton) -> String {
+    use crate::emit::field_ident;
+    use crate::model::FieldKind;
+    let names: Vec<String> = button
+        .fields
+        .iter()
+        .filter(|field| field.kind != FieldKind::FlagsWord)
+        .map(|field| field_ident(&field.name))
+        .collect();
+    pack_legacy_tuple(names, button.tuple_prefix).join(", ")
+}
+
+/// Packs the first `prefix` elements into one tuple element (a no-op for a
+/// prefix of one).
+fn pack_legacy_tuple(mut values: Vec<String>, prefix: usize) -> Vec<String> {
+    if prefix <= 1 || prefix > values.len() {
+        return values;
+    }
+    let rest = values.split_off(prefix);
+    let packed = format!("({})", values.join(", "));
+    let mut result = vec![packed];
+    result.extend(rest);
+    result
+}
+
+/// Emits the decode of one legacy keyboard row's button, dispatching on the
+/// legacy constructor wire id and building the canonical button through its
+/// `old-only` hook, and pushes it onto `__legacy_buttons`.
+fn emit_legacy_button_decode_arm(code: &mut crate::emit_tg::Code, button: &LegacyButton) {
+    code.open(&format!("{:#010x} => {{", button.wire_id));
+    emit_legacy_button_reads(code, button);
+    code.line(&format!(
+        "{}({})",
+        button.decode_fn,
+        legacy_button_arguments(button).join(", ")
+    ));
     code.close("}");
 }
 
@@ -1237,9 +1373,6 @@ fn emit_legacy_rows_encode(
     canonical_wire_id: u32,
     binding: &str,
 ) {
-    use crate::emit::field_ident;
-    use crate::model::FieldKind;
-
     code.line(&format!("__w.put_vector_header({binding}.len());"));
     code.open(&format!("for __legacy_row in {binding}.iter() {{"));
     code.line(&format!("__w.put_u32({:#010x});", hook.row_wire_id));
@@ -1253,15 +1386,9 @@ fn emit_legacy_rows_encode(
             hook.enum_name, button.variant
         ));
         code.line(&format!("__w.put_u32({:#010x});", button.wire_id));
-        let bindings: Vec<String> = button
-            .fields
-            .iter()
-            .filter(|field| field.kind != FieldKind::FlagsWord)
-            .map(|field| field_ident(&field.name))
-            .collect();
         code.line(&format!(
             "let ({}) = {}(__legacy_button)?;",
-            bindings.join(", "),
+            legacy_button_pattern(button),
             button.encode_fn
         ));
         emit_legacy_button_writes(code, button);
@@ -1333,6 +1460,73 @@ fn emit_legacy_button_writes(code: &mut crate::emit_tg::Code, button: &LegacyBut
             }
         }
     }
+}
+
+/// Emits the `decode_legacy_*`/`encode_legacy_*` helpers for a canonical button
+/// class, dispatching the older layer's `ProfileOnly` constructors through the
+/// registered `old-only` hooks.
+fn emit_legacy_class_codec(out: &mut String, fn_name: &str, qualified: &str, class: &LegacyClass) {
+    use crate::emit_tg::Code;
+
+    let enum_name = legacy_enum_name(class.canonical);
+
+    let mut code = Code::new();
+    code.open(&format!(
+        "fn decode_legacy_{fn_name}(profile: Profile, id: u32, __d: &mut Decoder<'_>) -> Result<Option<{qualified}>, AdmitError> {{"
+    ));
+    code.open("match profile.layer {");
+    for (layer, buttons) in &class.layers {
+        code.open(&format!("{layer} => match id {{"));
+        for button in buttons {
+            code.open(&format!("{:#010x} => {{", button.wire_id));
+            emit_legacy_button_reads(&mut code, button);
+            code.line(&format!(
+                "Ok(Some({}({})))",
+                button.decode_fn,
+                legacy_button_arguments(button).join(", ")
+            ));
+            code.close("}");
+        }
+        code.line("_ => Ok(None),");
+        code.close("},");
+    }
+    code.line("_ => Ok(None),");
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
+
+    let mut code = Code::new();
+    code.open(&format!(
+        "fn encode_legacy_{fn_name}(profile: Profile, value: &{qualified}, __w: &mut Writer) -> Result<bool, ProjectionError> {{"
+    ));
+    code.open("match profile.layer {");
+    for (layer, buttons) in &class.layers {
+        code.open(&format!("{layer} => match &*value.type_ {{"));
+        for button in buttons {
+            let suffix = if button.unit_variant { "" } else { " { .. }" };
+            code.open(&format!(
+                "rtd_tg::{enum_name}::{}{suffix} => {{",
+                button.variant
+            ));
+            code.line(&format!(
+                "let ({}) = {}(value)?;",
+                legacy_button_pattern(button),
+                button.encode_fn
+            ));
+            code.line(&format!("__w.put_u32({:#010x});", button.wire_id));
+            emit_legacy_button_writes(&mut code, button);
+            code.line("Ok(true)");
+            code.close("}");
+        }
+        code.line("_ => Ok(false),");
+        code.close("},");
+    }
+    code.line("_ => Ok(false),");
+    code.close("}");
+    code.close("}");
+    out.push_str(&code.out);
+    out.push('\n');
 }
 
 /// Emits the per-layer `encode_policy_*` functions for one constructor.
@@ -1800,6 +1994,7 @@ fn emit_struct_codec(
     ctx: &CodecContext<'_>,
     ident: &str,
     definition: &Definition,
+    legacy: Option<&LegacyClass>,
 ) -> Result<(), String> {
     use crate::emit::field_ident;
     use crate::emit_tg::{Code, emit_constructor_decode, emit_encode_fields, prepare};
@@ -1828,6 +2023,12 @@ fn emit_struct_codec(
     code.open(&format!(
         "pub fn encode_{fn_name}_profile(profile: Profile, {value_param}: &{qualified}, __w: &mut Writer) -> Result<(), ProjectionError> {{"
     ));
+    if legacy.is_some() {
+        // A `ProfileOnly` constructor is served directly through its hook.
+        code.line(&format!(
+            "if encode_legacy_{fn_name}(profile, {value_param}, __w)? {{ return Ok(()); }}"
+        ));
+    }
     code.line(&format!(
         "let route = lookup_route_semantic(profile, SemanticId({sid:#018x})).ok_or(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {cid:#010x} }})?;"
     ));
@@ -1893,6 +2094,12 @@ fn emit_struct_codec(
     code.open(&format!(
         "pub fn decode_{fn_name}_profile(profile: Profile, id: u32, __d: &mut Decoder<'_>) -> Result<{qualified}, AdmitError> {{"
     ));
+    if legacy.is_some() {
+        // A `ProfileOnly` constructor is served directly through its hook.
+        code.line(&format!(
+            "if let Some(value) = decode_legacy_{fn_name}(profile, id, __d)? {{ return Ok(value); }}"
+        ));
+    }
     code.line("let route = lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId { id, expected: 0 }))?;");
     code.open("match route.mode {");
     code.open("RouteMode::Direct | RouteMode::Retag => {");
@@ -1934,6 +2141,9 @@ fn emit_struct_codec(
         &types,
         &layers,
     )?;
+    if let Some(legacy) = legacy {
+        emit_legacy_class_codec(out, &fn_name, &qualified, legacy);
+    }
     Ok(())
 }
 
@@ -2141,6 +2351,7 @@ fn emit_object_codec(
     out: &mut String,
     class_map: &std::collections::BTreeMap<String, Vec<&Definition>>,
     object_constructors: &[&Definition],
+    legacy_classes: &std::collections::BTreeMap<String, LegacyClass>,
 ) {
     use crate::emit::ident_for_qname;
     use crate::emit_tg::Code;
@@ -2188,6 +2399,24 @@ fn emit_object_codec(
     code.open("pub fn decode_object_profile(profile: Profile, __d: &mut Decoder<'_>) -> Result<Object, AdmitError> {");
     code.line("let id = __d.take_u32()?;");
     code.line("let route = lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId { id, expected: 0 }))?;");
+    // A `ProfileOnly` object constructor is served through its canonical class
+    // codec, which dispatches the `old-only` hook; there is no canonical route.
+    code.open("if matches!(route.mode, RouteMode::ProfileOnly) {");
+    code.open("return match (profile.layer, id) {");
+    for (qname, class) in legacy_classes {
+        let fn_name = crate::emit::to_snake_case(qname);
+        for (layer, buttons) in &class.layers {
+            for button in buttons {
+                code.line(&format!(
+                    "({layer}, {:#010x}) => Ok(Object::{qname}(::std::boxed::Box::new(decode_{fn_name}_profile(profile, id, __d)?))),",
+                    button.wire_id
+                ));
+            }
+        }
+    }
+    code.line("_ => Err(AdmitError::UnsupportedRoute(route)),");
+    code.close("};");
+    code.close("}");
     code.line("let canonical = canonical_wire_id(route.semantic).ok_or(AdmitError::UnsupportedRoute(route))?;");
     code.open("match canonical {");
     for (cid, variant, fn_ident) in &by_id {

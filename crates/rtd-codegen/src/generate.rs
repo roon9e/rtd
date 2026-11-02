@@ -59,6 +59,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     }
     let plan = obligations::analyze(&universe, &policy)?;
     check_hook_registry(&plan, rtd_layerhooks_registry::HOOKS)?;
+    check_legacy_hook_registry(&plan)?;
     let unresolved = plan.unresolved();
     if !unresolved.is_empty() {
         let mut message = format!(
@@ -169,6 +170,63 @@ fn check_hook_registry(
                 "E_STALE_HOOK_SIGNATURE: registered hook {:?} is referenced by no \
                  present-in-both adapter obligation",
                 spec.name
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Verifies that every `old-only` adapter obligation resolves to a registered
+/// `old-only` hook and that no registered hook is stale.
+///
+/// # Errors
+///
+/// Returns a diagnostic naming the first missing, mis-named or stale hook.
+fn check_legacy_hook_registry(plan: &obligations::ConversionPlan) -> Result<(), String> {
+    use std::collections::BTreeSet;
+
+    let mut referenced: BTreeSet<u32> = BTreeSet::new();
+    for obligation in &plan.obligations {
+        if obligation.kind != "old-only" {
+            continue;
+        }
+        let Some(resolution) = &obligation.resolution else {
+            continue;
+        };
+        // A rejected `ProfileOnly` constructor (the passkey credential) has no
+        // hook by design; only an adapter obligation must resolve to one.
+        if resolution.action != "adapter" {
+            continue;
+        }
+        let Some(hook) = rtd_layerhooks_registry::legacy_for_wire(obligation.other_wire_id)
+            .or_else(|| rtd_layerhooks_registry::legacy_for_wire(obligation.wire_id))
+        else {
+            return Err(format!(
+                "E_MISSING_LEGACY_HOOK: {} names legacy constructor {:#010x}/{:#010x} with no \
+                 registered old-only hook",
+                obligation.summary(),
+                obligation.wire_id,
+                obligation.other_wire_id
+            ));
+        };
+        if hook.name != resolution.hook {
+            return Err(format!(
+                "E_LEGACY_HOOK_NAME: {} names hook {:?}, but constructor {:#010x} is registered \
+                 as {:?}",
+                obligation.summary(),
+                resolution.hook,
+                hook.wire_id,
+                hook.name
+            ));
+        }
+        referenced.insert(hook.wire_id);
+    }
+    for hook in rtd_layerhooks_registry::LEGACY_HOOKS {
+        if !referenced.contains(&hook.wire_id) {
+            return Err(format!(
+                "E_STALE_LEGACY_HOOK: registered old-only hook {:?} is referenced by no \
+                 obligation",
+                hook.name
             ));
         }
     }

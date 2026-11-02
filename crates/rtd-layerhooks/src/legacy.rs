@@ -56,20 +56,12 @@ fn inline_style_text(value: &KeyboardInlineButton) -> Result<StyleAndText> {
     Ok((value.style.as_deref().cloned(), value.text.clone()))
 }
 
-/// The three "requested" flags of the legacy input request-peer button.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RequestPeerFlags {
-    /// A name was requested.
-    pub name: bool,
-    /// A username was requested.
-    pub username: bool,
-    /// A photo was requested.
-    pub photo: bool,
-}
-
-/// The fields of the legacy `inputKeyboardButtonRequestPeer`.
+/// The fields of the legacy `inputKeyboardButtonRequestPeer`. The three leading
+/// presence bits are packed into one tuple argument so the hook stays within the
+/// argument limit; the generator packs them the same way (via
+/// `legacy_param_tuple_prefix`).
 type InputRequestPeerFields = (
-    RequestPeerFlags,
+    (bool, bool, bool),
     Option<KeyboardButtonStyle>,
     String,
     i32,
@@ -258,11 +250,7 @@ pub fn input_keyboard_button_request_peer_fields(
     };
     let (style, text) = button_style_text(value, "inputKeyboardButtonRequestPeer")?;
     Ok((
-        RequestPeerFlags {
-            name: *name_requested,
-            username: *username_requested,
-            photo: *photo_requested,
-        },
+        (*name_requested, *username_requested, *photo_requested),
         style,
         text,
         *button_id,
@@ -274,23 +262,24 @@ pub fn input_keyboard_button_request_peer_fields(
 /// Profile to canonical for `inputKeyboardButtonRequestPeer`.
 #[must_use]
 pub fn input_keyboard_button_request_peer(
-    flags: RequestPeerFlags,
+    requested: (bool, bool, bool),
     style: Option<KeyboardButtonStyle>,
     text: String,
     button_id: i32,
     peer_type: RequestPeerType,
     max_quantity: i32,
 ) -> KeyboardButton {
+    let (name_requested, username_requested, photo_requested) = requested;
     keyboard_button(
         style,
         text,
         ButtonType::InputButtonTypeRequestPeer {
-            flags: (u32::from(flags.name))
-                | (u32::from(flags.username) << 1)
-                | (u32::from(flags.photo) << 2),
-            name_requested: flags.name,
-            username_requested: flags.username,
-            photo_requested: flags.photo,
+            flags: u32::from(name_requested)
+                | (u32::from(username_requested) << 1)
+                | (u32::from(photo_requested) << 2),
+            name_requested,
+            username_requested,
+            photo_requested,
             button_id,
             peer_type: Box::new(peer_type),
             max_quantity,

@@ -184883,6 +184883,9 @@ pub fn encode_keyboard_button_profile(
     value: &rtd_tg::KeyboardButton,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
+    if encode_legacy_keyboard_button(profile, value, __w)? {
+        return Ok(());
+    }
     let route = lookup_route_semantic(profile, SemanticId(0x7ffb22bfd908f47a)).ok_or(
         ProjectionError::Unrepresentable {
             layer: profile.layer,
@@ -185034,6 +185037,9 @@ pub fn decode_keyboard_button_profile(
     id: u32,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::KeyboardButton, AdmitError> {
+    if let Some(value) = decode_legacy_keyboard_button(profile, id, __d)? {
+        return Ok(value);
+    }
     let route =
         lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId {
             id,
@@ -185226,6 +185232,1234 @@ fn decode_policy_keyboard_button_228(
         text,
         type_,
     })
+}
+
+fn decode_legacy_keyboard_button(
+    profile: Profile,
+    id: u32,
+    __d: &mut Decoder<'_>,
+) -> Result<Option<rtd_tg::KeyboardButton>, AdmitError> {
+    match profile.layer {
+        225 => match id {
+            0x02b78156 => {
+                let __legacy_flags = __d.take_u32()?;
+                let name_requested: bool = __legacy_flags & (1u32 << 0) != 0;
+                let username_requested: bool = __legacy_flags & (1u32 << 1) != 0;
+                let photo_requested: bool = __legacy_flags & (1u32 << 2) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_button_request_peer(
+                        (name_requested, username_requested, photo_requested),
+                        style.map(|__v| *__v),
+                        text,
+                        button_id,
+                        *peer_type,
+                        max_quantity,
+                    ),
+                ))
+            }
+            0x417efd8f => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_phone(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x5b0f15f5 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_peer(
+                    style.map(|__v| *__v),
+                    text,
+                    button_id,
+                    *peer_type,
+                    max_quantity,
+                )))
+            }
+            0x7a11d782 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let quiz: Option<bool> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_bool()?)
+                } else {
+                    None
+                };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_poll(
+                    style.map(|__v| *__v),
+                    quiz,
+                    text,
+                )))
+            }
+            0xaa40f94d => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location(
+                        style.map(|__v| *__v),
+                        text,
+                    ),
+                ))
+            }
+            0xe15c4370 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        226 => match id {
+            0x02b78156 => {
+                let __legacy_flags = __d.take_u32()?;
+                let name_requested: bool = __legacy_flags & (1u32 << 0) != 0;
+                let username_requested: bool = __legacy_flags & (1u32 << 1) != 0;
+                let photo_requested: bool = __legacy_flags & (1u32 << 2) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_button_request_peer(
+                        (name_requested, username_requested, photo_requested),
+                        style.map(|__v| *__v),
+                        text,
+                        button_id,
+                        *peer_type,
+                        max_quantity,
+                    ),
+                ))
+            }
+            0x417efd8f => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_phone(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x5b0f15f5 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_peer(
+                    style.map(|__v| *__v),
+                    text,
+                    button_id,
+                    *peer_type,
+                    max_quantity,
+                )))
+            }
+            0x7a11d782 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let quiz: Option<bool> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_bool()?)
+                } else {
+                    None
+                };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_poll(
+                    style.map(|__v| *__v),
+                    quiz,
+                    text,
+                )))
+            }
+            0xaa40f94d => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location(
+                        style.map(|__v| *__v),
+                        text,
+                    ),
+                ))
+            }
+            0xe15c4370 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        227 => match id {
+            0x02b78156 => {
+                let __legacy_flags = __d.take_u32()?;
+                let name_requested: bool = __legacy_flags & (1u32 << 0) != 0;
+                let username_requested: bool = __legacy_flags & (1u32 << 1) != 0;
+                let photo_requested: bool = __legacy_flags & (1u32 << 2) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_button_request_peer(
+                        (name_requested, username_requested, photo_requested),
+                        style.map(|__v| *__v),
+                        text,
+                        button_id,
+                        *peer_type,
+                        max_quantity,
+                    ),
+                ))
+            }
+            0x417efd8f => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_phone(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x5b0f15f5 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_peer(
+                    style.map(|__v| *__v),
+                    text,
+                    button_id,
+                    *peer_type,
+                    max_quantity,
+                )))
+            }
+            0x7a11d782 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let quiz: Option<bool> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_bool()?)
+                } else {
+                    None
+                };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_poll(
+                    style.map(|__v| *__v),
+                    quiz,
+                    text,
+                )))
+            }
+            0xaa40f94d => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location(
+                        style.map(|__v| *__v),
+                        text,
+                    ),
+                ))
+            }
+            0xe15c4370 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        228 => match id {
+            0x02b78156 => {
+                let __legacy_flags = __d.take_u32()?;
+                let name_requested: bool = __legacy_flags & (1u32 << 0) != 0;
+                let username_requested: bool = __legacy_flags & (1u32 << 1) != 0;
+                let photo_requested: bool = __legacy_flags & (1u32 << 2) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_button_request_peer(
+                        (name_requested, username_requested, photo_requested),
+                        style.map(|__v| *__v),
+                        text,
+                        button_id,
+                        *peer_type,
+                        max_quantity,
+                    ),
+                ))
+            }
+            0x417efd8f => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_phone(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x5b0f15f5 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                let peer_type: ::std::boxed::Box<rtd_tg::RequestPeerType> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_request_peer_type_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let max_quantity: i32 = __d.take_i32()?;
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_peer(
+                    style.map(|__v| *__v),
+                    text,
+                    button_id,
+                    *peer_type,
+                    max_quantity,
+                )))
+            }
+            0x7a11d782 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let quiz: Option<bool> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_bool()?)
+                } else {
+                    None
+                };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_button_request_poll(
+                    style.map(|__v| *__v),
+                    quiz,
+                    text,
+                )))
+            }
+            0xaa40f94d => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location(
+                        style.map(|__v| *__v),
+                        text,
+                    ),
+                ))
+            }
+            0xe15c4370 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        _ => Ok(None),
+    }
+}
+
+fn encode_legacy_keyboard_button(
+    profile: Profile,
+    value: &rtd_tg::KeyboardButton,
+    __w: &mut Writer,
+) -> Result<bool, ProjectionError> {
+    match profile.layer {
+        225 => match &*value.type_ {
+            rtd_tg::ButtonType::InputButtonTypeRequestPeer { .. } => {
+                let (
+                    (name_requested, username_requested, photo_requested),
+                    style,
+                    text,
+                    button_id,
+                    peer_type,
+                    max_quantity,
+                ) = rtd_layerhooks::legacy::input_keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x02b78156);
+                let mut __legacy_flags = 0u32;
+                if name_requested {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if username_requested {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                if photo_requested {
+                    __legacy_flags |= 1u32 << 2;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPhone => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_phone_style_text(value)?;
+                __w.put_u32(0x417efd8f);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPeer { .. } => {
+                let (style, text, button_id, peer_type, max_quantity) =
+                    rtd_layerhooks::legacy::keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x5b0f15f5);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPoll { .. } => {
+                let (style, quiz, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_poll_fields(value)?;
+                __w.put_u32(0x7a11d782);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if quiz.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                if let Some(__legacy_value) = &quiz {
+                    __w.put_bool(*__legacy_value);
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestGeoLocation => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location_style_text(value)?;
+                __w.put_u32(0xaa40f94d);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeSimpleWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view_fields(value)?;
+                __w.put_u32(0xe15c4370);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        226 => match &*value.type_ {
+            rtd_tg::ButtonType::InputButtonTypeRequestPeer { .. } => {
+                let (
+                    (name_requested, username_requested, photo_requested),
+                    style,
+                    text,
+                    button_id,
+                    peer_type,
+                    max_quantity,
+                ) = rtd_layerhooks::legacy::input_keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x02b78156);
+                let mut __legacy_flags = 0u32;
+                if name_requested {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if username_requested {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                if photo_requested {
+                    __legacy_flags |= 1u32 << 2;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPhone => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_phone_style_text(value)?;
+                __w.put_u32(0x417efd8f);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPeer { .. } => {
+                let (style, text, button_id, peer_type, max_quantity) =
+                    rtd_layerhooks::legacy::keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x5b0f15f5);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPoll { .. } => {
+                let (style, quiz, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_poll_fields(value)?;
+                __w.put_u32(0x7a11d782);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if quiz.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                if let Some(__legacy_value) = &quiz {
+                    __w.put_bool(*__legacy_value);
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestGeoLocation => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location_style_text(value)?;
+                __w.put_u32(0xaa40f94d);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeSimpleWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view_fields(value)?;
+                __w.put_u32(0xe15c4370);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        227 => match &*value.type_ {
+            rtd_tg::ButtonType::InputButtonTypeRequestPeer { .. } => {
+                let (
+                    (name_requested, username_requested, photo_requested),
+                    style,
+                    text,
+                    button_id,
+                    peer_type,
+                    max_quantity,
+                ) = rtd_layerhooks::legacy::input_keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x02b78156);
+                let mut __legacy_flags = 0u32;
+                if name_requested {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if username_requested {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                if photo_requested {
+                    __legacy_flags |= 1u32 << 2;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPhone => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_phone_style_text(value)?;
+                __w.put_u32(0x417efd8f);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPeer { .. } => {
+                let (style, text, button_id, peer_type, max_quantity) =
+                    rtd_layerhooks::legacy::keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x5b0f15f5);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPoll { .. } => {
+                let (style, quiz, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_poll_fields(value)?;
+                __w.put_u32(0x7a11d782);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if quiz.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                if let Some(__legacy_value) = &quiz {
+                    __w.put_bool(*__legacy_value);
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestGeoLocation => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location_style_text(value)?;
+                __w.put_u32(0xaa40f94d);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeSimpleWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view_fields(value)?;
+                __w.put_u32(0xe15c4370);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        228 => match &*value.type_ {
+            rtd_tg::ButtonType::InputButtonTypeRequestPeer { .. } => {
+                let (
+                    (name_requested, username_requested, photo_requested),
+                    style,
+                    text,
+                    button_id,
+                    peer_type,
+                    max_quantity,
+                ) = rtd_layerhooks::legacy::input_keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x02b78156);
+                let mut __legacy_flags = 0u32;
+                if name_requested {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if username_requested {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                if photo_requested {
+                    __legacy_flags |= 1u32 << 2;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPhone => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_phone_style_text(value)?;
+                __w.put_u32(0x417efd8f);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPeer { .. } => {
+                let (style, text, button_id, peer_type, max_quantity) =
+                    rtd_layerhooks::legacy::keyboard_button_request_peer_fields(value)?;
+                __w.put_u32(0x5b0f15f5);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i32(button_id);
+                encode_request_peer_type_profile(profile, &peer_type, __w)?;
+                __w.put_i32(max_quantity);
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestPoll { .. } => {
+                let (style, quiz, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_poll_fields(value)?;
+                __w.put_u32(0x7a11d782);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if quiz.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                if let Some(__legacy_value) = &quiz {
+                    __w.put_bool(*__legacy_value);
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeRequestGeoLocation => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_button_request_geo_location_style_text(value)?;
+                __w.put_u32(0xaa40f94d);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::ButtonType::ButtonTypeSimpleWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_button_simple_web_view_fields(value)?;
+                __w.put_u32(0xe15c4370);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        _ => Ok(false),
+    }
 }
 
 pub fn encode_keyboard_button_row_profile(
@@ -185423,6 +186657,9 @@ pub fn encode_keyboard_inline_button_profile(
     value: &rtd_tg::KeyboardInlineButton,
     __w: &mut Writer,
 ) -> Result<(), ProjectionError> {
+    if encode_legacy_keyboard_inline_button(profile, value, __w)? {
+        return Ok(());
+    }
     let route = lookup_route_semantic(profile, SemanticId(0x17485f2d50688bbc)).ok_or(
         ProjectionError::Unrepresentable {
             layer: profile.layer,
@@ -185479,6 +186716,9 @@ pub fn decode_keyboard_inline_button_profile(
     id: u32,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::KeyboardInlineButton, AdmitError> {
+    if let Some(value) = decode_legacy_keyboard_inline_button(profile, id, __d)? {
+        return Ok(value);
+    }
     let route =
         lookup_route(profile, id).ok_or(AdmitError::Decode(::rtd_bin::Error::UnexpectedId {
             id,
@@ -185523,6 +186763,2258 @@ pub fn decode_keyboard_inline_button_profile(
             })
         }
         _ => Err(AdmitError::UnsupportedRoute(route)),
+    }
+}
+
+fn decode_legacy_keyboard_inline_button(
+    profile: Profile,
+    id: u32,
+    __d: &mut Decoder<'_>,
+) -> Result<Option<rtd_tg::KeyboardInlineButton>, AdmitError> {
+    match profile.layer {
+        225 => match id {
+            0x3fa53905 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_buy(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x68013e72 => {
+                let __legacy_flags = __d.take_u32()?;
+                let request_write_access: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 1) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let bot: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth(
+                        request_write_access,
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        *bot,
+                    ),
+                ))
+            }
+            0x7d5e07c7 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        *user_id,
+                    ),
+                ))
+            }
+            0x89c590f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_game(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x991399fc => {
+                let __legacy_flags = __d.take_u32()?;
+                let same_peer: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let query: ::std::string::String = __d.take_string()?.to_owned();
+                let peer_types: Option<::std::vec::Vec<rtd_tg::InlineQueryPeerType>> =
+                    if __legacy_flags & (1u32 << 1) != 0 {
+                        Some({
+                            let n = __d.take_vector_header()?;
+                            let mut items =
+                                ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+                            for _ in 0..n {
+                                items.push({
+                                    __d.enter()?;
+                                    let value = {
+                                        let __id = __d.take_u32()?;
+                                        decode_inline_query_peer_type_profile(profile, __id, __d)?
+                                    };
+                                    __d.leave();
+                                    value
+                                });
+                            }
+                            items
+                        })
+                    } else {
+                        None
+                    };
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline(
+                        same_peer,
+                        style.map(|__v| *__v),
+                        text,
+                        query,
+                        peer_types,
+                    ),
+                ))
+            }
+            0xbcc4af10 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let copy_text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_copy(
+                    style.map(|__v| *__v),
+                    text,
+                    copy_text,
+                )))
+            }
+            0xc0fd5d09 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: i64 = __d.take_i64()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        user_id,
+                    ),
+                ))
+            }
+            0xd80c25ec => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_url(
+                    style.map(|__v| *__v),
+                    text,
+                    url,
+                )))
+            }
+            0xe62bc960 => {
+                let __legacy_flags = __d.take_u32()?;
+                let requires_password: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback(
+                        requires_password,
+                        style.map(|__v| *__v),
+                        text,
+                        data,
+                    ),
+                ))
+            }
+            0xe846b1a0 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            0xf51006f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth(
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        button_id,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        226 => match id {
+            0x3fa53905 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_buy(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x68013e72 => {
+                let __legacy_flags = __d.take_u32()?;
+                let request_write_access: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 1) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let bot: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth(
+                        request_write_access,
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        *bot,
+                    ),
+                ))
+            }
+            0x7d5e07c7 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        *user_id,
+                    ),
+                ))
+            }
+            0x89c590f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_game(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x991399fc => {
+                let __legacy_flags = __d.take_u32()?;
+                let same_peer: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let query: ::std::string::String = __d.take_string()?.to_owned();
+                let peer_types: Option<::std::vec::Vec<rtd_tg::InlineQueryPeerType>> =
+                    if __legacy_flags & (1u32 << 1) != 0 {
+                        Some({
+                            let n = __d.take_vector_header()?;
+                            let mut items =
+                                ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+                            for _ in 0..n {
+                                items.push({
+                                    __d.enter()?;
+                                    let value = {
+                                        let __id = __d.take_u32()?;
+                                        decode_inline_query_peer_type_profile(profile, __id, __d)?
+                                    };
+                                    __d.leave();
+                                    value
+                                });
+                            }
+                            items
+                        })
+                    } else {
+                        None
+                    };
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline(
+                        same_peer,
+                        style.map(|__v| *__v),
+                        text,
+                        query,
+                        peer_types,
+                    ),
+                ))
+            }
+            0xbcc4af10 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let copy_text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_copy(
+                    style.map(|__v| *__v),
+                    text,
+                    copy_text,
+                )))
+            }
+            0xc0fd5d09 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: i64 = __d.take_i64()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        user_id,
+                    ),
+                ))
+            }
+            0xd80c25ec => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_url(
+                    style.map(|__v| *__v),
+                    text,
+                    url,
+                )))
+            }
+            0xe62bc960 => {
+                let __legacy_flags = __d.take_u32()?;
+                let requires_password: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback(
+                        requires_password,
+                        style.map(|__v| *__v),
+                        text,
+                        data,
+                    ),
+                ))
+            }
+            0xe846b1a0 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            0xf51006f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth(
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        button_id,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        227 => match id {
+            0x3fa53905 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_buy(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x68013e72 => {
+                let __legacy_flags = __d.take_u32()?;
+                let request_write_access: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 1) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let bot: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth(
+                        request_write_access,
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        *bot,
+                    ),
+                ))
+            }
+            0x7d5e07c7 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        *user_id,
+                    ),
+                ))
+            }
+            0x89c590f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_game(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x991399fc => {
+                let __legacy_flags = __d.take_u32()?;
+                let same_peer: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let query: ::std::string::String = __d.take_string()?.to_owned();
+                let peer_types: Option<::std::vec::Vec<rtd_tg::InlineQueryPeerType>> =
+                    if __legacy_flags & (1u32 << 1) != 0 {
+                        Some({
+                            let n = __d.take_vector_header()?;
+                            let mut items =
+                                ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+                            for _ in 0..n {
+                                items.push({
+                                    __d.enter()?;
+                                    let value = {
+                                        let __id = __d.take_u32()?;
+                                        decode_inline_query_peer_type_profile(profile, __id, __d)?
+                                    };
+                                    __d.leave();
+                                    value
+                                });
+                            }
+                            items
+                        })
+                    } else {
+                        None
+                    };
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline(
+                        same_peer,
+                        style.map(|__v| *__v),
+                        text,
+                        query,
+                        peer_types,
+                    ),
+                ))
+            }
+            0xbcc4af10 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let copy_text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_copy(
+                    style.map(|__v| *__v),
+                    text,
+                    copy_text,
+                )))
+            }
+            0xc0fd5d09 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: i64 = __d.take_i64()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        user_id,
+                    ),
+                ))
+            }
+            0xd80c25ec => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_url(
+                    style.map(|__v| *__v),
+                    text,
+                    url,
+                )))
+            }
+            0xe62bc960 => {
+                let __legacy_flags = __d.take_u32()?;
+                let requires_password: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback(
+                        requires_password,
+                        style.map(|__v| *__v),
+                        text,
+                        data,
+                    ),
+                ))
+            }
+            0xe846b1a0 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            0xf51006f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth(
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        button_id,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        228 => match id {
+            0x3fa53905 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_buy(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x68013e72 => {
+                let __legacy_flags = __d.take_u32()?;
+                let request_write_access: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 1) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let bot: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth(
+                        request_write_access,
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        *bot,
+                    ),
+                ))
+            }
+            0x7d5e07c7 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: ::std::boxed::Box<rtd_tg::InputUser> = {
+                    __d.enter()?;
+                    let value = {
+                        let __id = __d.take_u32()?;
+                        decode_input_user_profile(profile, __id, __d)?
+                    };
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(Some(
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        *user_id,
+                    ),
+                ))
+            }
+            0x89c590f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_game(
+                    style.map(|__v| *__v),
+                    text,
+                )))
+            }
+            0x991399fc => {
+                let __legacy_flags = __d.take_u32()?;
+                let same_peer: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let query: ::std::string::String = __d.take_string()?.to_owned();
+                let peer_types: Option<::std::vec::Vec<rtd_tg::InlineQueryPeerType>> =
+                    if __legacy_flags & (1u32 << 1) != 0 {
+                        Some({
+                            let n = __d.take_vector_header()?;
+                            let mut items =
+                                ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+                            for _ in 0..n {
+                                items.push({
+                                    __d.enter()?;
+                                    let value = {
+                                        let __id = __d.take_u32()?;
+                                        decode_inline_query_peer_type_profile(profile, __id, __d)?
+                                    };
+                                    __d.leave();
+                                    value
+                                });
+                            }
+                            items
+                        })
+                    } else {
+                        None
+                    };
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline(
+                        same_peer,
+                        style.map(|__v| *__v),
+                        text,
+                        query,
+                        peer_types,
+                    ),
+                ))
+            }
+            0xbcc4af10 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let copy_text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_copy(
+                    style.map(|__v| *__v),
+                    text,
+                    copy_text,
+                )))
+            }
+            0xc0fd5d09 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let user_id: i64 = __d.take_i64()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile(
+                        style.map(|__v| *__v),
+                        text,
+                        user_id,
+                    ),
+                ))
+            }
+            0xd80c25ec => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(rtd_layerhooks::legacy::keyboard_inline_button_url(
+                    style.map(|__v| *__v),
+                    text,
+                    url,
+                )))
+            }
+            0xe62bc960 => {
+                let __legacy_flags = __d.take_u32()?;
+                let requires_password: bool = __legacy_flags & (1u32 << 0) != 0;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback(
+                        requires_password,
+                        style.map(|__v| *__v),
+                        text,
+                        data,
+                    ),
+                ))
+            }
+            0xe846b1a0 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view(
+                        style.map(|__v| *__v),
+                        text,
+                        url,
+                    ),
+                ))
+            }
+            0xf51006f9 => {
+                let __legacy_flags = __d.take_u32()?;
+                let style: Option<::std::boxed::Box<rtd_tg::KeyboardButtonStyle>> =
+                    if __legacy_flags & (1u32 << 10) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = {
+                                let __id = __d.take_u32()?;
+                                decode_keyboard_button_style_profile(profile, __id, __d)?
+                            };
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                let fwd_text: Option<::std::string::String> = if __legacy_flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let url: ::std::string::String = __d.take_string()?.to_owned();
+                let button_id: i32 = __d.take_i32()?;
+                Ok(Some(
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth(
+                        style.map(|__v| *__v),
+                        text,
+                        fwd_text,
+                        url,
+                        button_id,
+                    ),
+                ))
+            }
+            _ => Ok(None),
+        },
+        _ => Ok(None),
+    }
+}
+
+fn encode_legacy_keyboard_inline_button(
+    profile: Profile,
+    value: &rtd_tg::KeyboardInlineButton,
+    __w: &mut Writer,
+) -> Result<bool, ProjectionError> {
+    match profile.layer {
+        225 => match &*value.type_ {
+            rtd_tg::InlineButtonType::InlineButtonTypeBuy => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_buy_fields(value)?;
+                __w.put_u32(0x3fa53905);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUrlAuth { .. } => {
+                let (request_write_access, style, text, fwd_text, url, bot) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0x68013e72);
+                let mut __legacy_flags = 0u32;
+                if request_write_access {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                encode_input_user_profile(profile, &bot, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile_fields(
+                        value,
+                    )?;
+                __w.put_u32(0x7d5e07c7);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                encode_input_user_profile(profile, &user_id, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeGame => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_game_fields(value)?;
+                __w.put_u32(0x89c590f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeSwitchInline { .. } => {
+                let (same_peer, style, text, query, peer_types) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline_fields(value)?;
+                __w.put_u32(0x991399fc);
+                let mut __legacy_flags = 0u32;
+                if same_peer {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if peer_types.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(query.as_str());
+                if let Some(__legacy_value) = &peer_types {
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
+                    for item in __legacy_value.iter() {
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_inline_query_peer_type_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                }
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCopy { .. } => {
+                let (style, text, copy_text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_copy_fields(value)?;
+                __w.put_u32(0xbcc4af10);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(copy_text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile_fields(value)?;
+                __w.put_u32(0xc0fd5d09);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i64(user_id);
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrl { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_fields(value)?;
+                __w.put_u32(0xd80c25ec);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCallback { .. } => {
+                let (requires_password, style, text, data) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback_fields(value)?;
+                __w.put_u32(0xe62bc960);
+                let mut __legacy_flags = 0u32;
+                if requires_password {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_bytes(data.as_slice());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view_fields(value)?;
+                __w.put_u32(0xe846b1a0);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrlAuth { .. } => {
+                let (style, text, fwd_text, url, button_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0xf51006f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                __w.put_i32(button_id);
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        226 => match &*value.type_ {
+            rtd_tg::InlineButtonType::InlineButtonTypeBuy => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_buy_fields(value)?;
+                __w.put_u32(0x3fa53905);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUrlAuth { .. } => {
+                let (request_write_access, style, text, fwd_text, url, bot) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0x68013e72);
+                let mut __legacy_flags = 0u32;
+                if request_write_access {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                encode_input_user_profile(profile, &bot, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile_fields(
+                        value,
+                    )?;
+                __w.put_u32(0x7d5e07c7);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                encode_input_user_profile(profile, &user_id, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeGame => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_game_fields(value)?;
+                __w.put_u32(0x89c590f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeSwitchInline { .. } => {
+                let (same_peer, style, text, query, peer_types) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline_fields(value)?;
+                __w.put_u32(0x991399fc);
+                let mut __legacy_flags = 0u32;
+                if same_peer {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if peer_types.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(query.as_str());
+                if let Some(__legacy_value) = &peer_types {
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
+                    for item in __legacy_value.iter() {
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_inline_query_peer_type_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                }
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCopy { .. } => {
+                let (style, text, copy_text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_copy_fields(value)?;
+                __w.put_u32(0xbcc4af10);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(copy_text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile_fields(value)?;
+                __w.put_u32(0xc0fd5d09);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i64(user_id);
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrl { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_fields(value)?;
+                __w.put_u32(0xd80c25ec);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCallback { .. } => {
+                let (requires_password, style, text, data) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback_fields(value)?;
+                __w.put_u32(0xe62bc960);
+                let mut __legacy_flags = 0u32;
+                if requires_password {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_bytes(data.as_slice());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view_fields(value)?;
+                __w.put_u32(0xe846b1a0);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrlAuth { .. } => {
+                let (style, text, fwd_text, url, button_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0xf51006f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                __w.put_i32(button_id);
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        227 => match &*value.type_ {
+            rtd_tg::InlineButtonType::InlineButtonTypeBuy => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_buy_fields(value)?;
+                __w.put_u32(0x3fa53905);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUrlAuth { .. } => {
+                let (request_write_access, style, text, fwd_text, url, bot) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0x68013e72);
+                let mut __legacy_flags = 0u32;
+                if request_write_access {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                encode_input_user_profile(profile, &bot, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile_fields(
+                        value,
+                    )?;
+                __w.put_u32(0x7d5e07c7);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                encode_input_user_profile(profile, &user_id, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeGame => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_game_fields(value)?;
+                __w.put_u32(0x89c590f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeSwitchInline { .. } => {
+                let (same_peer, style, text, query, peer_types) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline_fields(value)?;
+                __w.put_u32(0x991399fc);
+                let mut __legacy_flags = 0u32;
+                if same_peer {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if peer_types.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(query.as_str());
+                if let Some(__legacy_value) = &peer_types {
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
+                    for item in __legacy_value.iter() {
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_inline_query_peer_type_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                }
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCopy { .. } => {
+                let (style, text, copy_text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_copy_fields(value)?;
+                __w.put_u32(0xbcc4af10);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(copy_text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile_fields(value)?;
+                __w.put_u32(0xc0fd5d09);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i64(user_id);
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrl { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_fields(value)?;
+                __w.put_u32(0xd80c25ec);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCallback { .. } => {
+                let (requires_password, style, text, data) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback_fields(value)?;
+                __w.put_u32(0xe62bc960);
+                let mut __legacy_flags = 0u32;
+                if requires_password {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_bytes(data.as_slice());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view_fields(value)?;
+                __w.put_u32(0xe846b1a0);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrlAuth { .. } => {
+                let (style, text, fwd_text, url, button_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0xf51006f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                __w.put_i32(button_id);
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        228 => match &*value.type_ {
+            rtd_tg::InlineButtonType::InlineButtonTypeBuy => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_buy_fields(value)?;
+                __w.put_u32(0x3fa53905);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUrlAuth { .. } => {
+                let (request_write_access, style, text, fwd_text, url, bot) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0x68013e72);
+                let mut __legacy_flags = 0u32;
+                if request_write_access {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                encode_input_user_profile(profile, &bot, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InputInlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile_fields(
+                        value,
+                    )?;
+                __w.put_u32(0x7d5e07c7);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                encode_input_user_profile(profile, &user_id, __w)?;
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeGame => {
+                let (style, text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_game_fields(value)?;
+                __w.put_u32(0x89c590f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeSwitchInline { .. } => {
+                let (same_peer, style, text, query, peer_types) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_switch_inline_fields(value)?;
+                __w.put_u32(0x991399fc);
+                let mut __legacy_flags = 0u32;
+                if same_peer {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if peer_types.is_some() {
+                    __legacy_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(query.as_str());
+                if let Some(__legacy_value) = &peer_types {
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
+                    for item in __legacy_value.iter() {
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_inline_query_peer_type_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                }
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCopy { .. } => {
+                let (style, text, copy_text) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_copy_fields(value)?;
+                __w.put_u32(0xbcc4af10);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(copy_text.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUserProfile { .. } => {
+                let (style, text, user_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_user_profile_fields(value)?;
+                __w.put_u32(0xc0fd5d09);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_i64(user_id);
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrl { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_fields(value)?;
+                __w.put_u32(0xd80c25ec);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeCallback { .. } => {
+                let (requires_password, style, text, data) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_callback_fields(value)?;
+                __w.put_u32(0xe62bc960);
+                let mut __legacy_flags = 0u32;
+                if requires_password {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_bytes(data.as_slice());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeWebView { .. } => {
+                let (style, text, url) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_web_view_fields(value)?;
+                __w.put_u32(0xe846b1a0);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                __w.put_string(url.as_str());
+                Ok(true)
+            }
+            rtd_tg::InlineButtonType::InlineButtonTypeUrlAuth { .. } => {
+                let (style, text, fwd_text, url, button_id) =
+                    rtd_layerhooks::legacy::keyboard_inline_button_url_auth_fields(value)?;
+                __w.put_u32(0xf51006f9);
+                let mut __legacy_flags = 0u32;
+                if style.is_some() {
+                    __legacy_flags |= 1u32 << 10;
+                }
+                if fwd_text.is_some() {
+                    __legacy_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__legacy_flags);
+                if let Some(__legacy_value) = &style {
+                    encode_keyboard_button_style_profile(profile, __legacy_value, __w)?;
+                }
+                __w.put_string(text.as_str());
+                if let Some(__legacy_value) = &fwd_text {
+                    __w.put_string(__legacy_value.as_str());
+                }
+                __w.put_string(url.as_str());
+                __w.put_i32(button_id);
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        _ => Ok(false),
     }
 }
 
@@ -380564,6 +384056,215 @@ pub fn decode_object_profile(
             id,
             expected: 0,
         }))?;
+    if matches!(route.mode, RouteMode::ProfileOnly) {
+        return match (profile.layer, id) {
+            (225, 0x02b78156) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x417efd8f) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x5b0f15f5) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x7a11d782) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xaa40f94d) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xe15c4370) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x02b78156) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x417efd8f) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x5b0f15f5) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x7a11d782) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xaa40f94d) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xe15c4370) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x02b78156) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x417efd8f) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x5b0f15f5) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x7a11d782) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xaa40f94d) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xe15c4370) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x02b78156) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x417efd8f) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x5b0f15f5) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x7a11d782) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xaa40f94d) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xe15c4370) => Ok(Object::KeyboardButton(::std::boxed::Box::new(
+                decode_keyboard_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x3fa53905) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x68013e72) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x7d5e07c7) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x89c590f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0x991399fc) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xbcc4af10) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xc0fd5d09) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xd80c25ec) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xe62bc960) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xe846b1a0) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (225, 0xf51006f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x3fa53905) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x68013e72) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x7d5e07c7) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x89c590f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0x991399fc) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xbcc4af10) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xc0fd5d09) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xd80c25ec) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xe62bc960) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xe846b1a0) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (226, 0xf51006f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x3fa53905) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x68013e72) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x7d5e07c7) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x89c590f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0x991399fc) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xbcc4af10) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xc0fd5d09) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xd80c25ec) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xe62bc960) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xe846b1a0) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (227, 0xf51006f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x3fa53905) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x68013e72) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x7d5e07c7) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x89c590f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0x991399fc) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xbcc4af10) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xc0fd5d09) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xd80c25ec) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xe62bc960) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xe846b1a0) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            (228, 0xf51006f9) => Ok(Object::KeyboardInlineButton(::std::boxed::Box::new(
+                decode_keyboard_inline_button_profile(profile, id, __d)?,
+            ))),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        };
+    }
     let canonical = canonical_wire_id(route.semantic).ok_or(AdmitError::UnsupportedRoute(route))?;
     match canonical {
         0x004a8537 => Ok(Object::SecurePasswordKdfAlgo(::std::boxed::Box::new(

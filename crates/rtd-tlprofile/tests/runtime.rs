@@ -337,27 +337,6 @@ fn policy_default_fills_a_missing_canonical_field() {
     assert_eq!(amount, 7);
 }
 
-/// A wire id that exists only in an older layer has no canonical value to decode
-/// into, so decoding for that profile must fail closed rather than guess.
-#[test]
-fn profile_only_route_is_refused() {
-    let route = rtd_tlprofile::routes()
-        .iter()
-        .find(|route| route.profile == 225 && route.mode == RouteMode::ProfileOnly)
-        .copied()
-        .expect("layer 225 has a profile-only route");
-    let error = decode_object(
-        Profile::new(225),
-        &route.wire_id.to_le_bytes(),
-        Limits::default(),
-    )
-    .unwrap_err();
-    assert!(
-        matches!(error, AdmitError::UnsupportedRoute(found) if found == route),
-        "{error:?}"
-    );
-}
-
 /// A wire id with no route in the profile at all is refused.
 #[test]
 fn unknown_wire_id_is_refused() {
@@ -636,10 +615,11 @@ fn policy_projection_drops_a_vector_element() {
     assert!(!commands[0].ephemeral);
 }
 
-/// `keyboardButton` must project a non-default button type away and supply the
-/// default type when decoding the historical typeless button.
+/// `keyboardButton` supplies the default button type when decoding the historical
+/// typeless button; a non-default type is served as the older layer's own
+/// constructor (a `ProfileOnly` route).
 #[test]
-fn policy_keyboard_button_supplies_and_projects_the_type() {
+fn policy_keyboard_button_supplies_the_default_type() {
     let value = Object::KeyboardButton(Box::new(KeyboardButton {
         flags: 0,
         style: None,
@@ -662,10 +642,16 @@ fn policy_keyboard_button_supplies_and_projects_the_type() {
         type_: Box::new(ButtonType::ButtonTypeRequestPhone),
     })))
     .expect("freeze");
-    let error = non_default
-        .encode(Profile::new(225), &mut Writer::new())
-        .expect_err("a non-default button type is projected away");
-    assert_eq!(error, ProjectionError::Dropped);
+    // A non-default type is now served as the older layer's own constructor
+    // (`keyboardButtonRequestPhone#417efd8f`), not projected away.
+    let mut writer = Writer::new();
+    non_default
+        .encode(Profile::new(225), &mut writer)
+        .expect("a non-default type is served as its legacy constructor");
+    assert_eq!(
+        u32::from_le_bytes(writer.into_vec()[..4].try_into().unwrap()),
+        0x417e_fd8f
+    );
 }
 
 /// A capture hook derives a canonical field from a profile-only field: layer 227
@@ -1156,6 +1142,132 @@ fn policy_drop_reads_and_discards_a_profile_field() {
     };
     assert_eq!(bot_id, 42);
     assert_eq!(query_id, 7);
+}
+
+/// A `ProfileOnly` object constructor is served through its canonical class
+/// codec: layer 225 `keyboardButtonRequestPhone` decodes to the canonical
+/// `KeyboardButton` with `ButtonTypeRequestPhone`, and a canonical button with
+/// that type encodes back to the legacy constructor.
+#[test]
+fn profile_only_keyboard_button_round_trips() {
+    use rtd_tg::{ButtonType, KeyboardButton};
+
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| {
+            route.profile == 225 && route.semantic == semantic::TYPE_KEYBOARD_BUTTON_REQUEST_PHONE
+        })
+        .copied()
+        .expect("layer 225 has a keyboardButtonRequestPhone route");
+    assert_eq!(route.mode, RouteMode::ProfileOnly);
+
+    // keyboardButtonRequestPhone#417efd8f flags:# style:flags.10? text:string
+    let mut writer = Writer::new();
+    writer.put_u32(route.wire_id);
+    writer.put_u32(0); // no style
+    writer.put_string("call");
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    let Object::KeyboardButton(button) = decoded else {
+        panic!("expected keyboardButton");
+    };
+    assert!(matches!(*button.type_, ButtonType::ButtonTypeRequestPhone));
+    assert_eq!(button.text, "call");
+
+    let value = Object::KeyboardButton(Box::new(KeyboardButton {
+        flags: 0,
+        style: None,
+        text: "call".to_owned(),
+        type_: Box::new(ButtonType::ButtonTypeRequestPhone),
+    }));
+    let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode for layer 225");
+    let bytes = writer.into_vec();
+    assert_eq!(
+        u32::from_le_bytes(bytes[..4].try_into().unwrap()),
+        route.wire_id
+    );
+    let decoded = decode_object(Profile::new(225), &bytes, Limits::default()).expect("decode");
+    assert_eq!(decoded, value);
+}
+
+/// A `ProfileOnly` inline-button constructor decodes to the canonical
+/// `KeyboardInlineButton`, and its canonical type encodes back to the legacy
+/// constructor.
+#[test]
+fn profile_only_keyboard_inline_button_round_trips() {
+    use rtd_tg::{InlineButtonType, KeyboardInlineButton};
+
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| route.profile == 225 && route.semantic == semantic::TYPE_KEYBOARD_BUTTON_URL)
+        .copied()
+        .expect("layer 225 has a keyboardButtonUrl route");
+    assert_eq!(route.mode, RouteMode::ProfileOnly);
+
+    let mut writer = Writer::new();
+    writer.put_u32(route.wire_id);
+    writer.put_u32(0);
+    writer.put_string("open");
+    writer.put_string("https://t.me");
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    let Object::KeyboardInlineButton(button) = decoded else {
+        panic!("expected keyboardInlineButton");
+    };
+    assert!(matches!(
+        *button.type_,
+        InlineButtonType::InlineButtonTypeUrl { .. }
+    ));
+
+    let value = Object::KeyboardInlineButton(Box::new(KeyboardInlineButton {
+        flags: 0,
+        style: None,
+        text: "open".to_owned(),
+        type_: Box::new(InlineButtonType::InlineButtonTypeUrl {
+            url: "https://t.me".to_owned(),
+        }),
+    }));
+    let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode for layer 225");
+    let bytes = writer.into_vec();
+    assert_eq!(
+        u32::from_le_bytes(bytes[..4].try_into().unwrap()),
+        route.wire_id
+    );
+    assert_eq!(
+        decode_object(Profile::new(225), &bytes, Limits::default()).expect("decode"),
+        value
+    );
+}
+
+/// A `ProfileOnly` constructor with no `old-only` hook stays fail-closed.
+#[test]
+fn profile_only_route_without_a_hook_fails_closed() {
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| {
+            route.mode == RouteMode::ProfileOnly
+                && route.semantic == semantic::TYPE_INPUT_PASSKEY_CREDENTIAL_FIREBASE_PNV
+        })
+        .copied()
+        .expect("a profile-only passkey route exists");
+    let error = decode_object(
+        Profile::new(route.profile),
+        &route.wire_id.to_le_bytes(),
+        Limits::default(),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, AdmitError::UnsupportedRoute(found) if found == route),
+        "{error:?}"
+    );
 }
 
 #[test]

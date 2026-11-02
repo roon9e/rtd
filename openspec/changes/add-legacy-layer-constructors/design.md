@@ -29,10 +29,14 @@ encoded directly against the profile's own field layout, and the hooks that adap
 
 ### D1. Per-profile legacy constructors are generated, not hand-written
 
-The generator already computes `ProfileOnly` families and their field layouts. Emit a codec
-for each such constructor in the older layer's own model (a per-profile legacy value type),
-so decoding and encoding a `ProfileOnly` route is generated field logic like the present-in-
-both routes. Hand-writing 73 policy entries' worth of codecs is rejected as unauditable.
+The generator already computes `ProfileOnly` families and their field layouts. For a
+`ProfileOnly` constructor it emits, into the canonical class's profile codec, a
+`RouteMode::ProfileOnly` dispatch that reads the older layer's field layout and calls the
+reviewed `old-only` hook, yielding the canonical class value; encoding reverses it. A separate
+per-profile legacy value type is unnecessary because the hooks already define the canonical
+mapping (D2), so the profile model stays the canonical one and `ProfileOnly` values compare
+and dispatch like any other canonical value. Hand-writing the field logic is rejected as
+unauditable.
 
 ### D2. The `old-only` hooks are field-level, in `rtd-layerhooks`
 
