@@ -67,9 +67,9 @@ pub struct RequestPeerFlags {
 
 /// The fields of the legacy `inputKeyboardButtonRequestPeer`.
 type InputRequestPeerFields = (
+    RequestPeerFlags,
     Option<KeyboardButtonStyle>,
     String,
-    RequestPeerFlags,
     i32,
     RequestPeerType,
     i32,
@@ -77,9 +77,9 @@ type InputRequestPeerFields = (
 
 /// The fields of the legacy `keyboardButtonSwitchInline`.
 type SwitchInlineFields = (
+    bool,
     Option<KeyboardButtonStyle>,
     String,
-    bool,
     String,
     Option<Vec<InlineQueryPeerType>>,
 );
@@ -95,9 +95,9 @@ type UrlAuthFields = (
 
 /// The fields of the legacy `inputKeyboardButtonUrlAuth`.
 type InputUrlAuthFields = (
+    bool,
     Option<KeyboardButtonStyle>,
     String,
-    bool,
     Option<String>,
     String,
     InputUser,
@@ -154,20 +154,20 @@ pub fn keyboard_button_request_geo_location(
 /// Returns [`HookError::WrongVariant`] when the button is a different type.
 pub fn keyboard_button_request_poll_fields(
     value: &KeyboardButton,
-) -> Result<(Option<KeyboardButtonStyle>, String, Option<bool>)> {
+) -> Result<(Option<KeyboardButtonStyle>, Option<bool>, String)> {
     let ButtonType::ButtonTypeRequestPoll { quiz, .. } = &*value.type_ else {
         return Err(HookError::WrongVariant("keyboardButtonRequestPoll"));
     };
     let (style, text) = button_style_text(value, "keyboardButtonRequestPoll")?;
-    Ok((style, text, *quiz))
+    Ok((style, *quiz, text))
 }
 
 /// Profile to canonical for `keyboardButtonRequestPoll`.
 #[must_use]
 pub fn keyboard_button_request_poll(
     style: Option<KeyboardButtonStyle>,
-    text: String,
     quiz: Option<bool>,
+    text: String,
 ) -> KeyboardButton {
     keyboard_button(
         style,
@@ -253,13 +253,13 @@ pub fn input_keyboard_button_request_peer_fields(
     };
     let (style, text) = button_style_text(value, "inputKeyboardButtonRequestPeer")?;
     Ok((
-        style,
-        text,
         RequestPeerFlags {
             name: *name_requested,
             username: *username_requested,
             photo: *photo_requested,
         },
+        style,
+        text,
         *button_id,
         (**peer_type).clone(),
         *max_quantity,
@@ -269,9 +269,9 @@ pub fn input_keyboard_button_request_peer_fields(
 /// Profile to canonical for `inputKeyboardButtonRequestPeer`.
 #[must_use]
 pub fn input_keyboard_button_request_peer(
+    flags: RequestPeerFlags,
     style: Option<KeyboardButtonStyle>,
     text: String,
-    flags: RequestPeerFlags,
     button_id: i32,
     peer_type: RequestPeerType,
     max_quantity: i32,
@@ -356,7 +356,7 @@ pub fn keyboard_inline_button_url(
 /// Returns [`HookError::WrongVariant`] when the button is a different type.
 pub fn keyboard_inline_button_callback_fields(
     value: &KeyboardInlineButton,
-) -> Result<(Option<KeyboardButtonStyle>, String, bool, Vec<u8>)> {
+) -> Result<(bool, Option<KeyboardButtonStyle>, String, Vec<u8>)> {
     let InlineButtonType::InlineButtonTypeCallback {
         requires_password,
         data,
@@ -366,15 +366,15 @@ pub fn keyboard_inline_button_callback_fields(
         return Err(HookError::WrongVariant("keyboardButtonCallback"));
     };
     let (style, text) = inline_fields(value, "keyboardButtonCallback")?;
-    Ok((style, text, *requires_password, data.clone()))
+    Ok((*requires_password, style, text, data.clone()))
 }
 
 /// Profile to canonical for `keyboardButtonCallback`.
 #[must_use]
 pub fn keyboard_inline_button_callback(
+    requires_password: bool,
     style: Option<KeyboardButtonStyle>,
     text: String,
-    requires_password: bool,
     data: Vec<u8>,
 ) -> KeyboardInlineButton {
     keyboard_inline_button(
@@ -406,15 +406,15 @@ pub fn keyboard_inline_button_switch_inline_fields(
         return Err(HookError::WrongVariant("keyboardButtonSwitchInline"));
     };
     let (style, text) = inline_fields(value, "keyboardButtonSwitchInline")?;
-    Ok((style, text, *same_peer, query.clone(), peer_types.clone()))
+    Ok((*same_peer, style, text, query.clone(), peer_types.clone()))
 }
 
 /// Profile to canonical for `keyboardButtonSwitchInline`.
 #[must_use]
 pub fn keyboard_inline_button_switch_inline(
+    same_peer: bool,
     style: Option<KeyboardButtonStyle>,
     text: String,
-    same_peer: bool,
     query: String,
     peer_types: Option<Vec<InlineQueryPeerType>>,
 ) -> KeyboardInlineButton {
@@ -542,9 +542,9 @@ pub fn input_keyboard_inline_button_url_auth_fields(
         .ok_or(HookError::Missing("inputKeyboardButtonUrlAuth.bot"))?;
     let (style, text) = inline_fields(value, "inputKeyboardButtonUrlAuth")?;
     Ok((
+        *request_write_access,
         style,
         text,
-        *request_write_access,
         fwd_text.clone(),
         url.clone(),
         bot,
@@ -554,9 +554,9 @@ pub fn input_keyboard_inline_button_url_auth_fields(
 /// Profile to canonical for `inputKeyboardButtonUrlAuth`.
 #[must_use]
 pub fn input_keyboard_inline_button_url_auth(
+    request_write_access: bool,
     style: Option<KeyboardButtonStyle>,
     text: String,
-    request_write_access: bool,
     fwd_text: Option<String>,
     url: String,
     bot: InputUser,
@@ -739,8 +739,8 @@ mod tests {
 
     #[test]
     fn inline_callback_round_trips() {
-        let value = keyboard_inline_button_callback(None, "go".to_owned(), true, vec![1, 2]);
-        let (_, _, requires_password, data) =
+        let value = keyboard_inline_button_callback(true, None, "go".to_owned(), vec![1, 2]);
+        let (requires_password, _, _, data) =
             keyboard_inline_button_callback_fields(&value).unwrap();
         assert!(requires_password);
         assert_eq!(data, vec![1, 2]);
