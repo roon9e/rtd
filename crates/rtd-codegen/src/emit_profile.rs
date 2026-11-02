@@ -249,6 +249,11 @@ struct AdapterHooks {
     captures: std::collections::BTreeMap<String, CaptureHook>,
     /// `canonical field name` to a nested legacy keyboard-rows adapter.
     legacy_rows: std::collections::BTreeMap<String, LegacyRowsHook>,
+    /// Profile-only field name to its Rust type, read and discarded on decode.
+    discard: std::collections::BTreeMap<String, crate::emit_tg::RustType>,
+    /// A canonical mandatory field the profile cannot reconstruct, so decode must
+    /// fail closed.
+    decode_reject: Option<String>,
 }
 
 /// A nested legacy keyboard-rows adapter: the profile's `Vector<KeyboardButtonRow>`
@@ -325,6 +330,11 @@ struct PolicyLayer<'a> {
     captures: std::collections::BTreeMap<String, CaptureHook>,
     /// `canonical field name` to a nested legacy keyboard-rows adapter.
     legacy_rows: std::collections::BTreeMap<String, LegacyRowsHook>,
+    /// Profile-only field name to its Rust type, read and discarded on decode.
+    discard: std::collections::BTreeMap<String, crate::emit_tg::RustType>,
+    /// A canonical mandatory field the profile cannot reconstruct, so decode must
+    /// fail closed.
+    decode_reject: Option<String>,
 }
 
 /// Resolves a nested legacy-rows adapter against the older layer's layouts.
@@ -423,19 +433,49 @@ fn collect_adapter_hooks(
     // canonical field -> nested legacy keyboard-rows adapter
     let mut legacy_rows: std::collections::BTreeMap<String, LegacyRowsHook> =
         std::collections::BTreeMap::new();
+    // Profile-only fields read and discarded on decode.
+    let mut discard: std::collections::BTreeMap<String, crate::emit_tg::RustType> =
+        std::collections::BTreeMap::new();
+    // A canonical mandatory field the profile cannot reconstruct.
+    let mut decode_reject: Option<String> = None;
     for obligation in obligations {
         let Some(resolution) = &obligation.resolution else {
             return None;
         };
         match resolution.action.as_str() {
-            "drop" | "reject-if-present" | "default" => {}
-            "reject" => {
-                // Only a canonical-to-profile reject is emittable; a profile-side
-                // reject has no decode error channel yet.
-                if matches!(obligation.direction, "profile-to-canonical" | "both") {
-                    return None;
+            "drop" => {
+                // A profile-to-canonical drop removes a profile-only field: the
+                // decode must still read it to advance the cursor, then discard.
+                if obligation.direction == "profile-to-canonical" && !obligation.field.is_empty() {
+                    let profile_field = profile_def
+                        .fields
+                        .iter()
+                        .find(|field| field.name == obligation.field)?;
+                    let read_ty =
+                        crate::emit_tg::field_rust_type(profile_field, env.classes, env.bare_ids)
+                            .ok()?;
+                    discard.insert(obligation.field.clone(), read_ty);
                 }
             }
+            "reject-if-present" | "default" => {}
+            "reject" => match obligation.direction {
+                "canonical-to-profile" => {}
+                "profile-to-canonical" | "both" => {
+                    // The canonical mandatory `other_field` has no profile source,
+                    // so decoding the profile cannot rebuild it.
+                    if obligation.other_field.is_empty() {
+                        return None;
+                    }
+                    if let Some(existing) = &decode_reject {
+                        if existing != &obligation.other_field {
+                            return None;
+                        }
+                    } else {
+                        decode_reject = Some(obligation.other_field.clone());
+                    }
+                }
+                _ => return None,
+            },
             "adapter" => {
                 if let Some(convert) = rtd_layerhooks_registry::field_convert(&resolution.hook) {
                     let (canonical, encode, decode) = match obligation.direction {
@@ -547,6 +587,8 @@ fn collect_adapter_hooks(
         supply: std::collections::BTreeMap::new(),
         captures: std::collections::BTreeMap::new(),
         legacy_rows,
+        discard,
+        decode_reject,
     };
     for (canonical, entry) in pending {
         let field = definition
@@ -765,7 +807,21 @@ fn collect_policy_layers<'a>(
             field.kind == FieldKind::FlagsWord
                 || mapping.contains_key(&field.name)
                 || is_capture_source(&field.name)
+                || adapter.discard.contains_key(&field.name)
         }) {
+            continue;
+        }
+        // A discarded profile field is only encodable when the whole value
+        // rejects on the canonical-to-profile side, since nothing can supply it.
+        if !adapter.discard.is_empty()
+            && !obligations.iter().any(|obligation| {
+                obligation.direction == "canonical-to-profile"
+                    && obligation
+                        .resolution
+                        .as_ref()
+                        .is_some_and(|resolution| resolution.action == "reject")
+            })
+        {
             continue;
         }
         // Every canonical field the layer dropped must be optional (or defaulted
@@ -778,6 +834,7 @@ fn collect_policy_layers<'a>(
                 || canonical_defaults.contains(&field.name)
                 || adapter.supply.contains_key(&field.name)
                 || adapter.captures.contains_key(&field.name)
+                || adapter.decode_reject.as_deref() == Some(field.name.as_str())
         });
         if !rebuildable {
             continue;
@@ -795,6 +852,8 @@ fn collect_policy_layers<'a>(
             supply_hooks: adapter.supply,
             captures: adapter.captures,
             legacy_rows: adapter.legacy_rows,
+            discard: adapter.discard,
+            decode_reject: adapter.decode_reject,
         });
     }
     layers
@@ -816,10 +875,11 @@ fn emit_policy_layer_body(
 
     // A canonical-to-profile `reject` fails the whole conversion.
     if layer.obligations.iter().any(|obligation| {
-        obligation
-            .resolution
-            .as_ref()
-            .is_some_and(|resolution| resolution.action == "reject")
+        obligation.direction == "canonical-to-profile"
+            && obligation
+                .resolution
+                .as_ref()
+                .is_some_and(|resolution| resolution.action == "reject")
     }) {
         code.line(&format!(
             "Err(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {:#010x} }})",
@@ -1366,13 +1426,14 @@ fn emit_policy_encode_fns(
                 used.push(canonical.clone());
             }
         }
-        // A whole-value `reject` body is just its tail expression, so it binds
-        // nothing (any binding would be unused).
+        // A whole-value (canonical-to-profile) `reject` body is just its tail
+        // expression, so it binds nothing (any binding would be unused).
         if layer.obligations.iter().any(|obligation| {
-            obligation
-                .resolution
-                .as_ref()
-                .is_some_and(|resolution| resolution.action == "reject")
+            obligation.direction == "canonical-to-profile"
+                && obligation
+                    .resolution
+                    .as_ref()
+                    .is_some_and(|resolution| resolution.action == "reject")
         }) {
             used.clear();
         }
@@ -1449,12 +1510,28 @@ fn emit_policy_decode_fns(
                 .position(|field| &field.name == canonical)
                 .is_some_and(|ordinal| type_uses_profile(&types[ordinal]))
         });
-        let profile_param = if reads_nested { "profile" } else { "_profile" };
+        let decode_reject = layer.decode_reject.is_some();
+        let profile_param = if decode_reject || !reads_nested {
+            "_profile"
+        } else {
+            "profile"
+        };
+        let route_param = if decode_reject { "route" } else { "_route" };
+        let decoder_param = if decode_reject { "_d" } else { "__d" };
         let mut code = Code::new();
         code.open(&format!(
-            "fn decode_policy_{fn_base}_{}({profile_param}: Profile, __d: &mut Decoder<'_>) -> Result<{qualified}, AdmitError> {{",
+            "fn decode_policy_{fn_base}_{}({profile_param}: Profile, {route_param}: Route, {decoder_param}: &mut Decoder<'_>) -> Result<{qualified}, AdmitError> {{",
             layer.layer
         ));
+        if decode_reject {
+            // The profile cannot reconstruct the canonical value; refuse rather
+            // than fabricate it.
+            code.line("Err(AdmitError::UnsupportedRoute(route))");
+            code.close("}");
+            out.push_str(&code.out);
+            out.push('\n');
+            continue;
+        }
         for profile_field in &layer.profile_def.fields {
             let binding = field_ident(&profile_field.name);
             if profile_field.kind == FieldKind::FlagsWord {
@@ -1484,6 +1561,12 @@ fn emit_policy_decode_fns(
                     read_ty.rendered_in(true),
                     decode_expr(read_ty, true)
                 ));
+                continue;
+            }
+            // A discarded profile-only field is read to advance the cursor and
+            // then dropped; the canonical value has no such field.
+            if let Some(read_ty) = layer.discard.get(&profile_field.name) {
+                code.line(&format!("let _ = {};", decode_expr(read_ty, true)));
                 continue;
             }
             let canonical = layer.mapping.get(&profile_field.name).ok_or_else(|| {
@@ -1825,7 +1908,7 @@ fn emit_struct_codec(
         code.open("match profile.layer {");
         for layer in &layers {
             code.line(&format!(
-                "{} => decode_policy_{fn_name}_{}(profile, __d),",
+                "{} => decode_policy_{fn_name}_{}(profile, route, __d),",
                 layer.layer, layer.layer
             ));
         }
@@ -2007,7 +2090,7 @@ fn emit_enum_codec(
             code.open("match profile.layer {");
             for layer in layers {
                 code.line(&format!(
-                    "{} => decode_policy_{fn_base}_{}(profile, __d),",
+                    "{} => decode_policy_{fn_base}_{}(profile, route, __d),",
                     layer.layer, layer.layer
                 ));
             }

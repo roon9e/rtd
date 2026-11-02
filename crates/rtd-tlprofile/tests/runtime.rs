@@ -1074,6 +1074,90 @@ fn policy_legacy_inline_keyboard_rows_reject_a_reply_only_button() {
     assert!(matches!(error, AdmitError::Decode(_)), "{error:?}");
 }
 
+/// A canonical-to-profile reject fails closed on decode, while encode remains
+/// available: layer 225 `inputStorePaymentAuthCode` lacks the canonical
+/// mandatory `premium_days`, so a layer-225 value cannot be decoded, yet a
+/// canonical value still encodes for the layer (dropping `premium_days`).
+#[test]
+fn policy_decode_reject_fails_closed() {
+    use rtd_tg::InputStorePaymentPurpose;
+
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| {
+            route.profile == 225 && route.semantic == semantic::TYPE_INPUT_STORE_PAYMENT_AUTH_CODE
+        })
+        .copied()
+        .expect("layer 225 has an inputStorePaymentAuthCode route");
+    assert_eq!(route.mode, RouteMode::Policy);
+
+    let mut writer = Writer::new();
+    writer.put_u32(route.wire_id);
+    writer.put_u32(0); // flags: restore clear
+    writer.put_string("+1");
+    writer.put_string("hash");
+    writer.put_string("USD");
+    writer.put_i64(7);
+    let error = decode_object(Profile::new(225), &writer.into_vec(), Limits::default())
+        .expect_err("premium_days cannot be reconstructed");
+    assert!(
+        matches!(error, AdmitError::UnsupportedRoute(_)),
+        "{error:?}"
+    );
+
+    let value = Object::InputStorePaymentPurpose(Box::new(
+        InputStorePaymentPurpose::InputStorePaymentAuthCode {
+            flags: 1,
+            restore: true,
+            phone_number: "+1".to_owned(),
+            phone_code_hash: "hash".to_owned(),
+            premium_days: 30,
+            currency: "USD".to_owned(),
+            amount: 7,
+        },
+    ));
+    FrozenObject::freeze(value)
+        .expect("freeze")
+        .encode(Profile::new(225), &mut Writer::new())
+        .expect("a canonical value still encodes for layer 225");
+}
+
+/// A profile-to-canonical drop reads and discards a profile-only field: layer 226
+/// `messages.chatInviteJoinResultWebView` carries an extra `url` the canonical
+/// value does not have, and decoding rebuilds it without the url.
+#[test]
+fn policy_drop_reads_and_discards_a_profile_field() {
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| {
+            route.profile == 226
+                && route.semantic == semantic::TYPE_MESSAGES_CHAT_INVITE_JOIN_RESULT_WEB_VIEW
+        })
+        .copied()
+        .expect("layer 226 has a chatInviteJoinResultWebView route");
+    assert_eq!(route.mode, RouteMode::Policy);
+
+    let mut writer = Writer::new();
+    writer.put_u32(route.wire_id);
+    writer.put_i64(42); // bot_id
+    writer.put_string("https://ignored"); // url, read and discarded
+    writer.put_i64(7); // query_id
+    writer.put_vector_header(0); // users
+    let decoded =
+        decode_object(Profile::new(226), &writer.into_vec(), Limits::default()).expect("decode");
+    let Object::MessagesChatInviteJoinResult(result) = decoded else {
+        panic!("expected chatInviteJoinResult");
+    };
+    let MessagesChatInviteJoinResult::ChatInviteJoinResultWebView {
+        bot_id, query_id, ..
+    } = *result
+    else {
+        panic!("expected the webview variant");
+    };
+    assert_eq!(bot_id, 42);
+    assert_eq!(query_id, 7);
+}
+
 #[test]
 fn fail_closed_behaviors_are_unchanged() {
     // Unsupported-layer refusal.

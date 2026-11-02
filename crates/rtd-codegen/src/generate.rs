@@ -406,16 +406,11 @@ mod tests {
         assert!(actions.contains("reject-if-present"));
     }
 
-    /// Coverage baseline: every `Policy` route in the route table has an emitted
-    /// policy body, except the two obligation shapes not yet emittable (task 5.3):
-    /// a profile-to-canonical `reject` (layer 225 `inputStorePaymentAuthCode`,
-    /// whose mandatory canonical `premium_days` the profile lacks, so decode must
-    /// fail closed) and a profile-to-canonical `drop` of a profile-only field
-    /// (layer 226 `messages.chatInviteJoinResultWebView`, whose extra `url` must
-    /// be read and discarded). Any other unserved route is a regression; this list
-    /// must shrink to empty when those shapes land.
+    /// Coverage: every `Policy` route in the route table has an emitted policy
+    /// body. A route without one would fail closed at runtime even though it is
+    /// classified as a mechanical policy conversion.
     #[test]
-    fn policy_route_coverage_is_the_known_baseline() {
+    fn every_policy_route_has_an_emitted_body() {
         use super::obligations;
         use crate::routes::{RouteMode, build_route_table};
 
@@ -441,21 +436,9 @@ mod tests {
                 ));
             }
         }
-        assert_eq!(
-            missing,
-            vec![
-                (
-                    225,
-                    "type:inputStorePaymentAuthCode".to_owned(),
-                    "0x9bb2636d".to_owned()
-                ),
-                (
-                    226,
-                    "type:messages.chatInviteJoinResultWebView".to_owned(),
-                    "0x774bbdf4".to_owned()
-                ),
-            ],
-            "unserved policy routes changed; only the documented gaps may remain"
+        assert!(
+            missing.is_empty(),
+            "policy routes without an emitted body: {missing:?}"
         );
     }
 

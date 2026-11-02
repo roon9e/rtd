@@ -129064,9 +129064,9 @@ pub fn decode_bot_command_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_bot_command_225(profile, __d),
-            226 => decode_policy_bot_command_226(profile, __d),
-            227 => decode_policy_bot_command_227(profile, __d),
+            225 => decode_policy_bot_command_225(profile, route, __d),
+            226 => decode_policy_bot_command_226(profile, route, __d),
+            227 => decode_policy_bot_command_227(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -129075,6 +129075,7 @@ pub fn decode_bot_command_profile(
 
 fn decode_policy_bot_command_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotCommand, AdmitError> {
     let command: ::std::string::String = __d.take_string()?.to_owned();
@@ -129090,6 +129091,7 @@ fn decode_policy_bot_command_225(
 
 fn decode_policy_bot_command_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotCommand, AdmitError> {
     let command: ::std::string::String = __d.take_string()?.to_owned();
@@ -129105,6 +129107,7 @@ fn decode_policy_bot_command_226(
 
 fn decode_policy_bot_command_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotCommand, AdmitError> {
     let command: ::std::string::String = __d.take_string()?.to_owned();
@@ -131304,11 +131307,11 @@ pub fn decode_bot_verification_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_bot_verification_225(profile, __d),
-            226 => decode_policy_bot_verification_226(profile, __d),
-            227 => decode_policy_bot_verification_227(profile, __d),
-            228 => decode_policy_bot_verification_228(profile, __d),
-            229 => decode_policy_bot_verification_229(profile, __d),
+            225 => decode_policy_bot_verification_225(profile, route, __d),
+            226 => decode_policy_bot_verification_226(profile, route, __d),
+            227 => decode_policy_bot_verification_227(profile, route, __d),
+            228 => decode_policy_bot_verification_228(profile, route, __d),
+            229 => decode_policy_bot_verification_229(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -131317,6 +131320,7 @@ pub fn decode_bot_verification_profile(
 
 fn decode_policy_bot_verification_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerification, AdmitError> {
     let bot_id: i64 = __d.take_i64()?;
@@ -131333,6 +131337,7 @@ fn decode_policy_bot_verification_225(
 
 fn decode_policy_bot_verification_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerification, AdmitError> {
     let bot_id: i64 = __d.take_i64()?;
@@ -131349,6 +131354,7 @@ fn decode_policy_bot_verification_226(
 
 fn decode_policy_bot_verification_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerification, AdmitError> {
     let bot_id: i64 = __d.take_i64()?;
@@ -131365,6 +131371,7 @@ fn decode_policy_bot_verification_227(
 
 fn decode_policy_bot_verification_228(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerification, AdmitError> {
     let bot_id: i64 = __d.take_i64()?;
@@ -131381,6 +131388,7 @@ fn decode_policy_bot_verification_228(
 
 fn decode_policy_bot_verification_229(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerification, AdmitError> {
     let bot_id: i64 = __d.take_i64()?;
@@ -131659,11 +131667,11 @@ pub fn decode_bot_verifier_settings_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_bot_verifier_settings_225(profile, __d),
-            226 => decode_policy_bot_verifier_settings_226(profile, __d),
-            227 => decode_policy_bot_verifier_settings_227(profile, __d),
-            228 => decode_policy_bot_verifier_settings_228(profile, __d),
-            229 => decode_policy_bot_verifier_settings_229(profile, __d),
+            225 => decode_policy_bot_verifier_settings_225(profile, route, __d),
+            226 => decode_policy_bot_verifier_settings_226(profile, route, __d),
+            227 => decode_policy_bot_verifier_settings_227(profile, route, __d),
+            228 => decode_policy_bot_verifier_settings_228(profile, route, __d),
+            229 => decode_policy_bot_verifier_settings_229(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -131672,6 +131680,7 @@ pub fn decode_bot_verifier_settings_profile(
 
 fn decode_policy_bot_verifier_settings_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
     let flags = __d.take_u32()?;
@@ -131708,6 +131717,7 @@ fn decode_policy_bot_verifier_settings_225(
 
 fn decode_policy_bot_verifier_settings_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
     let flags = __d.take_u32()?;
@@ -131744,6 +131754,7 @@ fn decode_policy_bot_verifier_settings_226(
 
 fn decode_policy_bot_verifier_settings_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
     let flags = __d.take_u32()?;
@@ -131780,6 +131791,7 @@ fn decode_policy_bot_verifier_settings_227(
 
 fn decode_policy_bot_verifier_settings_228(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
     let flags = __d.take_u32()?;
@@ -131816,6 +131828,7 @@ fn decode_policy_bot_verifier_settings_228(
 
 fn decode_policy_bot_verifier_settings_229(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotVerifierSettings, AdmitError> {
     let flags = __d.take_u32()?;
@@ -140198,13 +140211,13 @@ pub fn decode_chat_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x053b3ce019590462 => match profile.layer {
-                225 => decode_policy_chat_channel_225(profile, __d),
-                226 => decode_policy_chat_channel_226(profile, __d),
-                227 => decode_policy_chat_channel_227(profile, __d),
-                228 => decode_policy_chat_channel_228(profile, __d),
-                229 => decode_policy_chat_channel_229(profile, __d),
-                230 => decode_policy_chat_channel_230(profile, __d),
-                231 => decode_policy_chat_channel_231(profile, __d),
+                225 => decode_policy_chat_channel_225(profile, route, __d),
+                226 => decode_policy_chat_channel_226(profile, route, __d),
+                227 => decode_policy_chat_channel_227(profile, route, __d),
+                228 => decode_policy_chat_channel_228(profile, route, __d),
+                229 => decode_policy_chat_channel_229(profile, route, __d),
+                230 => decode_policy_chat_channel_230(profile, route, __d),
+                231 => decode_policy_chat_channel_231(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -140215,6 +140228,7 @@ pub fn decode_chat_profile(
 
 fn decode_policy_chat_channel_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Chat, AdmitError> {
     let flags = __d.take_u32()?;
@@ -140633,6 +140647,7 @@ fn decode_policy_chat_channel_225(
 
 fn decode_policy_chat_channel_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Chat, AdmitError> {
     let flags = __d.take_u32()?;
@@ -141051,6 +141066,7 @@ fn decode_policy_chat_channel_226(
 
 fn decode_policy_chat_channel_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Chat, AdmitError> {
     let flags = __d.take_u32()?;
@@ -141469,6 +141485,7 @@ fn decode_policy_chat_channel_227(
 
 fn decode_policy_chat_channel_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Chat, AdmitError> {
     let flags = __d.take_u32()?;
@@ -141895,6 +141912,7 @@ fn decode_policy_chat_channel_228(
 
 fn decode_policy_chat_channel_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Chat, AdmitError> {
     let flags = __d.take_u32()?;
@@ -142321,6 +142339,7 @@ fn decode_policy_chat_channel_229(
 
 fn decode_policy_chat_channel_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Chat, AdmitError> {
     let flags = __d.take_u32()?;
@@ -142747,6 +142766,7 @@ fn decode_policy_chat_channel_230(
 
 fn decode_policy_chat_channel_231(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Chat, AdmitError> {
     let flags = __d.take_u32()?;
@@ -143756,10 +143776,10 @@ pub fn decode_chat_admin_rights_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_chat_admin_rights_225(profile, __d),
-            226 => decode_policy_chat_admin_rights_226(profile, __d),
-            227 => decode_policy_chat_admin_rights_227(profile, __d),
-            228 => decode_policy_chat_admin_rights_228(profile, __d),
+            225 => decode_policy_chat_admin_rights_225(profile, route, __d),
+            226 => decode_policy_chat_admin_rights_226(profile, route, __d),
+            227 => decode_policy_chat_admin_rights_227(profile, route, __d),
+            228 => decode_policy_chat_admin_rights_228(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -143768,6 +143788,7 @@ pub fn decode_chat_admin_rights_profile(
 
 fn decode_policy_chat_admin_rights_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatAdminRights, AdmitError> {
     let flags = __d.take_u32()?;
@@ -143866,6 +143887,7 @@ fn decode_policy_chat_admin_rights_225(
 
 fn decode_policy_chat_admin_rights_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatAdminRights, AdmitError> {
     let flags = __d.take_u32()?;
@@ -143964,6 +143986,7 @@ fn decode_policy_chat_admin_rights_226(
 
 fn decode_policy_chat_admin_rights_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatAdminRights, AdmitError> {
     let flags = __d.take_u32()?;
@@ -144062,6 +144085,7 @@ fn decode_policy_chat_admin_rights_227(
 
 fn decode_policy_chat_admin_rights_228(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatAdminRights, AdmitError> {
     let flags = __d.take_u32()?;
@@ -144842,9 +144866,9 @@ pub fn decode_chat_banned_rights_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_chat_banned_rights_225(profile, __d),
-            226 => decode_policy_chat_banned_rights_226(profile, __d),
-            227 => decode_policy_chat_banned_rights_227(profile, __d),
+            225 => decode_policy_chat_banned_rights_225(profile, route, __d),
+            226 => decode_policy_chat_banned_rights_226(profile, route, __d),
+            227 => decode_policy_chat_banned_rights_227(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -144853,6 +144877,7 @@ pub fn decode_chat_banned_rights_profile(
 
 fn decode_policy_chat_banned_rights_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatBannedRights, AdmitError> {
     let flags = __d.take_u32()?;
@@ -144977,6 +145002,7 @@ fn decode_policy_chat_banned_rights_225(
 
 fn decode_policy_chat_banned_rights_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatBannedRights, AdmitError> {
     let flags = __d.take_u32()?;
@@ -145101,6 +145127,7 @@ fn decode_policy_chat_banned_rights_226(
 
 fn decode_policy_chat_banned_rights_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatBannedRights, AdmitError> {
     let flags = __d.take_u32()?;
@@ -150412,20 +150439,20 @@ pub fn decode_chat_full_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x83e4a0cf94802472 => match profile.layer {
-                225 => decode_policy_chat_full_channel_full_225(profile, __d),
-                226 => decode_policy_chat_full_channel_full_226(profile, __d),
-                227 => decode_policy_chat_full_channel_full_227(profile, __d),
-                228 => decode_policy_chat_full_channel_full_228(profile, __d),
-                229 => decode_policy_chat_full_channel_full_229(profile, __d),
-                230 => decode_policy_chat_full_channel_full_230(profile, __d),
-                231 => decode_policy_chat_full_channel_full_231(profile, __d),
+                225 => decode_policy_chat_full_channel_full_225(profile, route, __d),
+                226 => decode_policy_chat_full_channel_full_226(profile, route, __d),
+                227 => decode_policy_chat_full_channel_full_227(profile, route, __d),
+                228 => decode_policy_chat_full_channel_full_228(profile, route, __d),
+                229 => decode_policy_chat_full_channel_full_229(profile, route, __d),
+                230 => decode_policy_chat_full_channel_full_230(profile, route, __d),
+                231 => decode_policy_chat_full_channel_full_231(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0xd9b9837a6aef5af8 => match profile.layer {
-                225 => decode_policy_chat_full_chat_full_225(profile, __d),
-                226 => decode_policy_chat_full_chat_full_226(profile, __d),
-                227 => decode_policy_chat_full_chat_full_227(profile, __d),
-                228 => decode_policy_chat_full_chat_full_228(profile, __d),
+                225 => decode_policy_chat_full_chat_full_225(profile, route, __d),
+                226 => decode_policy_chat_full_chat_full_226(profile, route, __d),
+                227 => decode_policy_chat_full_chat_full_227(profile, route, __d),
+                228 => decode_policy_chat_full_chat_full_228(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -150436,6 +150463,7 @@ pub fn decode_chat_full_profile(
 
 fn decode_policy_chat_full_channel_full_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -151047,6 +151075,7 @@ fn decode_policy_chat_full_channel_full_225(
 
 fn decode_policy_chat_full_channel_full_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -151666,6 +151695,7 @@ fn decode_policy_chat_full_channel_full_226(
 
 fn decode_policy_chat_full_channel_full_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -152285,6 +152315,7 @@ fn decode_policy_chat_full_channel_full_227(
 
 fn decode_policy_chat_full_channel_full_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -152904,6 +152935,7 @@ fn decode_policy_chat_full_channel_full_228(
 
 fn decode_policy_chat_full_channel_full_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -153527,6 +153559,7 @@ fn decode_policy_chat_full_channel_full_229(
 
 fn decode_policy_chat_full_channel_full_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -154150,6 +154183,7 @@ fn decode_policy_chat_full_channel_full_230(
 
 fn decode_policy_chat_full_channel_full_231(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -154773,6 +154807,7 @@ fn decode_policy_chat_full_channel_full_231(
 
 fn decode_policy_chat_full_chat_full_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -155006,6 +155041,7 @@ fn decode_policy_chat_full_chat_full_225(
 
 fn decode_policy_chat_full_chat_full_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -155239,6 +155275,7 @@ fn decode_policy_chat_full_chat_full_226(
 
 fn decode_policy_chat_full_chat_full_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -155472,6 +155509,7 @@ fn decode_policy_chat_full_chat_full_227(
 
 fn decode_policy_chat_full_chat_full_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChatFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -158170,7 +158208,7 @@ pub fn decode_connected_bot_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_connected_bot_225(profile, __d),
+            225 => decode_policy_connected_bot_225(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -158179,6 +158217,7 @@ pub fn decode_connected_bot_profile(
 
 fn decode_policy_connected_bot_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ConnectedBot, AdmitError> {
     let _ = __d.take_u32()?;
@@ -161309,8 +161348,8 @@ pub fn decode_draft_message_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x59ef1f6c361136dd => match profile.layer {
-                225 => decode_policy_draft_message_draft_message_225(profile, __d),
-                226 => decode_policy_draft_message_draft_message_226(profile, __d),
+                225 => decode_policy_draft_message_draft_message_225(profile, route, __d),
+                226 => decode_policy_draft_message_draft_message_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -161321,6 +161360,7 @@ pub fn decode_draft_message_profile(
 
 fn decode_policy_draft_message_draft_message_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::DraftMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -161432,6 +161472,7 @@ fn decode_policy_draft_message_draft_message_225(
 
 fn decode_policy_draft_message_draft_message_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::DraftMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -163630,7 +163671,7 @@ pub fn decode_ephemeral_message_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            228 => decode_policy_ephemeral_message_228(profile, __d),
+            228 => decode_policy_ephemeral_message_228(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -163639,6 +163680,7 @@ pub fn decode_ephemeral_message_profile(
 
 fn decode_policy_ephemeral_message_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::EphemeralMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -173940,10 +173982,18 @@ pub fn decode_input_invoice_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0xb7014f4e63710f8a => match profile.layer {
-                225 => decode_policy_input_invoice_input_invoice_star_gift_resale_225(profile, __d),
-                226 => decode_policy_input_invoice_input_invoice_star_gift_resale_226(profile, __d),
-                227 => decode_policy_input_invoice_input_invoice_star_gift_resale_227(profile, __d),
-                228 => decode_policy_input_invoice_input_invoice_star_gift_resale_228(profile, __d),
+                225 => decode_policy_input_invoice_input_invoice_star_gift_resale_225(
+                    profile, route, __d,
+                ),
+                226 => decode_policy_input_invoice_input_invoice_star_gift_resale_226(
+                    profile, route, __d,
+                ),
+                227 => decode_policy_input_invoice_input_invoice_star_gift_resale_227(
+                    profile, route, __d,
+                ),
+                228 => decode_policy_input_invoice_input_invoice_star_gift_resale_228(
+                    profile, route, __d,
+                ),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -173954,6 +174004,7 @@ pub fn decode_input_invoice_profile(
 
 fn decode_policy_input_invoice_input_invoice_star_gift_resale_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputInvoice, AdmitError> {
     let flags = __d.take_u32()?;
@@ -173984,6 +174035,7 @@ fn decode_policy_input_invoice_input_invoice_star_gift_resale_225(
 
 fn decode_policy_input_invoice_input_invoice_star_gift_resale_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputInvoice, AdmitError> {
     let flags = __d.take_u32()?;
@@ -174014,6 +174066,7 @@ fn decode_policy_input_invoice_input_invoice_star_gift_resale_226(
 
 fn decode_policy_input_invoice_input_invoice_star_gift_resale_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputInvoice, AdmitError> {
     let flags = __d.take_u32()?;
@@ -174044,6 +174097,7 @@ fn decode_policy_input_invoice_input_invoice_star_gift_resale_227(
 
 fn decode_policy_input_invoice_input_invoice_star_gift_resale_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputInvoice, AdmitError> {
     let flags = __d.take_u32()?;
@@ -179136,13 +179190,13 @@ pub fn decode_input_reply_to_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0xd7f59c613c2362f9 => match profile.layer {
-                225 => decode_policy_input_reply_to_input_reply_to_message_225(profile, __d),
-                226 => decode_policy_input_reply_to_input_reply_to_message_226(profile, __d),
-                227 => decode_policy_input_reply_to_input_reply_to_message_227(profile, __d),
-                228 => decode_policy_input_reply_to_input_reply_to_message_228(profile, __d),
-                229 => decode_policy_input_reply_to_input_reply_to_message_229(profile, __d),
-                230 => decode_policy_input_reply_to_input_reply_to_message_230(profile, __d),
-                231 => decode_policy_input_reply_to_input_reply_to_message_231(profile, __d),
+                225 => decode_policy_input_reply_to_input_reply_to_message_225(profile, route, __d),
+                226 => decode_policy_input_reply_to_input_reply_to_message_226(profile, route, __d),
+                227 => decode_policy_input_reply_to_input_reply_to_message_227(profile, route, __d),
+                228 => decode_policy_input_reply_to_input_reply_to_message_228(profile, route, __d),
+                229 => decode_policy_input_reply_to_input_reply_to_message_229(profile, route, __d),
+                230 => decode_policy_input_reply_to_input_reply_to_message_230(profile, route, __d),
+                231 => decode_policy_input_reply_to_input_reply_to_message_231(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -179153,6 +179207,7 @@ pub fn decode_input_reply_to_profile(
 
 fn decode_policy_input_reply_to_input_reply_to_message_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputReplyTo, AdmitError> {
     let flags = __d.take_u32()?;
@@ -179273,6 +179328,7 @@ fn decode_policy_input_reply_to_input_reply_to_message_225(
 
 fn decode_policy_input_reply_to_input_reply_to_message_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputReplyTo, AdmitError> {
     let flags = __d.take_u32()?;
@@ -179393,6 +179449,7 @@ fn decode_policy_input_reply_to_input_reply_to_message_226(
 
 fn decode_policy_input_reply_to_input_reply_to_message_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputReplyTo, AdmitError> {
     let flags = __d.take_u32()?;
@@ -179513,6 +179570,7 @@ fn decode_policy_input_reply_to_input_reply_to_message_227(
 
 fn decode_policy_input_reply_to_input_reply_to_message_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputReplyTo, AdmitError> {
     let flags = __d.take_u32()?;
@@ -179633,6 +179691,7 @@ fn decode_policy_input_reply_to_input_reply_to_message_228(
 
 fn decode_policy_input_reply_to_input_reply_to_message_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputReplyTo, AdmitError> {
     let flags = __d.take_u32()?;
@@ -179753,6 +179812,7 @@ fn decode_policy_input_reply_to_input_reply_to_message_229(
 
 fn decode_policy_input_reply_to_input_reply_to_message_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputReplyTo, AdmitError> {
     let flags = __d.take_u32()?;
@@ -179873,6 +179933,7 @@ fn decode_policy_input_reply_to_input_reply_to_message_230(
 
 fn decode_policy_input_reply_to_input_reply_to_message_231(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::InputReplyTo, AdmitError> {
     let flags = __d.take_u32()?;
@@ -181976,6 +182037,14 @@ pub fn encode_input_store_payment_purpose_profile(
                     __w.put_i64(*amount);
                     Ok(())
                 }
+                RouteMode::Policy => {
+                    __w.put_u32(route.wire_id);
+                    match profile.layer {
+                        225 => encode_policy_input_store_payment_purpose_input_store_payment_auth_code_225(profile, __value, __w)?,
+                        _ => return Err(ProjectionError::RouteNotEmitted(route)),
+                    }
+                    Ok(())
+                }
                 _ => Err(ProjectionError::RouteNotEmitted(route)),
             }
         }
@@ -182440,6 +182509,34 @@ pub fn encode_input_store_payment_purpose_profile(
     }
 }
 
+fn encode_policy_input_store_payment_purpose_input_store_payment_auth_code_225(
+    _profile: Profile,
+    value: &rtd_tg::InputStorePaymentPurpose,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::InputStorePaymentPurpose::InputStorePaymentAuthCode {
+        amount,
+        currency,
+        phone_code_hash,
+        phone_number,
+        restore,
+        ..
+    } = value
+    else {
+        unreachable!()
+    };
+    let mut __flags_flags = 0u32;
+    if *restore {
+        __flags_flags |= 1u32 << 0;
+    }
+    __w.put_u32(__flags_flags);
+    __w.put_string(phone_number.as_str());
+    __w.put_string(phone_code_hash.as_str());
+    __w.put_string(currency.as_str());
+    __w.put_i64(*amount);
+    Ok(())
+}
+
 pub fn decode_input_store_payment_purpose_profile(
     profile: Profile,
     id: u32,
@@ -182774,8 +182871,25 @@ pub fn decode_input_store_payment_purpose_profile(
             }
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
+        RouteMode::Policy => match route.semantic.0 {
+            0x57757ac987d24e6a => match profile.layer {
+                225 => decode_policy_input_store_payment_purpose_input_store_payment_auth_code_225(
+                    profile, route, __d,
+                ),
+                _ => Err(AdmitError::UnsupportedRoute(route)),
+            },
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_input_store_payment_purpose_input_store_payment_auth_code_225(
+    _profile: Profile,
+    route: Route,
+    _d: &mut Decoder<'_>,
+) -> Result<rtd_tg::InputStorePaymentPurpose, AdmitError> {
+    Err(AdmitError::UnsupportedRoute(route))
 }
 
 pub fn encode_input_theme_profile(
@@ -184964,10 +185078,10 @@ pub fn decode_keyboard_button_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_keyboard_button_225(profile, __d),
-            226 => decode_policy_keyboard_button_226(profile, __d),
-            227 => decode_policy_keyboard_button_227(profile, __d),
-            228 => decode_policy_keyboard_button_228(profile, __d),
+            225 => decode_policy_keyboard_button_225(profile, route, __d),
+            226 => decode_policy_keyboard_button_226(profile, route, __d),
+            227 => decode_policy_keyboard_button_227(profile, route, __d),
+            228 => decode_policy_keyboard_button_228(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -184976,6 +185090,7 @@ pub fn decode_keyboard_button_profile(
 
 fn decode_policy_keyboard_button_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::KeyboardButton, AdmitError> {
     let flags = __d.take_u32()?;
@@ -185010,6 +185125,7 @@ fn decode_policy_keyboard_button_225(
 
 fn decode_policy_keyboard_button_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::KeyboardButton, AdmitError> {
     let flags = __d.take_u32()?;
@@ -185044,6 +185160,7 @@ fn decode_policy_keyboard_button_226(
 
 fn decode_policy_keyboard_button_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::KeyboardButton, AdmitError> {
     let flags = __d.take_u32()?;
@@ -185078,6 +185195,7 @@ fn decode_policy_keyboard_button_227(
 
 fn decode_policy_keyboard_button_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::KeyboardButton, AdmitError> {
     let flags = __d.take_u32()?;
@@ -188697,8 +188815,8 @@ pub fn decode_message_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x69c8e34961a5e3df => match profile.layer {
-                225 => decode_policy_message_message_225(profile, __d),
-                226 => decode_policy_message_message_226(profile, __d),
+                225 => decode_policy_message_message_225(profile, route, __d),
+                226 => decode_policy_message_message_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -188709,6 +188827,7 @@ pub fn decode_message_profile(
 
 fn decode_policy_message_message_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Message, AdmitError> {
     let flags = __d.take_u32()?;
@@ -189200,6 +189319,7 @@ fn decode_policy_message_message_225(
 
 fn decode_policy_message_message_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Message, AdmitError> {
     let flags = __d.take_u32()?;
@@ -194712,18 +194832,18 @@ pub fn decode_message_action_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x7e67b6443ee86e0f => match profile.layer {
-                225 => {
-                    decode_policy_message_action_message_action_star_gift_unique_225(profile, __d)
-                }
-                226 => {
-                    decode_policy_message_action_message_action_star_gift_unique_226(profile, __d)
-                }
-                227 => {
-                    decode_policy_message_action_message_action_star_gift_unique_227(profile, __d)
-                }
-                228 => {
-                    decode_policy_message_action_message_action_star_gift_unique_228(profile, __d)
-                }
+                225 => decode_policy_message_action_message_action_star_gift_unique_225(
+                    profile, route, __d,
+                ),
+                226 => decode_policy_message_action_message_action_star_gift_unique_226(
+                    profile, route, __d,
+                ),
+                227 => decode_policy_message_action_message_action_star_gift_unique_227(
+                    profile, route, __d,
+                ),
+                228 => decode_policy_message_action_message_action_star_gift_unique_228(
+                    profile, route, __d,
+                ),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -194734,6 +194854,7 @@ pub fn decode_message_action_profile(
 
 fn decode_policy_message_action_message_action_star_gift_unique_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageAction, AdmitError> {
     let flags = __d.take_u32()?;
@@ -194912,6 +195033,7 @@ fn decode_policy_message_action_message_action_star_gift_unique_225(
 
 fn decode_policy_message_action_message_action_star_gift_unique_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageAction, AdmitError> {
     let flags = __d.take_u32()?;
@@ -195090,6 +195212,7 @@ fn decode_policy_message_action_message_action_star_gift_unique_226(
 
 fn decode_policy_message_action_message_action_star_gift_unique_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageAction, AdmitError> {
     let flags = __d.take_u32()?;
@@ -195268,6 +195391,7 @@ fn decode_policy_message_action_message_action_star_gift_unique_227(
 
 fn decode_policy_message_action_message_action_star_gift_unique_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageAction, AdmitError> {
     let flags = __d.take_u32()?;
@@ -200699,13 +200823,27 @@ pub fn decode_message_reply_header_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x0f45a54e15e9d5af => match profile.layer {
-                225 => decode_policy_message_reply_header_message_reply_header_225(profile, __d),
-                226 => decode_policy_message_reply_header_message_reply_header_226(profile, __d),
-                227 => decode_policy_message_reply_header_message_reply_header_227(profile, __d),
-                228 => decode_policy_message_reply_header_message_reply_header_228(profile, __d),
-                229 => decode_policy_message_reply_header_message_reply_header_229(profile, __d),
-                230 => decode_policy_message_reply_header_message_reply_header_230(profile, __d),
-                231 => decode_policy_message_reply_header_message_reply_header_231(profile, __d),
+                225 => {
+                    decode_policy_message_reply_header_message_reply_header_225(profile, route, __d)
+                }
+                226 => {
+                    decode_policy_message_reply_header_message_reply_header_226(profile, route, __d)
+                }
+                227 => {
+                    decode_policy_message_reply_header_message_reply_header_227(profile, route, __d)
+                }
+                228 => {
+                    decode_policy_message_reply_header_message_reply_header_228(profile, route, __d)
+                }
+                229 => {
+                    decode_policy_message_reply_header_message_reply_header_229(profile, route, __d)
+                }
+                230 => {
+                    decode_policy_message_reply_header_message_reply_header_230(profile, route, __d)
+                }
+                231 => {
+                    decode_policy_message_reply_header_message_reply_header_231(profile, route, __d)
+                }
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -200716,6 +200854,7 @@ pub fn decode_message_reply_header_profile(
 
 fn decode_policy_message_reply_header_message_reply_header_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageReplyHeader, AdmitError> {
     let flags = __d.take_u32()?;
@@ -200875,6 +201014,7 @@ fn decode_policy_message_reply_header_message_reply_header_225(
 
 fn decode_policy_message_reply_header_message_reply_header_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageReplyHeader, AdmitError> {
     let flags = __d.take_u32()?;
@@ -201034,6 +201174,7 @@ fn decode_policy_message_reply_header_message_reply_header_226(
 
 fn decode_policy_message_reply_header_message_reply_header_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageReplyHeader, AdmitError> {
     let flags = __d.take_u32()?;
@@ -201197,6 +201338,7 @@ fn decode_policy_message_reply_header_message_reply_header_227(
 
 fn decode_policy_message_reply_header_message_reply_header_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageReplyHeader, AdmitError> {
     let flags = __d.take_u32()?;
@@ -201360,6 +201502,7 @@ fn decode_policy_message_reply_header_message_reply_header_228(
 
 fn decode_policy_message_reply_header_message_reply_header_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageReplyHeader, AdmitError> {
     let flags = __d.take_u32()?;
@@ -201523,6 +201666,7 @@ fn decode_policy_message_reply_header_message_reply_header_229(
 
 fn decode_policy_message_reply_header_message_reply_header_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageReplyHeader, AdmitError> {
     let flags = __d.take_u32()?;
@@ -201686,6 +201830,7 @@ fn decode_policy_message_reply_header_message_reply_header_230(
 
 fn decode_policy_message_reply_header_message_reply_header_231(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessageReplyHeader, AdmitError> {
     let flags = __d.take_u32()?;
@@ -206606,32 +206751,32 @@ pub fn decode_page_block_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0xae24386d6130084a => match profile.layer {
-                225 => decode_policy_page_block_page_block_blockquote_225(profile, __d),
-                226 => decode_policy_page_block_page_block_blockquote_226(profile, __d),
-                227 => decode_policy_page_block_page_block_blockquote_227(profile, __d),
-                228 => decode_policy_page_block_page_block_blockquote_228(profile, __d),
+                225 => decode_policy_page_block_page_block_blockquote_225(profile, route, __d),
+                226 => decode_policy_page_block_page_block_blockquote_226(profile, route, __d),
+                227 => decode_policy_page_block_page_block_blockquote_227(profile, route, __d),
+                228 => decode_policy_page_block_page_block_blockquote_228(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0x1032b7995f7ae7bf => match profile.layer {
-                225 => decode_policy_page_block_page_block_ordered_list_225(profile, __d),
-                226 => decode_policy_page_block_page_block_ordered_list_226(profile, __d),
+                225 => decode_policy_page_block_page_block_ordered_list_225(profile, route, __d),
+                226 => decode_policy_page_block_page_block_ordered_list_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0x4e46fd27c2aab6e5 => match profile.layer {
-                225 => decode_policy_page_block_page_block_photo_225(profile, __d),
-                226 => decode_policy_page_block_page_block_photo_226(profile, __d),
+                225 => decode_policy_page_block_page_block_photo_225(profile, route, __d),
+                226 => decode_policy_page_block_page_block_photo_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0x5a99f949596abb7e => match profile.layer {
-                225 => decode_policy_page_block_page_block_table_225(profile, __d),
-                226 => decode_policy_page_block_page_block_table_226(profile, __d),
-                227 => decode_policy_page_block_page_block_table_227(profile, __d),
-                228 => decode_policy_page_block_page_block_table_228(profile, __d),
+                225 => decode_policy_page_block_page_block_table_225(profile, route, __d),
+                226 => decode_policy_page_block_page_block_table_226(profile, route, __d),
+                227 => decode_policy_page_block_page_block_table_227(profile, route, __d),
+                228 => decode_policy_page_block_page_block_table_228(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0x0d09fc364192f146 => match profile.layer {
-                225 => decode_policy_page_block_page_block_video_225(profile, __d),
-                226 => decode_policy_page_block_page_block_video_226(profile, __d),
+                225 => decode_policy_page_block_page_block_video_225(profile, route, __d),
+                226 => decode_policy_page_block_page_block_video_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -206642,6 +206787,7 @@ pub fn decode_page_block_profile(
 
 fn decode_policy_page_block_page_block_blockquote_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let text: ::std::boxed::Box<rtd_tg::RichText> = {
@@ -206673,6 +206819,7 @@ fn decode_policy_page_block_page_block_blockquote_225(
 
 fn decode_policy_page_block_page_block_blockquote_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let text: ::std::boxed::Box<rtd_tg::RichText> = {
@@ -206704,6 +206851,7 @@ fn decode_policy_page_block_page_block_blockquote_226(
 
 fn decode_policy_page_block_page_block_blockquote_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let text: ::std::boxed::Box<rtd_tg::RichText> = {
@@ -206735,6 +206883,7 @@ fn decode_policy_page_block_page_block_blockquote_227(
 
 fn decode_policy_page_block_page_block_blockquote_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let text: ::std::boxed::Box<rtd_tg::RichText> = {
@@ -206766,6 +206915,7 @@ fn decode_policy_page_block_page_block_blockquote_228(
 
 fn decode_policy_page_block_page_block_ordered_list_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let items: ::std::vec::Vec<rtd_tg::PageListOrderedItem> = {
@@ -206796,6 +206946,7 @@ fn decode_policy_page_block_page_block_ordered_list_225(
 
 fn decode_policy_page_block_page_block_ordered_list_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let items: ::std::vec::Vec<rtd_tg::PageListOrderedItem> = {
@@ -206826,6 +206977,7 @@ fn decode_policy_page_block_page_block_ordered_list_226(
 
 fn decode_policy_page_block_page_block_photo_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -206868,6 +207020,7 @@ fn decode_policy_page_block_page_block_photo_225(
 
 fn decode_policy_page_block_page_block_photo_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -206910,6 +207063,7 @@ fn decode_policy_page_block_page_block_photo_226(
 
 fn decode_policy_page_block_page_block_table_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -206959,6 +207113,7 @@ fn decode_policy_page_block_page_block_table_225(
 
 fn decode_policy_page_block_page_block_table_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -207008,6 +207163,7 @@ fn decode_policy_page_block_page_block_table_226(
 
 fn decode_policy_page_block_page_block_table_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -207057,6 +207213,7 @@ fn decode_policy_page_block_page_block_table_227(
 
 fn decode_policy_page_block_page_block_table_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -207106,6 +207263,7 @@ fn decode_policy_page_block_page_block_table_228(
 
 fn decode_policy_page_block_page_block_video_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -207140,6 +207298,7 @@ fn decode_policy_page_block_page_block_video_225(
 
 fn decode_policy_page_block_page_block_video_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageBlock, AdmitError> {
     let flags = __d.take_u32()?;
@@ -207631,13 +207790,13 @@ pub fn decode_page_list_item_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0xf1538f0a29bc39f2 => match profile.layer {
-                225 => decode_policy_page_list_item_page_list_item_blocks_225(profile, __d),
-                226 => decode_policy_page_list_item_page_list_item_blocks_226(profile, __d),
+                225 => decode_policy_page_list_item_page_list_item_blocks_225(profile, route, __d),
+                226 => decode_policy_page_list_item_page_list_item_blocks_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0x8e571d9535e719b7 => match profile.layer {
-                225 => decode_policy_page_list_item_page_list_item_text_225(profile, __d),
-                226 => decode_policy_page_list_item_page_list_item_text_226(profile, __d),
+                225 => decode_policy_page_list_item_page_list_item_text_225(profile, route, __d),
+                226 => decode_policy_page_list_item_page_list_item_text_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -207648,6 +207807,7 @@ pub fn decode_page_list_item_profile(
 
 fn decode_policy_page_list_item_page_list_item_blocks_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListItem, AdmitError> {
     let blocks: ::std::vec::Vec<rtd_tg::PageBlock> = {
@@ -207677,6 +207837,7 @@ fn decode_policy_page_list_item_page_list_item_blocks_225(
 
 fn decode_policy_page_list_item_page_list_item_blocks_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListItem, AdmitError> {
     let blocks: ::std::vec::Vec<rtd_tg::PageBlock> = {
@@ -207706,6 +207867,7 @@ fn decode_policy_page_list_item_page_list_item_blocks_226(
 
 fn decode_policy_page_list_item_page_list_item_text_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListItem, AdmitError> {
     let text: ::std::boxed::Box<rtd_tg::RichText> = {
@@ -207728,6 +207890,7 @@ fn decode_policy_page_list_item_page_list_item_text_225(
 
 fn decode_policy_page_list_item_page_list_item_text_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListItem, AdmitError> {
     let text: ::std::boxed::Box<rtd_tg::RichText> = {
@@ -208164,19 +208327,19 @@ pub fn decode_page_list_ordered_item_profile(
         RouteMode::Policy => match route.semantic.0 {
             0x0a64870344d80630 => match profile.layer {
                 225 => decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
-                    profile, __d,
+                    profile, route, __d,
                 ),
                 226 => decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
-                    profile, __d,
+                    profile, route, __d,
                 ),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0x39eb639674e29879 => match profile.layer {
                 225 => decode_policy_page_list_ordered_item_page_list_ordered_item_text_225(
-                    profile, __d,
+                    profile, route, __d,
                 ),
                 226 => decode_policy_page_list_ordered_item_page_list_ordered_item_text_226(
-                    profile, __d,
+                    profile, route, __d,
                 ),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
@@ -208188,6 +208351,7 @@ pub fn decode_page_list_ordered_item_profile(
 
 fn decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
     let num: ::std::string::String = __d.take_string()?.to_owned();
@@ -208222,6 +208386,7 @@ fn decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
 
 fn decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
     let num: ::std::string::String = __d.take_string()?.to_owned();
@@ -208256,6 +208421,7 @@ fn decode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
 
 fn decode_policy_page_list_ordered_item_page_list_ordered_item_text_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
     let num: ::std::string::String = __d.take_string()?.to_owned();
@@ -208283,6 +208449,7 @@ fn decode_policy_page_list_ordered_item_page_list_ordered_item_text_225(
 
 fn decode_policy_page_list_ordered_item_page_list_ordered_item_text_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::PageListOrderedItem, AdmitError> {
     let num: ::std::string::String = __d.take_string()?.to_owned();
@@ -217434,17 +217601,17 @@ pub fn decode_reply_markup_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x623411a8de6cdd64 => match profile.layer {
-                225 => decode_policy_reply_markup_reply_inline_markup_225(profile, __d),
-                226 => decode_policy_reply_markup_reply_inline_markup_226(profile, __d),
-                227 => decode_policy_reply_markup_reply_inline_markup_227(profile, __d),
-                228 => decode_policy_reply_markup_reply_inline_markup_228(profile, __d),
+                225 => decode_policy_reply_markup_reply_inline_markup_225(profile, route, __d),
+                226 => decode_policy_reply_markup_reply_inline_markup_226(profile, route, __d),
+                227 => decode_policy_reply_markup_reply_inline_markup_227(profile, route, __d),
+                228 => decode_policy_reply_markup_reply_inline_markup_228(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             0x8281182efd1ce365 => match profile.layer {
-                225 => decode_policy_reply_markup_reply_keyboard_markup_225(profile, __d),
-                226 => decode_policy_reply_markup_reply_keyboard_markup_226(profile, __d),
-                227 => decode_policy_reply_markup_reply_keyboard_markup_227(profile, __d),
-                228 => decode_policy_reply_markup_reply_keyboard_markup_228(profile, __d),
+                225 => decode_policy_reply_markup_reply_keyboard_markup_225(profile, route, __d),
+                226 => decode_policy_reply_markup_reply_keyboard_markup_226(profile, route, __d),
+                227 => decode_policy_reply_markup_reply_keyboard_markup_227(profile, route, __d),
+                228 => decode_policy_reply_markup_reply_keyboard_markup_228(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -217455,6 +217622,7 @@ pub fn decode_reply_markup_profile(
 
 fn decode_policy_reply_markup_reply_inline_markup_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let rows = {
@@ -217826,6 +217994,7 @@ fn decode_policy_reply_markup_reply_inline_markup_225(
 
 fn decode_policy_reply_markup_reply_inline_markup_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let rows = {
@@ -218197,6 +218366,7 @@ fn decode_policy_reply_markup_reply_inline_markup_226(
 
 fn decode_policy_reply_markup_reply_inline_markup_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let rows = {
@@ -218568,6 +218738,7 @@ fn decode_policy_reply_markup_reply_inline_markup_227(
 
 fn decode_policy_reply_markup_reply_inline_markup_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let rows = {
@@ -218939,6 +219110,7 @@ fn decode_policy_reply_markup_reply_inline_markup_228(
 
 fn decode_policy_reply_markup_reply_keyboard_markup_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let flags = __d.take_u32()?;
@@ -218997,6 +219169,7 @@ fn decode_policy_reply_markup_reply_keyboard_markup_225(
 
 fn decode_policy_reply_markup_reply_keyboard_markup_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let flags = __d.take_u32()?;
@@ -219055,6 +219228,7 @@ fn decode_policy_reply_markup_reply_keyboard_markup_226(
 
 fn decode_policy_reply_markup_reply_keyboard_markup_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let flags = __d.take_u32()?;
@@ -219113,6 +219287,7 @@ fn decode_policy_reply_markup_reply_keyboard_markup_227(
 
 fn decode_policy_reply_markup_reply_keyboard_markup_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ReplyMarkup, AdmitError> {
     let flags = __d.take_u32()?;
@@ -225828,24 +226003,24 @@ pub fn decode_send_message_action_profile(
             match route.semantic.0 {
                 0xceeed76d0517fb60 => {
                     match profile.layer {
-                        227 => decode_policy_send_message_action_input_send_message_rich_message_draft_action_227(profile, __d),
-                        228 => decode_policy_send_message_action_input_send_message_rich_message_draft_action_228(profile, __d),
+                        227 => decode_policy_send_message_action_input_send_message_rich_message_draft_action_227(profile, route, __d),
+                        228 => decode_policy_send_message_action_input_send_message_rich_message_draft_action_228(profile, route, __d),
                         _ => Err(AdmitError::UnsupportedRoute(route)),
                     }
                 }
                 0x6afa5106599dbb78 => {
                     match profile.layer {
-                        227 => decode_policy_send_message_action_send_message_rich_message_draft_action_227(profile, __d),
-                        228 => decode_policy_send_message_action_send_message_rich_message_draft_action_228(profile, __d),
+                        227 => decode_policy_send_message_action_send_message_rich_message_draft_action_227(profile, route, __d),
+                        228 => decode_policy_send_message_action_send_message_rich_message_draft_action_228(profile, route, __d),
                         _ => Err(AdmitError::UnsupportedRoute(route)),
                     }
                 }
                 0xb52aa90b18f24423 => {
                     match profile.layer {
-                        225 => decode_policy_send_message_action_send_message_text_draft_action_225(profile, __d),
-                        226 => decode_policy_send_message_action_send_message_text_draft_action_226(profile, __d),
-                        227 => decode_policy_send_message_action_send_message_text_draft_action_227(profile, __d),
-                        228 => decode_policy_send_message_action_send_message_text_draft_action_228(profile, __d),
+                        225 => decode_policy_send_message_action_send_message_text_draft_action_225(profile, route, __d),
+                        226 => decode_policy_send_message_action_send_message_text_draft_action_226(profile, route, __d),
+                        227 => decode_policy_send_message_action_send_message_text_draft_action_227(profile, route, __d),
+                        228 => decode_policy_send_message_action_send_message_text_draft_action_228(profile, route, __d),
                         _ => Err(AdmitError::UnsupportedRoute(route)),
                     }
                 }
@@ -225860,6 +226035,7 @@ pub fn decode_send_message_action_profile(
 
 fn decode_policy_send_message_action_input_send_message_rich_message_draft_action_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -225886,6 +226062,7 @@ fn decode_policy_send_message_action_input_send_message_rich_message_draft_actio
 
 fn decode_policy_send_message_action_input_send_message_rich_message_draft_action_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -225912,6 +226089,7 @@ fn decode_policy_send_message_action_input_send_message_rich_message_draft_actio
 
 fn decode_policy_send_message_action_send_message_rich_message_draft_action_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -225938,6 +226116,7 @@ fn decode_policy_send_message_action_send_message_rich_message_draft_action_227(
 
 fn decode_policy_send_message_action_send_message_rich_message_draft_action_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -225964,6 +226143,7 @@ fn decode_policy_send_message_action_send_message_rich_message_draft_action_228(
 
 fn decode_policy_send_message_action_send_message_text_draft_action_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -225988,6 +226168,7 @@ fn decode_policy_send_message_action_send_message_text_draft_action_225(
 
 fn decode_policy_send_message_action_send_message_text_draft_action_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -226012,6 +226193,7 @@ fn decode_policy_send_message_action_send_message_text_draft_action_226(
 
 fn decode_policy_send_message_action_send_message_text_draft_action_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -226036,6 +226218,7 @@ fn decode_policy_send_message_action_send_message_text_draft_action_227(
 
 fn decode_policy_send_message_action_send_message_text_draft_action_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::SendMessageAction, AdmitError> {
     let random_id: i64 = __d.take_i64()?;
@@ -246047,7 +246230,9 @@ pub fn decode_update_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0xbbe4abe1cf084d40 => match profile.layer {
-                225 => decode_policy_update_update_bot_chat_invite_requester_225(profile, __d),
+                225 => {
+                    decode_policy_update_update_bot_chat_invite_requester_225(profile, route, __d)
+                }
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -246058,6 +246243,7 @@ pub fn decode_update_profile(
 
 fn decode_policy_update_update_bot_chat_invite_requester_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Update, AdmitError> {
     let peer: ::std::boxed::Box<rtd_tg::Peer> = {
@@ -248041,12 +248227,24 @@ pub fn decode_url_auth_result_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0xd961bbe189ddbb50 => match profile.layer {
-                225 => decode_policy_url_auth_result_url_auth_result_request_225(profile, __d),
-                226 => decode_policy_url_auth_result_url_auth_result_request_226(profile, __d),
-                227 => decode_policy_url_auth_result_url_auth_result_request_227(profile, __d),
-                228 => decode_policy_url_auth_result_url_auth_result_request_228(profile, __d),
-                229 => decode_policy_url_auth_result_url_auth_result_request_229(profile, __d),
-                230 => decode_policy_url_auth_result_url_auth_result_request_230(profile, __d),
+                225 => {
+                    decode_policy_url_auth_result_url_auth_result_request_225(profile, route, __d)
+                }
+                226 => {
+                    decode_policy_url_auth_result_url_auth_result_request_226(profile, route, __d)
+                }
+                227 => {
+                    decode_policy_url_auth_result_url_auth_result_request_227(profile, route, __d)
+                }
+                228 => {
+                    decode_policy_url_auth_result_url_auth_result_request_228(profile, route, __d)
+                }
+                229 => {
+                    decode_policy_url_auth_result_url_auth_result_request_229(profile, route, __d)
+                }
+                230 => {
+                    decode_policy_url_auth_result_url_auth_result_request_230(profile, route, __d)
+                }
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -248057,6 +248255,7 @@ pub fn decode_url_auth_result_profile(
 
 fn decode_policy_url_auth_result_url_auth_result_request_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UrlAuthResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -248173,6 +248372,7 @@ fn decode_policy_url_auth_result_url_auth_result_request_225(
 
 fn decode_policy_url_auth_result_url_auth_result_request_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UrlAuthResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -248289,6 +248489,7 @@ fn decode_policy_url_auth_result_url_auth_result_request_226(
 
 fn decode_policy_url_auth_result_url_auth_result_request_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UrlAuthResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -248405,6 +248606,7 @@ fn decode_policy_url_auth_result_url_auth_result_request_227(
 
 fn decode_policy_url_auth_result_url_auth_result_request_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UrlAuthResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -248521,6 +248723,7 @@ fn decode_policy_url_auth_result_url_auth_result_request_228(
 
 fn decode_policy_url_auth_result_url_auth_result_request_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UrlAuthResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -248637,6 +248840,7 @@ fn decode_policy_url_auth_result_url_auth_result_request_229(
 
 fn decode_policy_url_auth_result_url_auth_result_request_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UrlAuthResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -250516,9 +250720,9 @@ pub fn decode_user_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x6533e41e81927279 => match profile.layer {
-                225 => decode_policy_user_user_225(profile, __d),
-                226 => decode_policy_user_user_226(profile, __d),
-                227 => decode_policy_user_user_227(profile, __d),
+                225 => decode_policy_user_user_225(profile, route, __d),
+                226 => decode_policy_user_user_226(profile, route, __d),
+                227 => decode_policy_user_user_227(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -250529,6 +250733,7 @@ pub fn decode_user_profile(
 
 fn decode_policy_user_user_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::User, AdmitError> {
     let flags = __d.take_u32()?;
@@ -250944,6 +251149,7 @@ fn decode_policy_user_user_225(
 
 fn decode_policy_user_user_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::User, AdmitError> {
     let flags = __d.take_u32()?;
@@ -251363,6 +251569,7 @@ fn decode_policy_user_user_226(
 
 fn decode_policy_user_user_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::User, AdmitError> {
     let flags = __d.take_u32()?;
@@ -255429,13 +255636,13 @@ pub fn decode_user_full_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_user_full_225(profile, __d),
-            226 => decode_policy_user_full_226(profile, __d),
-            227 => decode_policy_user_full_227(profile, __d),
-            228 => decode_policy_user_full_228(profile, __d),
-            229 => decode_policy_user_full_229(profile, __d),
-            230 => decode_policy_user_full_230(profile, __d),
-            231 => decode_policy_user_full_231(profile, __d),
+            225 => decode_policy_user_full_225(profile, route, __d),
+            226 => decode_policy_user_full_226(profile, route, __d),
+            227 => decode_policy_user_full_227(profile, route, __d),
+            228 => decode_policy_user_full_228(profile, route, __d),
+            229 => decode_policy_user_full_229(profile, route, __d),
+            230 => decode_policy_user_full_230(profile, route, __d),
+            231 => decode_policy_user_full_231(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -255444,6 +255651,7 @@ pub fn decode_user_full_profile(
 
 fn decode_policy_user_full_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UserFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -256086,6 +256294,7 @@ fn decode_policy_user_full_225(
 
 fn decode_policy_user_full_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UserFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -256728,6 +256937,7 @@ fn decode_policy_user_full_226(
 
 fn decode_policy_user_full_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UserFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -257370,6 +257580,7 @@ fn decode_policy_user_full_227(
 
 fn decode_policy_user_full_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UserFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -258012,6 +258223,7 @@ fn decode_policy_user_full_228(
 
 fn decode_policy_user_full_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UserFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -258654,6 +258866,7 @@ fn decode_policy_user_full_229(
 
 fn decode_policy_user_full_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UserFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -259296,6 +259509,7 @@ fn decode_policy_user_full_230(
 
 fn decode_policy_user_full_231(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::UserFull, AdmitError> {
     let flags = __d.take_u32()?;
@@ -260567,11 +260781,11 @@ pub fn decode_username_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_username_225(profile, __d),
-            226 => decode_policy_username_226(profile, __d),
-            227 => decode_policy_username_227(profile, __d),
-            228 => decode_policy_username_228(profile, __d),
-            229 => decode_policy_username_229(profile, __d),
+            225 => decode_policy_username_225(profile, route, __d),
+            226 => decode_policy_username_226(profile, route, __d),
+            227 => decode_policy_username_227(profile, route, __d),
+            228 => decode_policy_username_228(profile, route, __d),
+            229 => decode_policy_username_229(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -260580,6 +260794,7 @@ pub fn decode_username_profile(
 
 fn decode_policy_username_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Username, AdmitError> {
     let flags = __d.take_u32()?;
@@ -260605,6 +260820,7 @@ fn decode_policy_username_225(
 
 fn decode_policy_username_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Username, AdmitError> {
     let flags = __d.take_u32()?;
@@ -260630,6 +260846,7 @@ fn decode_policy_username_226(
 
 fn decode_policy_username_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Username, AdmitError> {
     let flags = __d.take_u32()?;
@@ -260655,6 +260872,7 @@ fn decode_policy_username_227(
 
 fn decode_policy_username_228(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Username, AdmitError> {
     let flags = __d.take_u32()?;
@@ -260680,6 +260898,7 @@ fn decode_policy_username_228(
 
 fn decode_policy_username_229(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::Username, AdmitError> {
     let flags = __d.take_u32()?;
@@ -263888,8 +264107,8 @@ pub fn decode_web_view_result_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x81ffedeff84e1e06 => match profile.layer {
-                225 => decode_policy_web_view_result_web_view_result_url_225(profile, __d),
-                226 => decode_policy_web_view_result_web_view_result_url_226(profile, __d),
+                225 => decode_policy_web_view_result_web_view_result_url_225(profile, route, __d),
+                226 => decode_policy_web_view_result_web_view_result_url_226(profile, route, __d),
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -263900,6 +264119,7 @@ pub fn decode_web_view_result_profile(
 
 fn decode_policy_web_view_result_web_view_result_url_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::WebViewResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -263933,6 +264153,7 @@ fn decode_policy_web_view_result_web_view_result_url_225(
 
 fn decode_policy_web_view_result_web_view_result_url_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::WebViewResult, AdmitError> {
     let flags = __d.take_u32()?;
@@ -268704,7 +268925,9 @@ pub fn decode_auth_sent_code_profile(
         },
         RouteMode::Policy => match route.semantic.0 {
             0x7f23f1fb9f02b327 => match profile.layer {
-                225 => decode_policy_auth_sent_code_sent_code_payment_required_225(profile, __d),
+                225 => {
+                    decode_policy_auth_sent_code_sent_code_payment_required_225(profile, route, __d)
+                }
                 _ => Err(AdmitError::UnsupportedRoute(route)),
             },
             _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -268715,6 +268938,7 @@ pub fn decode_auth_sent_code_profile(
 
 fn decode_policy_auth_sent_code_sent_code_payment_required_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::AuthSentCode, AdmitError> {
     let store_product: ::std::string::String = __d.take_string()?.to_owned();
@@ -277757,6 +277981,7 @@ pub fn encode_messages_chat_invite_join_result_profile(
                 RouteMode::Policy => {
                     __w.put_u32(route.wire_id);
                     match profile.layer {
+                        226 => encode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_226(profile, __value, __w)?,
                         227 => encode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(profile, __value, __w)?,
                         _ => return Err(ProjectionError::RouteNotEmitted(route)),
                     }
@@ -277766,6 +277991,20 @@ pub fn encode_messages_chat_invite_join_result_profile(
             }
         }
     }
+}
+
+fn encode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_226(
+    profile: Profile,
+    value: &rtd_tg::MessagesChatInviteJoinResult,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultWebView { .. } = value else {
+        unreachable!()
+    };
+    Err(ProjectionError::Unrepresentable {
+        layer: profile.layer,
+        wire_id: 0x61ca29d3,
+    })
 }
 
 fn encode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(
@@ -277815,7 +278054,8 @@ pub fn decode_messages_chat_invite_join_result_profile(
             match route.semantic.0 {
                 0xff56c36068d38f95 => {
                     match profile.layer {
-                        227 => decode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(profile, __d),
+                        226 => decode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_226(profile, route, __d),
+                        227 => decode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(profile, route, __d),
                         _ => Err(AdmitError::UnsupportedRoute(route)),
                     }
                 }
@@ -277828,8 +278068,42 @@ pub fn decode_messages_chat_invite_join_result_profile(
     }
 }
 
+fn decode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_226(
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::MessagesChatInviteJoinResult, AdmitError> {
+    let bot_id: i64 = __d.take_i64()?;
+    let _ = __d.take_string()?.to_owned();
+    let query_id: i64 = __d.take_i64()?;
+    let users: ::std::vec::Vec<rtd_tg::User> = {
+        let n = __d.take_vector_header()?;
+        let mut items = ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+        for _ in 0..n {
+            items.push({
+                __d.enter()?;
+                let value = {
+                    let __id = __d.take_u32()?;
+                    decode_user_profile(profile, __id, __d)?
+                };
+                __d.leave();
+                value
+            });
+        }
+        items
+    };
+    Ok(
+        rtd_tg::MessagesChatInviteJoinResult::ChatInviteJoinResultWebView {
+            bot_id,
+            query_id,
+            users,
+        },
+    )
+}
+
 fn decode_policy_messages_chat_invite_join_result_chat_invite_join_result_web_view_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesChatInviteJoinResult, AdmitError> {
     let bot_id: i64 = __d.take_i64()?;
@@ -298579,8 +298853,8 @@ pub fn decode_wallet_nft_item_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            230 => decode_policy_wallet_nft_item_230(profile, __d),
-            231 => decode_policy_wallet_nft_item_231(profile, __d),
+            230 => decode_policy_wallet_nft_item_230(profile, route, __d),
+            231 => decode_policy_wallet_nft_item_231(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -298589,6 +298863,7 @@ pub fn decode_wallet_nft_item_profile(
 
 fn decode_policy_wallet_nft_item_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::WalletNftItem, AdmitError> {
     let flags = __d.take_u32()?;
@@ -298744,6 +299019,7 @@ fn decode_policy_wallet_nft_item_230(
 
 fn decode_policy_wallet_nft_item_231(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::WalletNftItem, AdmitError> {
     let flags = __d.take_u32()?;
@@ -302578,7 +302854,7 @@ pub fn decode_auth_init_firebase_pnv_login_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            229 => decode_policy_auth_init_firebase_pnv_login_229(profile, __d),
+            229 => decode_policy_auth_init_firebase_pnv_login_229(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -302587,6 +302863,7 @@ pub fn decode_auth_init_firebase_pnv_login_profile(
 
 fn decode_policy_auth_init_firebase_pnv_login_229(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::AuthInitFirebasePnvLogin, AdmitError> {
     let api_id: i32 = __d.take_i32()?;
@@ -312987,8 +313264,8 @@ pub fn decode_contacts_search_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_contacts_search_225(profile, __d),
-            226 => decode_policy_contacts_search_226(profile, __d),
+            225 => decode_policy_contacts_search_225(profile, route, __d),
+            226 => decode_policy_contacts_search_226(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -312997,6 +313274,7 @@ pub fn decode_contacts_search_profile(
 
 fn decode_policy_contacts_search_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ContactsSearch, AdmitError> {
     let q: ::std::string::String = __d.take_string()?.to_owned();
@@ -313013,6 +313291,7 @@ fn decode_policy_contacts_search_225(
 
 fn decode_policy_contacts_search_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ContactsSearch, AdmitError> {
     let q: ::std::string::String = __d.take_string()?.to_owned();
@@ -313351,7 +313630,7 @@ pub fn decode_contacts_get_top_peers_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_contacts_get_top_peers_225(profile, __d),
+            225 => decode_policy_contacts_get_top_peers_225(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -313360,6 +313639,7 @@ pub fn decode_contacts_get_top_peers_profile(
 
 fn decode_policy_contacts_get_top_peers_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ContactsGetTopPeers, AdmitError> {
     let flags = __d.take_u32()?;
@@ -316428,8 +316708,8 @@ pub fn decode_messages_send_message_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_messages_send_message_225(profile, __d),
-            226 => decode_policy_messages_send_message_226(profile, __d),
+            225 => decode_policy_messages_send_message_225(profile, route, __d),
+            226 => decode_policy_messages_send_message_226(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -316438,6 +316718,7 @@ pub fn decode_messages_send_message_profile(
 
 fn decode_policy_messages_send_message_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesSendMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -316651,6 +316932,7 @@ fn decode_policy_messages_send_message_225(
 
 fn decode_policy_messages_send_message_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesSendMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -318287,10 +318569,10 @@ pub fn decode_messages_forward_messages_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_messages_forward_messages_225(profile, __d),
-            226 => decode_policy_messages_forward_messages_226(profile, __d),
-            227 => decode_policy_messages_forward_messages_227(profile, __d),
-            228 => decode_policy_messages_forward_messages_228(profile, __d),
+            225 => decode_policy_messages_forward_messages_225(profile, route, __d),
+            226 => decode_policy_messages_forward_messages_226(profile, route, __d),
+            227 => decode_policy_messages_forward_messages_227(profile, route, __d),
+            228 => decode_policy_messages_forward_messages_228(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -318299,6 +318581,7 @@ pub fn decode_messages_forward_messages_profile(
 
 fn decode_policy_messages_forward_messages_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesForwardMessages, AdmitError> {
     let flags = __d.take_u32()?;
@@ -318508,6 +318791,7 @@ fn decode_policy_messages_forward_messages_225(
 
 fn decode_policy_messages_forward_messages_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesForwardMessages, AdmitError> {
     let flags = __d.take_u32()?;
@@ -318717,6 +319001,7 @@ fn decode_policy_messages_forward_messages_226(
 
 fn decode_policy_messages_forward_messages_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesForwardMessages, AdmitError> {
     let flags = __d.take_u32()?;
@@ -318926,6 +319211,7 @@ fn decode_policy_messages_forward_messages_227(
 
 fn decode_policy_messages_forward_messages_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesForwardMessages, AdmitError> {
     let flags = __d.take_u32()?;
@@ -322130,9 +322416,9 @@ pub fn decode_messages_search_global_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_messages_search_global_225(profile, __d),
-            226 => decode_policy_messages_search_global_226(profile, __d),
-            227 => decode_policy_messages_search_global_227(profile, __d),
+            225 => decode_policy_messages_search_global_225(profile, route, __d),
+            226 => decode_policy_messages_search_global_226(profile, route, __d),
+            227 => decode_policy_messages_search_global_227(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -322141,6 +322427,7 @@ pub fn decode_messages_search_global_profile(
 
 fn decode_policy_messages_search_global_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesSearchGlobal, AdmitError> {
     let flags = __d.take_u32()?;
@@ -322209,6 +322496,7 @@ fn decode_policy_messages_search_global_225(
 
 fn decode_policy_messages_search_global_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesSearchGlobal, AdmitError> {
     let flags = __d.take_u32()?;
@@ -322277,6 +322565,7 @@ fn decode_policy_messages_search_global_226(
 
 fn decode_policy_messages_search_global_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesSearchGlobal, AdmitError> {
     let flags = __d.take_u32()?;
@@ -323784,8 +324073,8 @@ pub fn decode_messages_edit_message_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_messages_edit_message_225(profile, __d),
-            226 => decode_policy_messages_edit_message_226(profile, __d),
+            225 => decode_policy_messages_edit_message_225(profile, route, __d),
+            226 => decode_policy_messages_edit_message_226(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -323794,6 +324083,7 @@ pub fn decode_messages_edit_message_profile(
 
 fn decode_policy_messages_edit_message_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesEditMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -323922,6 +324212,7 @@ fn decode_policy_messages_edit_message_225(
 
 fn decode_policy_messages_edit_message_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesEditMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -324434,8 +324725,8 @@ pub fn decode_messages_edit_inline_bot_message_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_messages_edit_inline_bot_message_225(profile, __d),
-            226 => decode_policy_messages_edit_inline_bot_message_226(profile, __d),
+            225 => decode_policy_messages_edit_inline_bot_message_225(profile, route, __d),
+            226 => decode_policy_messages_edit_inline_bot_message_226(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -324444,6 +324735,7 @@ pub fn decode_messages_edit_inline_bot_message_profile(
 
 fn decode_policy_messages_edit_inline_bot_message_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesEditInlineBotMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -324543,6 +324835,7 @@ fn decode_policy_messages_edit_inline_bot_message_225(
 
 fn decode_policy_messages_edit_inline_bot_message_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesEditInlineBotMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -325420,8 +325713,8 @@ pub fn decode_messages_save_draft_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_messages_save_draft_225(profile, __d),
-            226 => decode_policy_messages_save_draft_226(profile, __d),
+            225 => decode_policy_messages_save_draft_225(profile, route, __d),
+            226 => decode_policy_messages_save_draft_226(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -325430,6 +325723,7 @@ pub fn decode_messages_save_draft_profile(
 
 fn decode_policy_messages_save_draft_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesSaveDraft, AdmitError> {
     let flags = __d.take_u32()?;
@@ -325549,6 +325843,7 @@ fn decode_policy_messages_save_draft_225(
 
 fn decode_policy_messages_save_draft_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesSaveDraft, AdmitError> {
     let flags = __d.take_u32()?;
@@ -330270,12 +330565,12 @@ pub fn decode_messages_accept_url_auth_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_messages_accept_url_auth_225(profile, __d),
-            226 => decode_policy_messages_accept_url_auth_226(profile, __d),
-            227 => decode_policy_messages_accept_url_auth_227(profile, __d),
-            228 => decode_policy_messages_accept_url_auth_228(profile, __d),
-            229 => decode_policy_messages_accept_url_auth_229(profile, __d),
-            230 => decode_policy_messages_accept_url_auth_230(profile, __d),
+            225 => decode_policy_messages_accept_url_auth_225(profile, route, __d),
+            226 => decode_policy_messages_accept_url_auth_226(profile, route, __d),
+            227 => decode_policy_messages_accept_url_auth_227(profile, route, __d),
+            228 => decode_policy_messages_accept_url_auth_228(profile, route, __d),
+            229 => decode_policy_messages_accept_url_auth_229(profile, route, __d),
+            230 => decode_policy_messages_accept_url_auth_230(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -330284,6 +330579,7 @@ pub fn decode_messages_accept_url_auth_profile(
 
 fn decode_policy_messages_accept_url_auth_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesAcceptUrlAuth, AdmitError> {
     let flags = __d.take_u32()?;
@@ -330359,6 +330655,7 @@ fn decode_policy_messages_accept_url_auth_225(
 
 fn decode_policy_messages_accept_url_auth_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesAcceptUrlAuth, AdmitError> {
     let flags = __d.take_u32()?;
@@ -330434,6 +330731,7 @@ fn decode_policy_messages_accept_url_auth_226(
 
 fn decode_policy_messages_accept_url_auth_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesAcceptUrlAuth, AdmitError> {
     let flags = __d.take_u32()?;
@@ -330509,6 +330807,7 @@ fn decode_policy_messages_accept_url_auth_227(
 
 fn decode_policy_messages_accept_url_auth_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesAcceptUrlAuth, AdmitError> {
     let flags = __d.take_u32()?;
@@ -330584,6 +330883,7 @@ fn decode_policy_messages_accept_url_auth_228(
 
 fn decode_policy_messages_accept_url_auth_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesAcceptUrlAuth, AdmitError> {
     let flags = __d.take_u32()?;
@@ -330659,6 +330959,7 @@ fn decode_policy_messages_accept_url_auth_229(
 
 fn decode_policy_messages_accept_url_auth_230(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::MessagesAcceptUrlAuth, AdmitError> {
     let flags = __d.take_u32()?;
@@ -349224,9 +349525,9 @@ pub fn decode_channels_get_admined_public_channels_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_channels_get_admined_public_channels_225(profile, __d),
-            226 => decode_policy_channels_get_admined_public_channels_226(profile, __d),
-            227 => decode_policy_channels_get_admined_public_channels_227(profile, __d),
+            225 => decode_policy_channels_get_admined_public_channels_225(profile, route, __d),
+            226 => decode_policy_channels_get_admined_public_channels_226(profile, route, __d),
+            227 => decode_policy_channels_get_admined_public_channels_227(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -349235,6 +349536,7 @@ pub fn decode_channels_get_admined_public_channels_profile(
 
 fn decode_policy_channels_get_admined_public_channels_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsGetAdminedPublicChannels, AdmitError> {
     let flags = __d.take_u32()?;
@@ -349262,6 +349564,7 @@ fn decode_policy_channels_get_admined_public_channels_225(
 
 fn decode_policy_channels_get_admined_public_channels_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsGetAdminedPublicChannels, AdmitError> {
     let flags = __d.take_u32()?;
@@ -349289,6 +349592,7 @@ fn decode_policy_channels_get_admined_public_channels_226(
 
 fn decode_policy_channels_get_admined_public_channels_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsGetAdminedPublicChannels, AdmitError> {
     let flags = __d.take_u32()?;
@@ -350693,7 +350997,7 @@ pub fn decode_channels_toggle_join_request_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_channels_toggle_join_request_225(profile, __d),
+            225 => decode_policy_channels_toggle_join_request_225(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -350702,6 +351006,7 @@ pub fn decode_channels_toggle_join_request_profile(
 
 fn decode_policy_channels_toggle_join_request_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleJoinRequest, AdmitError> {
     let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
@@ -354772,11 +355077,11 @@ pub fn decode_bots_set_custom_verification_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_bots_set_custom_verification_225(profile, __d),
-            226 => decode_policy_bots_set_custom_verification_226(profile, __d),
-            227 => decode_policy_bots_set_custom_verification_227(profile, __d),
-            228 => decode_policy_bots_set_custom_verification_228(profile, __d),
-            229 => decode_policy_bots_set_custom_verification_229(profile, __d),
+            225 => decode_policy_bots_set_custom_verification_225(profile, route, __d),
+            226 => decode_policy_bots_set_custom_verification_226(profile, route, __d),
+            227 => decode_policy_bots_set_custom_verification_227(profile, route, __d),
+            228 => decode_policy_bots_set_custom_verification_228(profile, route, __d),
+            229 => decode_policy_bots_set_custom_verification_229(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -354785,6 +355090,7 @@ pub fn decode_bots_set_custom_verification_profile(
 
 fn decode_policy_bots_set_custom_verification_225(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
     let flags = __d.take_u32()?;
@@ -354844,6 +355150,7 @@ fn decode_policy_bots_set_custom_verification_225(
 
 fn decode_policy_bots_set_custom_verification_226(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
     let flags = __d.take_u32()?;
@@ -354903,6 +355210,7 @@ fn decode_policy_bots_set_custom_verification_226(
 
 fn decode_policy_bots_set_custom_verification_227(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
     let flags = __d.take_u32()?;
@@ -354962,6 +355270,7 @@ fn decode_policy_bots_set_custom_verification_227(
 
 fn decode_policy_bots_set_custom_verification_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
     let flags = __d.take_u32()?;
@@ -355021,6 +355330,7 @@ fn decode_policy_bots_set_custom_verification_228(
 
 fn decode_policy_bots_set_custom_verification_229(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsSetCustomVerification, AdmitError> {
     let flags = __d.take_u32()?;
@@ -355323,11 +355633,11 @@ pub fn decode_bots_check_username_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            225 => decode_policy_bots_check_username_225(profile, __d),
-            226 => decode_policy_bots_check_username_226(profile, __d),
-            227 => decode_policy_bots_check_username_227(profile, __d),
-            228 => decode_policy_bots_check_username_228(profile, __d),
-            229 => decode_policy_bots_check_username_229(profile, __d),
+            225 => decode_policy_bots_check_username_225(profile, route, __d),
+            226 => decode_policy_bots_check_username_226(profile, route, __d),
+            227 => decode_policy_bots_check_username_227(profile, route, __d),
+            228 => decode_policy_bots_check_username_228(profile, route, __d),
+            229 => decode_policy_bots_check_username_229(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -355336,6 +355646,7 @@ pub fn decode_bots_check_username_profile(
 
 fn decode_policy_bots_check_username_225(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsCheckUsername, AdmitError> {
     let username: ::std::string::String = __d.take_string()?.to_owned();
@@ -355349,6 +355660,7 @@ fn decode_policy_bots_check_username_225(
 
 fn decode_policy_bots_check_username_226(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsCheckUsername, AdmitError> {
     let username: ::std::string::String = __d.take_string()?.to_owned();
@@ -355362,6 +355674,7 @@ fn decode_policy_bots_check_username_226(
 
 fn decode_policy_bots_check_username_227(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsCheckUsername, AdmitError> {
     let username: ::std::string::String = __d.take_string()?.to_owned();
@@ -355375,6 +355688,7 @@ fn decode_policy_bots_check_username_227(
 
 fn decode_policy_bots_check_username_228(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsCheckUsername, AdmitError> {
     let username: ::std::string::String = __d.take_string()?.to_owned();
@@ -355388,6 +355702,7 @@ fn decode_policy_bots_check_username_228(
 
 fn decode_policy_bots_check_username_229(
     _profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::BotsCheckUsername, AdmitError> {
     let username: ::std::string::String = __d.take_string()?.to_owned();
@@ -375577,7 +375892,7 @@ pub fn decode_ephemeral_send_message_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            228 => decode_policy_ephemeral_send_message_228(profile, __d),
+            228 => decode_policy_ephemeral_send_message_228(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -375586,6 +375901,7 @@ pub fn decode_ephemeral_send_message_profile(
 
 fn decode_policy_ephemeral_send_message_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::EphemeralSendMessage, AdmitError> {
     let flags = __d.take_u32()?;
@@ -375857,7 +376173,7 @@ pub fn decode_ephemeral_delete_message_profile(
             })
         }
         RouteMode::Policy => match profile.layer {
-            228 => decode_policy_ephemeral_delete_message_228(profile, __d),
+            228 => decode_policy_ephemeral_delete_message_228(profile, route, __d),
             _ => Err(AdmitError::UnsupportedRoute(route)),
         },
         _ => Err(AdmitError::UnsupportedRoute(route)),
@@ -375866,6 +376182,7 @@ pub fn decode_ephemeral_delete_message_profile(
 
 fn decode_policy_ephemeral_delete_message_228(
     profile: Profile,
+    _route: Route,
     __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::EphemeralDeleteMessage, AdmitError> {
     let peer: ::std::boxed::Box<rtd_tg::InputPeer> = {
