@@ -477,6 +477,37 @@ mod tests {
         );
     }
 
+    /// Each legacy hook's value-field order equals the constructor's declaration
+    /// order in the profile schema (the field order the generator will emit).
+    #[test]
+    fn legacy_hook_field_order_matches_the_profile_schema() {
+        use crate::model::FieldKind;
+
+        let root = workspace_root();
+        let (universe, _) =
+            crate::load::load_universe(&root.join("schema/layers/manifest.json")).unwrap();
+        for hook in rtd_layerhooks_registry::LEGACY_HOOKS {
+            let definition = [225, 226, 227, 228, 229]
+                .iter()
+                .find_map(|layer| {
+                    universe
+                        .schemas
+                        .get(layer)
+                        .and_then(|schema| schema.find_wire(hook.wire_id))
+                })
+                .unwrap_or_else(|| panic!("legacy constructor {:#010x} exists", hook.wire_id));
+            let names: Vec<&str> = definition
+                .fields
+                .iter()
+                .filter(|field| field.kind != FieldKind::FlagsWord)
+                .map(|field| field.name.as_str())
+                .collect();
+            let expected = rtd_layerhooks_registry::legacy_params(hook.name)
+                .unwrap_or_else(|| panic!("no params for hook {}", hook.name));
+            assert_eq!(names, expected, "hook {} field order", hook.name);
+        }
+    }
+
     #[test]
     fn wrapper_metadata_is_emitted() {
         let generated = generate(workspace_root()).expect("generation");

@@ -326,6 +326,57 @@ pub fn legacy_for_wire(wire_id: u32) -> Option<&'static OldOnlyHook> {
     LEGACY_HOOKS.iter().find(|hook| hook.wire_id == wire_id)
 }
 
+/// The value-field order a legacy hook expects, which must equal the profile
+/// constructor's declaration order (flags word excluded). The generator emits
+/// fields in this order and the hand-written hook takes them in the same order.
+#[must_use]
+pub fn legacy_params(name: &str) -> Option<&'static [&'static str]> {
+    Some(match name {
+        "layerAdaptLegacyInputKeyboardButtonRequestPeer" => &[
+            "name_requested",
+            "username_requested",
+            "photo_requested",
+            "style",
+            "text",
+            "button_id",
+            "peer_type",
+            "max_quantity",
+        ],
+        "layerAdaptLegacyKeyboardButtonBuy"
+        | "layerAdaptLegacyKeyboardButtonRequestPhone"
+        | "layerAdaptLegacyKeyboardButtonRequestGeoLocation"
+        | "layerAdaptLegacyKeyboardInlineButtonGame" => &["style", "text"],
+        "layerAdaptLegacyKeyboardButtonRequestPeer" => {
+            &["style", "text", "button_id", "peer_type", "max_quantity"]
+        }
+        "layerAdaptLegacyInputKeyboardInlineButtonURLAuth" => &[
+            "request_write_access",
+            "style",
+            "text",
+            "fwd_text",
+            "url",
+            "bot",
+        ],
+        "layerAdaptLegacyKeyboardButtonRequestPoll" => &["style", "quiz", "text"],
+        "layerAdaptLegacyInputKeyboardInlineButtonUserProfile"
+        | "layerAdaptLegacyKeyboardInlineButtonUserProfile" => &["style", "text", "user_id"],
+        "layerAdaptLegacyKeyboardInlineButtonSwitchInline" => {
+            &["same_peer", "style", "text", "query", "peer_types"]
+        }
+        "layerAdaptLegacyKeyboardInlineButtonCopy" => &["style", "text", "copy_text"],
+        "layerAdaptLegacyKeyboardInlineButtonURL"
+        | "layerAdaptLegacyKeyboardButtonSimpleWebView"
+        | "layerAdaptLegacyKeyboardInlineButtonWebView" => &["style", "text", "url"],
+        "layerAdaptLegacyKeyboardInlineButtonCallback" => {
+            &["requires_password", "style", "text", "data"]
+        }
+        "layerAdaptLegacyKeyboardInlineButtonURLAuth" => {
+            &["style", "text", "fwd_text", "url", "button_id"]
+        }
+        _ => return None,
+    })
+}
+
 /// The concrete functions of a field-shaped hook, which converts one field
 /// between its canonical and older-layer types (the surrounding `Option` is
 /// handled by the generated call site).
