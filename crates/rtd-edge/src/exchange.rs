@@ -8,33 +8,45 @@
 use std::sync::Arc;
 
 use rsa::RsaPrivateKey;
-use rtd_exchange::{ServerConfig, ServerExchangeResult, TestServerRng};
+use rtd_exchange::{ServerConfig, ServerExchangeResult, SystemServerRng, TestServerRng};
 use rtd_server::actor::Exchange;
 use rtd_util::Clock;
 
 /// A server-side [`Exchange`] over a configured RSA private key.
 ///
 /// Each call runs [`rtd_exchange::server_exchange`] with the edge's datacenter
-/// and key. The Diffie-Hellman parameters currently come from
-/// [`TestServerRng`], the fixed development generator; selecting a production
-/// parameter generator is a follow-up.
+/// and key. The Diffie-Hellman parameters come from [`SystemServerRng`] (a fresh
+/// `pq` per handshake) by default; [`ServerExchange::with_test_params`] selects
+/// the fixed [`TestServerRng`] for deterministic tests.
 #[derive(Debug, Clone)]
 pub struct ServerExchange {
     key: Arc<RsaPrivateKey>,
     dc: i32,
+    test_params: bool,
 }
 
 impl ServerExchange {
     /// Creates an exchange strategy for datacenter `dc` using `key`.
     #[must_use]
     pub fn new(key: Arc<RsaPrivateKey>, dc: i32) -> Self {
-        Self { key, dc }
+        Self {
+            key,
+            dc,
+            test_params: false,
+        }
     }
-}
 
-impl Exchange for ServerExchange {
-    fn exchange(
+    /// Selects the fixed test parameter generator instead of the production one.
+    #[must_use]
+    pub fn with_test_params(mut self, test_params: bool) -> Self {
+        self.test_params = test_params;
+        self
+    }
+
+    /// Runs the exchange with a specific parameter generator.
+    fn run_with<R: rtd_exchange::ServerRng>(
         &self,
+        rng: &mut R,
         stream: &mut dyn rtd_exchange::Stream,
         clock: &dyn Clock,
         random: &mut dyn rtd_crypto::RandomSource,
@@ -48,10 +60,24 @@ impl Exchange for ServerExchange {
             key,
             strict_dc: false,
         };
-        let mut rng = TestServerRng;
         let mut stream = StreamRef(stream);
         let mut random = RandomRef(random);
-        rtd_exchange::server_exchange(&mut stream, &config, &mut rng, clock, &mut random)
+        rtd_exchange::server_exchange(&mut stream, &config, rng, clock, &mut random)
+    }
+}
+
+impl Exchange for ServerExchange {
+    fn exchange(
+        &self,
+        stream: &mut dyn rtd_exchange::Stream,
+        clock: &dyn Clock,
+        random: &mut dyn rtd_crypto::RandomSource,
+    ) -> rtd_exchange::Result<ServerExchangeResult> {
+        if self.test_params {
+            self.run_with(&mut TestServerRng, stream, clock, random)
+        } else {
+            self.run_with(&mut SystemServerRng, stream, clock, random)
+        }
     }
 }
 

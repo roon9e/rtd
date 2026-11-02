@@ -38,7 +38,8 @@ const ADVERTISED_PORT: i32 = 443;
 pub async fn bind(config: EdgeConfig) -> Result<Server, EdgeError> {
     let key = config.load_rsa_key()?;
     let core = build_core(&config).await?;
-    let exchange: Arc<dyn Exchange> = Arc::new(ServerExchange::new(key, config.dc));
+    let exchange: Arc<dyn Exchange> =
+        Arc::new(ServerExchange::new(key, config.dc).with_test_params(config.exchange_test_params));
     let options = ServerOptions {
         dc: config.dc,
         clock: Arc::new(SystemClock),
@@ -136,6 +137,7 @@ mod tests {
             websocket: true,
             core_endpoint: None,
             core_token: None,
+            exchange_test_params: false,
         };
         let ingress = ingress_config(&config);
         // The secret and WebSocket settings are only observable through their
@@ -163,6 +165,7 @@ mod tests {
             websocket: false,
             core_endpoint: None,
             core_token: None,
+            exchange_test_params: false,
         };
         assert!(matches!(
             config.load_rsa_key().expect_err("missing file"),

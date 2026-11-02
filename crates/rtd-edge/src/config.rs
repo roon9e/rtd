@@ -44,6 +44,7 @@ OPTIONS:
     --core <ENDPOINT>  Core CoreExecService endpoint, e.g. http://127.0.0.1:50051
                        [env: RTD_EDGE_CORE]
     --core-token <T>   Bearer token for the core CoreExecService [env: RTD_EDGE_CORE_TOKEN]
+    --exchange-test-params  Use fixed test DH parameters [env: RTD_EDGE_EXCHANGE_TEST_PARAMS]
     -h, --help         Print this help
     -V, --version      Print the version";
 
@@ -66,6 +67,8 @@ pub struct EdgeConfig {
     pub core_endpoint: Option<String>,
     /// The optional bearer token presented to the core's `CoreExecService`.
     pub core_token: Option<String>,
+    /// Whether the key exchange uses the fixed test parameters.
+    pub exchange_test_params: bool,
 }
 
 impl EdgeConfig {
@@ -90,6 +93,7 @@ impl EdgeConfig {
         let mut websocket = None;
         let mut core = None;
         let mut core_token = None;
+        let mut exchange_test_params = None;
 
         let mut index = 0;
         while index < args.len() {
@@ -107,6 +111,12 @@ impl EdgeConfig {
                 "--core-token" => core_token = Some(take(&args, &mut index, inline, &name)?),
                 "--websocket" => {
                     websocket = Some(match inline {
+                        Some(value) => parse_bool(&value)?,
+                        None => true,
+                    });
+                }
+                "--exchange-test-params" => {
+                    exchange_test_params = Some(match inline {
                         Some(value) => parse_bool(&value)?,
                         None => true,
                     });
@@ -152,6 +162,13 @@ impl EdgeConfig {
         };
         let core_endpoint = core.or_else(|| env("RTD_EDGE_CORE"));
         let core_token = core_token.or_else(|| env("RTD_EDGE_CORE_TOKEN"));
+        let exchange_test_params = match exchange_test_params {
+            Some(value) => value,
+            None => env("RTD_EDGE_EXCHANGE_TEST_PARAMS")
+                .map(|value| parse_bool(&value))
+                .transpose()?
+                .unwrap_or(false),
+        };
 
         Ok(Self {
             bind,
@@ -162,6 +179,7 @@ impl EdgeConfig {
             websocket,
             core_endpoint,
             core_token,
+            exchange_test_params,
         })
     }
 
