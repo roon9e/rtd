@@ -20,6 +20,7 @@ use rtd_tg::{
 use rtd_util::Clock;
 
 use crate::error::{Error, Result};
+use crate::middleware::{Middleware, run_chain};
 use crate::session::{ClientSession, SessionData};
 use crate::transport::Transport;
 
@@ -60,6 +61,8 @@ pub struct Client<T: Transport> {
     handler: Option<Box<dyn FnMut(Updates) + Send>>,
     /// The layer every call is wrapped in.
     layer: i32,
+    /// Invoker middleware applied to every call, outermost first.
+    middlewares: Vec<Box<dyn Middleware + Send>>,
 }
 
 /// One inbound message, reduced to what the caller cares about.
@@ -116,7 +119,16 @@ impl<T: Transport> Client<T> {
             initialized: false,
             handler: None,
             layer: LAYER,
+            middlewares: Vec::new(),
         }
+    }
+
+    /// Appends a middleware to the invocation chain.
+    ///
+    /// Middlewares run outermost-first in the order they are added.
+    pub fn with_middleware(mut self, middleware: impl Middleware + 'static) -> Self {
+        self.middlewares.push(Box::new(middleware));
+        self
     }
 
     /// Sets the layer every call is wrapped in (`invokeWithLayer`).
@@ -197,8 +209,14 @@ impl<T: Transport> Client<T> {
     ///
     /// Returns a transport, crypto, decode or RPC error.
     pub fn invoke(&mut self, query: Method) -> Result<Object> {
-        let body = self.wrap_layer(query);
-        self.call(body)
+        // Move the chain out so the inner closure can borrow `self` mutably.
+        let middlewares = core::mem::take(&mut self.middlewares);
+        let result = run_chain(&middlewares, query, &mut |method| {
+            let body = self.wrap_layer(method);
+            self.call(body)
+        });
+        self.middlewares = middlewares;
+        result
     }
 
     /// Sends a login code to `phone_number` (`auth.sendCode`).
