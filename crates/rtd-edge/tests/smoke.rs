@@ -75,6 +75,7 @@ async fn binds_from_configuration_with_an_in_process_core() {
         rsa_key_path: path.clone(),
         secret: None,
         websocket: false,
+        websocket_origins: Vec::new(),
         core_endpoint: None,
         core_token: None,
         exchange_test_params: false,

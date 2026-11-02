@@ -41,6 +41,8 @@ OPTIONS:
     --rsa-key <PATH>   PEM RSA private key file [env: RTD_EDGE_RSA_KEY]
     --secret <HEX>     MTProxy secret: plain, `dd`, or `ee` [env: RTD_EDGE_SECRET]
     --websocket        Enable WebSocket ingress [env: RTD_EDGE_WEBSOCKET]
+    --websocket-origin <ORIGIN>  Allow a WebSocket origin (repeatable)
+                       [env: RTD_EDGE_WEBSOCKET_ORIGINS]
     --core <ENDPOINT>  Core CoreExecService endpoint, e.g. http://127.0.0.1:50051
                        [env: RTD_EDGE_CORE]
     --core-token <T>   Bearer token for the core CoreExecService [env: RTD_EDGE_CORE_TOKEN]
@@ -63,6 +65,8 @@ pub struct EdgeConfig {
     pub secret: Option<Secret>,
     /// Whether WebSocket ingress is enabled.
     pub websocket: bool,
+    /// WebSocket origins allowed to upgrade; empty accepts any origin.
+    pub websocket_origins: Vec<String>,
     /// The optional core gRPC endpoint; the in-process core is used when unset.
     pub core_endpoint: Option<String>,
     /// The optional bearer token presented to the core's `CoreExecService`.
@@ -91,6 +95,7 @@ impl EdgeConfig {
         let mut rsa_key = None;
         let mut secret = None;
         let mut websocket = None;
+        let mut websocket_origins: Vec<String> = Vec::new();
         let mut core = None;
         let mut core_token = None;
         let mut exchange_test_params = None;
@@ -114,6 +119,9 @@ impl EdgeConfig {
                         Some(value) => parse_bool(&value)?,
                         None => true,
                     });
+                }
+                "--websocket-origin" => {
+                    websocket_origins.push(take(&args, &mut index, inline, &name)?);
                 }
                 "--exchange-test-params" => {
                     exchange_test_params = Some(match inline {
@@ -160,6 +168,16 @@ impl EdgeConfig {
                 .transpose()?
                 .unwrap_or(false),
         };
+        if websocket_origins.is_empty() {
+            if let Some(value) = env("RTD_EDGE_WEBSOCKET_ORIGINS") {
+                websocket_origins = value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|origin| !origin.is_empty())
+                    .map(str::to_owned)
+                    .collect();
+            }
+        }
         let core_endpoint = core.or_else(|| env("RTD_EDGE_CORE"));
         let core_token = core_token.or_else(|| env("RTD_EDGE_CORE_TOKEN"));
         let exchange_test_params = match exchange_test_params {
@@ -177,6 +195,7 @@ impl EdgeConfig {
             rsa_key_path: PathBuf::from(rsa_key),
             secret,
             websocket,
+            websocket_origins,
             core_endpoint,
             core_token,
             exchange_test_params,

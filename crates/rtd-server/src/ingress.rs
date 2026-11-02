@@ -36,6 +36,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
 
 /// The length of an obfuscated2 init/header on the wire.
 const OBFUSCATED2_INIT_LEN: usize = 64;
@@ -77,6 +78,8 @@ pub struct IngressConfig {
     pub secret: Option<Secret>,
     /// Whether HTTP upgrade requests are accepted as WebSocket sessions.
     pub websocket: bool,
+    /// WebSocket origins allowed to upgrade; empty accepts any origin.
+    pub websocket_origins: Vec<String>,
 }
 
 impl IngressConfig {
@@ -86,7 +89,15 @@ impl IngressConfig {
         Self {
             secret: None,
             websocket: false,
+            websocket_origins: Vec::new(),
         }
+    }
+
+    /// Sets the WebSocket origin allowlist.
+    #[must_use]
+    pub fn with_websocket_origins(mut self, origins: Vec<String>) -> Self {
+        self.websocket_origins = origins;
+        self
     }
 
     /// Sets the MTProxy secret.
@@ -331,9 +342,27 @@ where
             if !config.websocket {
                 return Err(IngressError::Rejected("websocket ingress is not enabled"));
             }
-            let upgraded = tokio_tungstenite::accept_async(Prefixed::new(prefix, stream))
-                .await
-                .map_err(|err| IngressError::WebSocket(Box::new(err)))?;
+            let origins = config.websocket_origins.clone();
+            let upgraded = tokio_tungstenite::accept_hdr_async(
+                Prefixed::new(prefix, stream),
+                move |request: &Request, response: Response| {
+                    if !origins.is_empty() {
+                        let allowed = request
+                            .headers()
+                            .get("origin")
+                            .and_then(|value| value.to_str().ok())
+                            .is_some_and(|origin| {
+                                origins.iter().any(|a| a.eq_ignore_ascii_case(origin))
+                            });
+                        if !allowed {
+                            return Err(ErrorResponse::new(Some("origin not allowed".to_owned())));
+                        }
+                    }
+                    Ok(response)
+                },
+            )
+            .await
+            .map_err(|err| IngressError::WebSocket(Box::new(err)))?;
             websocket_connection(WsStream::new(upgraded), config).await
         }
     }
@@ -1277,6 +1306,38 @@ mod tests {
         conn.write_all(&[9, 9, 9, 9]).await.unwrap();
         conn.flush().await.unwrap();
         assert_eq!(client.await.unwrap(), vec![9, 9, 9, 9]);
+    }
+
+    #[tokio::test]
+    async fn websocket_origin_is_enforced() {
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+        use tokio_tungstenite::tungstenite::http::HeaderValue;
+
+        let ingress = Ingress::bind(
+            "127.0.0.1:0",
+            IngressConfig::new()
+                .with_websocket(true)
+                .with_websocket_origins(vec!["http://ok.example".to_owned()]),
+        )
+        .await
+        .unwrap();
+        let addr = ingress.local_addr().unwrap();
+
+        let client = tokio::spawn(async move {
+            let tcp = tokio::net::TcpStream::connect(addr).await.unwrap();
+            let mut request = format!("ws://{addr}/apiws").into_client_request().unwrap();
+            request
+                .headers_mut()
+                .insert("origin", HeaderValue::from_static("http://bad.example"));
+            tokio_tungstenite::client_async(request, tcp).await.is_ok()
+        });
+
+        let error = ingress.accept().await.unwrap_err();
+        assert!(matches!(
+            error,
+            IngressError::WebSocket(_) | IngressError::Rejected(_)
+        ));
+        assert!(!client.await.unwrap());
     }
 
     #[test]

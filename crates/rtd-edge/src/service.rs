@@ -110,7 +110,9 @@ async fn build_core(config: &EdgeConfig) -> Result<Arc<dyn Core>, EdgeError> {
 
 /// Builds the ingress configuration for `config`.
 fn ingress_config(config: &EdgeConfig) -> IngressConfig {
-    let ingress = IngressConfig::new().with_websocket(config.websocket);
+    let ingress = IngressConfig::new()
+        .with_websocket(config.websocket)
+        .with_websocket_origins(config.websocket_origins.clone());
     match &config.secret {
         Some(secret) => ingress.with_secret(secret.clone()),
         None => ingress,
@@ -135,6 +137,7 @@ mod tests {
             rsa_key_path: "key.pem".into(),
             secret: Some(rtd_transport::Secret::parse("00112233445566778899aabbccddeeff").unwrap()),
             websocket: true,
+            websocket_origins: Vec::new(),
             core_endpoint: None,
             core_token: None,
             exchange_test_params: false,
@@ -163,6 +166,7 @@ mod tests {
             rsa_key_path: "does-not-exist.pem".into(),
             secret: None,
             websocket: false,
+            websocket_origins: Vec::new(),
             core_endpoint: None,
             core_token: None,
             exchange_test_params: false,
