@@ -31,6 +31,7 @@ datacenters** from the start.
 | Client library — updates | `add-client-updates` | done (archived) |
 | Server — gramsrv v2 core-exec credential and container | `add-edge-coreexec-token` | done (archived) |
 | Server — gramsrv v2 dispatch parity (binding, layer, wire proof) | `add-edge-coreexec-binding` | done (archived) |
+| Server — edge resilience (listener, lazy core) | `add-edge-resilience` | done (archived) |
 
 `rtd-edge` runs as a **drop-in container in a gramsrv v2 stack** (postgres, redis, migrate,
 file, core): it presents the core-exec bearer token, completes the authorization-key exchange,
