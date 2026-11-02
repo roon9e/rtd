@@ -880,6 +880,200 @@ fn dispatch_result_carries_call_identity() {
     assert!(!writer.into_vec().is_empty());
 }
 
+/// Builds one canonical inline-keyboard button with the flags word the style
+/// and type imply, so the value is a round-trip identity.
+fn inline_button(
+    text: &str,
+    type_: rtd_tg::InlineButtonType,
+    style: Option<rtd_tg::KeyboardButtonStyle>,
+) -> rtd_tg::KeyboardInlineButton {
+    rtd_tg::KeyboardInlineButton {
+        flags: if style.is_some() { 1 << 10 } else { 0 },
+        style: style.map(Box::new),
+        text: text.to_owned(),
+        type_: Box::new(type_),
+    }
+}
+
+/// A `replyInlineMarkup` value exercising every legacy inline-button kind.
+fn inline_markup() -> Object {
+    use rtd_tg::{
+        InlineButtonType, InlineQueryPeerType, KeyboardButtonStyle, KeyboardInlineButtonRow,
+        ReplyMarkup,
+    };
+
+    let style = KeyboardButtonStyle {
+        flags: 1,
+        bg_primary: true,
+        bg_danger: false,
+        bg_success: false,
+        icon: None,
+    };
+    Object::ReplyMarkup(Box::new(ReplyMarkup::ReplyInlineMarkup {
+        flags: 0,
+        force_reply: false,
+        rows: vec![
+            KeyboardInlineButtonRow {
+                buttons: vec![
+                    inline_button(
+                        "open",
+                        InlineButtonType::InlineButtonTypeUrl {
+                            url: "https://t.me".to_owned(),
+                        },
+                        None,
+                    ),
+                    inline_button(
+                        "go",
+                        InlineButtonType::InlineButtonTypeCallback {
+                            flags: 0,
+                            requires_password: false,
+                            data: vec![1, 2, 3],
+                        },
+                        None,
+                    ),
+                ],
+            },
+            KeyboardInlineButtonRow {
+                buttons: vec![
+                    inline_button(
+                        "share",
+                        InlineButtonType::InlineButtonTypeSwitchInline {
+                            flags: 3,
+                            same_peer: true,
+                            query: "hi".to_owned(),
+                            peer_types: Some(vec![
+                                InlineQueryPeerType::InlineQueryPeerTypeBroadcast,
+                            ]),
+                        },
+                        Some(style),
+                    ),
+                    inline_button(
+                        "copy",
+                        InlineButtonType::InlineButtonTypeCopy {
+                            copy_text: "x".to_owned(),
+                        },
+                        None,
+                    ),
+                    inline_button(
+                        "me",
+                        InlineButtonType::InlineButtonTypeUserProfile { user_id: 42 },
+                        None,
+                    ),
+                    inline_button("play", InlineButtonType::InlineButtonTypeGame, None),
+                    inline_button("buy", InlineButtonType::InlineButtonTypeBuy, None),
+                    inline_button(
+                        "auth",
+                        InlineButtonType::InlineButtonTypeUrlAuth {
+                            flags: 1,
+                            fwd_text: Some("fwd".to_owned()),
+                            url: "https://t.me/a".to_owned(),
+                            button_id: 7,
+                        },
+                        None,
+                    ),
+                ],
+            },
+        ],
+    }))
+}
+
+/// The nested `replyInlineMarkup.rows` adapter maps the profile
+/// `Vector<KeyboardButtonRow>` to the canonical `Vector<KeyboardInlineButtonRow>`
+/// through the `old-only` button hooks. Layers 225..=228 take the policy route;
+/// 229..=232 have the canonical row type. Every enabled layer round trips.
+#[test]
+fn policy_legacy_inline_keyboard_rows_round_trip() {
+    let value = inline_markup();
+    for &layer in rtd_tlprofile::PROFILES {
+        let profile = resolve_profile(layer).expect("enabled layer resolves");
+        let frozen = FrozenObject::freeze(value.clone()).expect("freeze");
+        let mut writer = Writer::new();
+        frozen
+            .encode(profile, &mut writer)
+            .unwrap_or_else(|error| panic!("encode for layer {layer}: {error:?}"));
+        let decoded = decode_object(profile, &writer.into_vec(), Limits::default())
+            .unwrap_or_else(|error| panic!("decode for layer {layer}: {error:?}"));
+        assert_eq!(decoded, value, "layer {layer} did not round trip");
+    }
+}
+
+/// A layer-225 `replyInlineMarkup` is a policy route, and its `rows` field is a
+/// nested class adapter: the first word is the profile constructor, followed by
+/// the legacy `keyboardButtonRow` (`0x77608b83`) and an inline button.
+#[test]
+fn policy_legacy_inline_keyboard_rows_uses_the_profile_row_constructor() {
+    let route = rtd_tlprofile::routes()
+        .iter()
+        .find(|route| route.profile == 225 && route.semantic == semantic::TYPE_REPLY_INLINE_MARKUP)
+        .copied()
+        .expect("layer 225 has a replyInlineMarkup route");
+    assert_eq!(route.mode, RouteMode::Policy);
+
+    let mut writer = Writer::new();
+    FrozenObject::freeze(inline_markup())
+        .unwrap()
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode for layer 225");
+    let bytes = writer.into_vec();
+    assert_eq!(
+        u32::from_le_bytes(bytes[..4].try_into().unwrap()),
+        route.wire_id
+    );
+    // One row, the legacy row constructor, two buttons, then the legacy URL
+    // button. A boxed vector is the `0x1cb5c415` magic followed by its count.
+    let word = |index: usize| u32::from_le_bytes(bytes[index..index + 4].try_into().unwrap());
+    assert_eq!(word(4), 0x1cb5_c415, "rows vector magic");
+    assert_eq!(word(8), 2, "two rows");
+    assert_eq!(word(12), 0x7760_8b83, "legacy keyboardButtonRow");
+    assert_eq!(word(16), 0x1cb5_c415, "buttons vector magic");
+    assert_eq!(word(20), 2, "two buttons in the first row");
+    assert_eq!(word(24), 0xd80c_25ec, "legacy keyboardButtonUrl");
+}
+
+/// A canonical inline button the older layer has no constructor for fails
+/// closed rather than being dropped silently.
+#[test]
+fn policy_legacy_inline_keyboard_rows_fail_closed_on_an_unrepresentable_button() {
+    use rtd_tg::{InlineButtonType, KeyboardInlineButtonRow, ReplyMarkup};
+
+    let value = Object::ReplyMarkup(Box::new(ReplyMarkup::ReplyInlineMarkup {
+        flags: 0,
+        force_reply: false,
+        rows: vec![KeyboardInlineButtonRow {
+            buttons: vec![inline_button(
+                "off",
+                InlineButtonType::InlineButtonTypeDisabled,
+                None,
+            )],
+        }],
+    }));
+    let error = FrozenObject::freeze(value)
+        .unwrap()
+        .encode(Profile::new(225), &mut Writer::new())
+        .expect_err("a disabled button has no layer-225 constructor");
+    assert_eq!(
+        error,
+        ProjectionError::Unrepresentable {
+            layer: 225,
+            wire_id: 0xb2b1_5770,
+        }
+    );
+}
+
+/// A legacy inline row carrying a reply-only button fails closed on decode.
+#[test]
+fn policy_legacy_inline_keyboard_rows_reject_a_reply_only_button() {
+    let mut writer = Writer::new();
+    writer.put_u32(0x48a3_0254); // layer-225 replyInlineMarkup
+    writer.put_vector_header(1); // one row
+    writer.put_u32(0x7760_8b83); // legacy keyboardButtonRow
+    writer.put_vector_header(1); // one button
+    writer.put_u32(0x417e_fd8f); // keyboardButtonRequestPhone: reply-only
+    let error = decode_object(Profile::new(225), &writer.into_vec(), Limits::default())
+        .expect_err("a reply-only button is not an inline button");
+    assert!(matches!(error, AdmitError::Decode(_)), "{error:?}");
+}
+
 #[test]
 fn fail_closed_behaviors_are_unchanged() {
     // Unsupported-layer refusal.

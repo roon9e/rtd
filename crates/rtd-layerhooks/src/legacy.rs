@@ -26,7 +26,9 @@ fn keyboard_button(
     ty: ButtonType,
 ) -> KeyboardButton {
     KeyboardButton {
-        flags: 0,
+        // The canonical flags word is derived from presence, matching the
+        // canonical codec so a decoded value compares equal to a built one.
+        flags: if style.is_some() { 1 << 10 } else { 0 },
         style: style.map(Box::new),
         text,
         type_: Box::new(ty),
@@ -39,7 +41,7 @@ fn keyboard_inline_button(
     ty: InlineButtonType,
 ) -> KeyboardInlineButton {
     KeyboardInlineButton {
-        flags: 0,
+        flags: if style.is_some() { 1 << 10 } else { 0 },
         style: style.map(Box::new),
         text,
         type_: Box::new(ty),
@@ -172,7 +174,10 @@ pub fn keyboard_button_request_poll(
     keyboard_button(
         style,
         text,
-        ButtonType::ButtonTypeRequestPoll { flags: 0, quiz },
+        ButtonType::ButtonTypeRequestPoll {
+            flags: if quiz.is_some() { 1 } else { 0 },
+            quiz,
+        },
     )
 }
 
@@ -280,7 +285,9 @@ pub fn input_keyboard_button_request_peer(
         style,
         text,
         ButtonType::InputButtonTypeRequestPeer {
-            flags: 0,
+            flags: (u32::from(flags.name))
+                | (u32::from(flags.username) << 1)
+                | (u32::from(flags.photo) << 2),
             name_requested: flags.name,
             username_requested: flags.username,
             photo_requested: flags.photo,
@@ -381,7 +388,7 @@ pub fn keyboard_inline_button_callback(
         style,
         text,
         InlineButtonType::InlineButtonTypeCallback {
-            flags: 0,
+            flags: u32::from(requires_password),
             requires_password,
             data,
         },
@@ -422,7 +429,7 @@ pub fn keyboard_inline_button_switch_inline(
         style,
         text,
         InlineButtonType::InlineButtonTypeSwitchInline {
-            flags: 0,
+            flags: u32::from(same_peer) | (u32::from(peer_types.is_some()) << 1),
             same_peer,
             query,
             peer_types,
@@ -510,7 +517,7 @@ pub fn keyboard_inline_button_url_auth(
         style,
         text,
         InlineButtonType::InlineButtonTypeUrlAuth {
-            flags: 0,
+            flags: u32::from(fwd_text.is_some()),
             fwd_text,
             url,
             button_id,
@@ -565,7 +572,9 @@ pub fn input_keyboard_inline_button_url_auth(
         style,
         text,
         InlineButtonType::InputInlineButtonTypeUrlAuth {
-            flags: 0,
+            flags: u32::from(request_write_access)
+                | (u32::from(fwd_text.is_some()) << 1)
+                | (1 << 2),
             request_write_access,
             fwd_text,
             url,

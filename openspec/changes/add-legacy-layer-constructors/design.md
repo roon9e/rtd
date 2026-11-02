@@ -53,6 +53,18 @@ only present-in-both hook deferred from `complete-multi-layer`.
 once `complete-multi-layer` is archived; until then this change's spec delta ADDs the
 `legacy-layer-constructors` capability only.
 
+### D5. The rows codec is generator-emitted field logic over field-value hooks
+
+The `rows` adapter is option B: the generator reads the older layer's `KeyboardButtonRow` and
+`KeyboardButton` layouts from the schema, emits the field reads/writes, and calls the
+registered `old-only` field-value hooks (each takes/returns the legacy field values in the
+schema's declaration order, matching `td`). The button hooks stay pure value transforms and do
+not depend on `rtd-bin`; the wire layout has a single source of truth (the `.tl`). Because
+`layerAdaptLegacyInlineKeyboardRows` is emitted as a nested codec rather than a hand-written
+function, its registry status is `Generated`: generation may reference it, but
+`rtd-layerhooks` does not implement it. Each `old-only` hook's schema field order is pinned by
+a generation-time test so a layer update cannot silently misalign it.
+
 ## Risks / Trade-offs
 
 - [Legacy codecs inflate the sidecar] → Generate only the constructors a `ProfileOnly` route

@@ -45,6 +45,9 @@ pub enum Status {
     /// Present-in-both but deferred because it transitively needs a `ProfileOnly`
     /// constructor; generation fails closed at runtime for the affected values.
     Deferred,
+    /// Implemented by the generator as a nested codec rather than as a
+    /// hand-written function in `rtd-layerhooks`; generation may reference it.
+    Generated,
 }
 
 /// One hook's signature, keyed by the name used in the reviewed policy.
@@ -77,10 +80,10 @@ pub const HOOKS: &[HookSpec] = &[
     HookSpec {
         name: "layerAdaptLegacyInlineKeyboardRows",
         direction: Direction::Both,
-        // Converting the button rows transitively needs the `ProfileOnly`
-        // keyboard-button constructors (deferred to
-        // `add-legacy-layer-constructors`); a row containing one fails closed.
-        status: Status::Deferred,
+        // The rows codec is generated from the profile `KeyboardButtonRow`
+        // layout and dispatches each legacy button to its registered `old-only`
+        // hook; see `legacy_rows`.
+        status: Status::Generated,
         signature: "layerAdaptLegacyInlineKeyboardRows(_ LayerProfile, rows Vector<KeyboardButtonRow>/Vector<KeyboardInlineButtonRow>) (Vector<...>, error)",
     },
     HookSpec {
@@ -188,6 +191,9 @@ pub struct OldOnlyHook {
     pub wire_id: u32,
     /// The canonical value the constructor maps to.
     pub canonical: LegacyCanonical,
+    /// The canonical enum variant the constructor became, within the enum named
+    /// by [`Self::canonical`] (`ButtonType` or `InlineButtonType`).
+    pub variant: &'static str,
     /// The profile-to-canonical builder, taking the legacy fields in order.
     pub decode: &'static str,
     /// The canonical-to-profile field extractor.
@@ -203,6 +209,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyInputKeyboardButtonRequestPeer",
         wire_id: 0x02b7_8156,
         canonical: LegacyCanonical::KeyboardButton,
+        variant: "InputButtonTypeRequestPeer",
         decode: "rtd_layerhooks::legacy::input_keyboard_button_request_peer",
         encode: "rtd_layerhooks::legacy::input_keyboard_button_request_peer_fields",
     },
@@ -210,6 +217,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardButtonBuy",
         wire_id: 0x3fa5_3905,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeBuy",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_buy",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_buy_fields",
     },
@@ -217,6 +225,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardButtonRequestPhone",
         wire_id: 0x417e_fd8f,
         canonical: LegacyCanonical::KeyboardButton,
+        variant: "ButtonTypeRequestPhone",
         decode: "rtd_layerhooks::legacy::keyboard_button_request_phone",
         encode: "rtd_layerhooks::legacy::keyboard_button_request_phone_style_text",
     },
@@ -224,6 +233,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardButtonRequestPeer",
         wire_id: 0x5b0f_15f5,
         canonical: LegacyCanonical::KeyboardButton,
+        variant: "ButtonTypeRequestPeer",
         decode: "rtd_layerhooks::legacy::keyboard_button_request_peer",
         encode: "rtd_layerhooks::legacy::keyboard_button_request_peer_fields",
     },
@@ -231,6 +241,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyInputKeyboardInlineButtonURLAuth",
         wire_id: 0x6801_3e72,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InputInlineButtonTypeUrlAuth",
         decode: "rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth",
         encode: "rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth_fields",
     },
@@ -238,6 +249,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardButtonRequestPoll",
         wire_id: 0x7a11_d782,
         canonical: LegacyCanonical::KeyboardButton,
+        variant: "ButtonTypeRequestPoll",
         decode: "rtd_layerhooks::legacy::keyboard_button_request_poll",
         encode: "rtd_layerhooks::legacy::keyboard_button_request_poll_fields",
     },
@@ -245,6 +257,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyInputKeyboardInlineButtonUserProfile",
         wire_id: 0x7d5e_07c7,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InputInlineButtonTypeUserProfile",
         decode: "rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile",
         encode: "rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile_fields",
     },
@@ -252,6 +265,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonGame",
         wire_id: 0x89c5_90f9,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeGame",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_game",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_game_fields",
     },
@@ -259,6 +273,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonSwitchInline",
         wire_id: 0x9913_99fc,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeSwitchInline",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_switch_inline",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_switch_inline_fields",
     },
@@ -266,6 +281,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardButtonRequestGeoLocation",
         wire_id: 0xaa40_f94d,
         canonical: LegacyCanonical::KeyboardButton,
+        variant: "ButtonTypeRequestGeoLocation",
         decode: "rtd_layerhooks::legacy::keyboard_button_request_geo_location",
         encode: "rtd_layerhooks::legacy::keyboard_button_request_geo_location_style_text",
     },
@@ -273,6 +289,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonCopy",
         wire_id: 0xbcc4_af10,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeCopy",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_copy",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_copy_fields",
     },
@@ -280,6 +297,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonUserProfile",
         wire_id: 0xc0fd_5d09,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeUserProfile",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_user_profile",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_user_profile_fields",
     },
@@ -287,6 +305,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonURL",
         wire_id: 0xd80c_25ec,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeUrl",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_url",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_url_fields",
     },
@@ -294,6 +313,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardButtonSimpleWebView",
         wire_id: 0xe15c_4370,
         canonical: LegacyCanonical::KeyboardButton,
+        variant: "ButtonTypeSimpleWebView",
         decode: "rtd_layerhooks::legacy::keyboard_button_simple_web_view",
         encode: "rtd_layerhooks::legacy::keyboard_button_simple_web_view_fields",
     },
@@ -301,6 +321,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonCallback",
         wire_id: 0xe62b_c960,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeCallback",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_callback",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_callback_fields",
     },
@@ -308,6 +329,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonWebView",
         wire_id: 0xe846_b1a0,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeWebView",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_web_view",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_web_view_fields",
     },
@@ -315,6 +337,7 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
         name: "layerAdaptLegacyKeyboardInlineButtonURLAuth",
         wire_id: 0xf510_06f9,
         canonical: LegacyCanonical::KeyboardInlineButton,
+        variant: "InlineButtonTypeUrlAuth",
         decode: "rtd_layerhooks::legacy::keyboard_inline_button_url_auth",
         encode: "rtd_layerhooks::legacy::keyboard_inline_button_url_auth_fields",
     },
@@ -324,6 +347,31 @@ pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
 #[must_use]
 pub fn legacy_for_wire(wire_id: u32) -> Option<&'static OldOnlyHook> {
     LEGACY_HOOKS.iter().find(|hook| hook.wire_id == wire_id)
+}
+
+/// The shape of a nested legacy keyboard-rows adapter: a class-level hook that
+/// maps a whole vector of button rows between the older profile's
+/// `KeyboardButtonRow` and the canonical `KeyboardInlineButtonRow`.
+#[derive(Debug, Clone, Copy)]
+pub struct LegacyRowsShape {
+    /// The canonical button kind whose `old-only` constructors appear in the
+    /// rows; the generator dispatches every legacy button wire id registered for
+    /// this kind through the rows codec.
+    pub canonical: LegacyCanonical,
+}
+
+/// Marks a hook as a nested legacy-rows adapter, when it is one.
+///
+/// The row wire id and the per-button layouts come from the profile schema; this
+/// only selects which registered `old-only` hooks the rows codec may dispatch.
+#[must_use]
+pub fn legacy_rows(name: &str) -> Option<LegacyRowsShape> {
+    match name {
+        "layerAdaptLegacyInlineKeyboardRows" => Some(LegacyRowsShape {
+            canonical: LegacyCanonical::KeyboardInlineButton,
+        }),
+        _ => None,
+    }
 }
 
 /// The value-field order a legacy hook expects, which must equal the profile
@@ -496,7 +544,8 @@ pub fn implemented_names() -> Vec<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Direction, HOOKS, LEGACY_HOOKS, Status, implemented_names, legacy_for_wire, lookup,
+        Direction, HOOKS, LEGACY_HOOKS, Status, implemented_names, legacy_for_wire, legacy_rows,
+        lookup,
     };
 
     #[test]
@@ -545,6 +594,31 @@ mod tests {
         }
         // inputPasskeyCredentialFirebasePNV has no legacy hook.
         assert!(legacy_for_wire(0x5b1c_cb28).is_none());
+    }
+
+    #[test]
+    fn legacy_rows_is_only_the_inline_keyboard_hook() {
+        let shape = legacy_rows("layerAdaptLegacyInlineKeyboardRows").unwrap();
+        assert_eq!(
+            shape.canonical,
+            super::LegacyCanonical::KeyboardInlineButton
+        );
+        assert!(legacy_rows("layerAdaptLegacyKeyboardInlineButtonURL").is_none());
+        // Every inline-canonical hook has a distinct variant for the generated
+        // encode match.
+        let inline: Vec<&str> = LEGACY_HOOKS
+            .iter()
+            .filter(|hook| hook.canonical == super::LegacyCanonical::KeyboardInlineButton)
+            .map(|hook| hook.variant)
+            .collect();
+        assert_eq!(inline.len(), 11);
+        for (index, variant) in inline.iter().enumerate() {
+            assert!(variant.starts_with("InlineButtonType") || variant.starts_with("InputInline"));
+            assert!(
+                !inline[..index].contains(variant),
+                "duplicate variant {variant}"
+            );
+        }
     }
 
     #[test]

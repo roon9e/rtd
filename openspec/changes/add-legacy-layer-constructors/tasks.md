@@ -12,8 +12,8 @@
 
 ## 3. Row adapter
 
-- [ ] 3.1 Implement `layerAdaptLegacyInlineKeyboardRows` over the legacy button hooks; verify a row round trip and fail-closed on an unrepresentable button
-- [ ] 3.2 Emit the row adapter call site; verify the `replyInlineMarkup` policy route on an older layer executes
+- [x] 3.1 Implement `layerAdaptLegacyInlineKeyboardRows` over the legacy button hooks; verify a row round trip and fail-closed on an unrepresentable button (`runtime.rs`: `policy_legacy_inline_keyboard_rows_round_trip` fans out across every enabled layer and `policy_legacy_inline_keyboard_rows_fail_closed_on_an_unrepresentable_button` refuses a button with no older constructor)
+- [x] 3.2 Emit the row adapter call site; verify the `replyInlineMarkup` policy route on an older layer executes (`runtime.rs`: `policy_legacy_inline_keyboard_rows_uses_the_profile_row_constructor` checks the layer-225 policy route writes the legacy `keyboardButtonRow#77608b83` and `keyboardButtonUrl#d80c25ec`; `..._reject_a_reply_only_button` fails closed on a reply-only button in an inline row)
 
 ## 4. Runtime and clause removal
 
