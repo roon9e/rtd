@@ -56,7 +56,6 @@ pub fn server_exchange(
     let mut ids = MessageIds::new();
     let mut client_nonce = None;
     let mut server_nonce = None;
-    let fingerprint = rtd_crypto::rsa_fingerprint(&config.key.to_public_key());
 
     // 1. req_pq / req_pq_multi, then req_DH_params. A client may repeat req_pq.
     let request = loop {
@@ -79,7 +78,9 @@ pub fn server_exchange(
                     nonce,
                     server_nonce: fresh_server_nonce,
                     pq: pq.to_bytes_be(),
-                    server_public_key_fingerprints: vec![fingerprint],
+                    server_public_key_fingerprints: vec![rtd_crypto::rsa_fingerprint(
+                        &config.key.to_public_key(),
+                    )],
                 };
                 let mut writer = Writer::new();
                 response.encode(&mut writer);

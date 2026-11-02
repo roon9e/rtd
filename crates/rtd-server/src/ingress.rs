@@ -69,25 +69,6 @@ pub struct ConnectionMeta {
     pub proxy_user: Option<String>,
 }
 
-/// The public server descriptor served on the MTProto port.
-///
-/// Mirrors gramsrv v2's `internal/serverinfo`: an OwpenGram-family client
-/// fetches `GET /owpengram/server-info` before its first handshake to learn the
-/// server's datacenter and RSA public key.
-#[derive(Debug, Clone, Default)]
-pub struct ServerInfo {
-    /// The serving datacenter id.
-    pub dc_id: i32,
-    /// The server's RSA public key as a PKCS#1 `RSA PUBLIC KEY` PEM block.
-    pub rsa_public_key_pem: String,
-    /// An operator-set display name (empty means "no override").
-    pub name: String,
-    /// An operator-set description (empty means "no override").
-    pub description: String,
-    /// The identity icon bytes and its file extension, if any.
-    pub icon: Option<(Vec<u8>, String)>,
-}
-
 /// Configuration for an [`Ingress`].
 #[derive(Debug, Clone, Default)]
 pub struct IngressConfig {
@@ -96,8 +77,6 @@ pub struct IngressConfig {
     pub secret: Option<Secret>,
     /// Whether HTTP upgrade requests are accepted as WebSocket sessions.
     pub websocket: bool,
-    /// The public server descriptor served on the same-port HTTP side, if any.
-    pub server_info: Option<ServerInfo>,
 }
 
 impl IngressConfig {
@@ -107,7 +86,6 @@ impl IngressConfig {
         Self {
             secret: None,
             websocket: false,
-            server_info: None,
         }
     }
 
@@ -122,13 +100,6 @@ impl IngressConfig {
     #[must_use]
     pub fn with_websocket(mut self, enabled: bool) -> Self {
         self.websocket = enabled;
-        self
-    }
-
-    /// Sets the public server descriptor served on the same-port HTTP side.
-    #[must_use]
-    pub fn with_server_info(mut self, info: ServerInfo) -> Self {
-        self.server_info = Some(info);
         self
     }
 
@@ -169,8 +140,6 @@ pub enum IngressError {
     Transport(rtd_transport::Error),
     /// The WebSocket handshake failed.
     WebSocket(Box<tokio_tungstenite::tungstenite::Error>),
-    /// A same-port HTTP request (the server descriptor) was answered directly.
-    Handled,
 }
 
 impl fmt::Display for IngressError {
@@ -183,7 +152,6 @@ impl fmt::Display for IngressError {
             }
             Self::Transport(err) => write!(f, "transport unwrap failed: {err}"),
             Self::WebSocket(err) => write!(f, "websocket handshake failed: {err}"),
-            Self::Handled => f.write_str("same-port HTTP request answered"),
         }
     }
 }
@@ -194,7 +162,7 @@ impl core::error::Error for IngressError {
             Self::Io(err) => Some(err),
             Self::Transport(err) => Some(err),
             Self::WebSocket(err) => Some(err),
-            Self::Rejected(_) | Self::SecretModeMismatch | Self::Handled => None,
+            Self::Rejected(_) | Self::SecretModeMismatch => None,
         }
     }
 }
@@ -340,7 +308,7 @@ async fn accept_stream<S>(stream: S, config: &IngressConfig) -> Result<Connectio
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    let (wire, prefix, mut stream) = detect(stream).await?;
+    let (wire, prefix, stream) = detect(stream).await?;
     match wire {
         Wire::Plain(codec) => Ok(Connection::new(
             Prefixed::new(prefix, stream),
@@ -360,156 +328,14 @@ where
             fake_tls_connection(stream, prefix, secret).await
         }
         Wire::Http => {
-            // Nothing to serve: reject without waiting for the request head.
-            if config.server_info.is_none() && !config.websocket {
-                return Err(IngressError::Rejected("http ingress is not enabled"));
-            }
-            let mut head = prefix;
-            read_http_head(&mut stream, &mut head).await?;
-            if let Some(info) = &config.server_info
-                && let Some(response) = server_info_response(info, &head)
-            {
-                let mut stream = stream;
-                stream.write_all(&response).await?;
-                stream.flush().await?;
-                return Err(IngressError::Handled);
-            }
             if !config.websocket {
                 return Err(IngressError::Rejected("websocket ingress is not enabled"));
             }
-            let upgraded = tokio_tungstenite::accept_async(Prefixed::new(head, stream))
+            let upgraded = tokio_tungstenite::accept_async(Prefixed::new(prefix, stream))
                 .await
                 .map_err(|err| IngressError::WebSocket(Box::new(err)))?;
             websocket_connection(WsStream::new(upgraded), config).await
         }
-    }
-}
-
-/// Reads an HTTP request head (up to the terminating blank line) into `head`,
-/// which already holds the leading bytes consumed by detection.
-async fn read_http_head<S: AsyncRead + Unpin>(
-    stream: &mut S,
-    head: &mut Vec<u8>,
-) -> io::Result<()> {
-    /// Upper bound on a request head, matching the reference multiplexer.
-    const MAX_HEAD: usize = 16 * 1024;
-    while !http_head_complete(head) && head.len() < MAX_HEAD {
-        let mut chunk = [0u8; 1024];
-        let read = stream.read(&mut chunk).await?;
-        if read == 0 {
-            break;
-        }
-        head.extend_from_slice(&chunk[..read]);
-    }
-    Ok(())
-}
-
-/// Returns whether `head` ends at the HTTP header terminator.
-fn http_head_complete(head: &[u8]) -> bool {
-    head.windows(4).any(|window| window == b"\r\n\r\n")
-}
-
-/// Answers a same-port HTTP request, or `None` when it is not one the descriptor
-/// owns (a WebSocket upgrade, which the caller must still serve).
-fn server_info_response(info: &ServerInfo, head: &[u8]) -> Option<Vec<u8>> {
-    let line_end = head.windows(2).position(|window| window == b"\r\n")?;
-    let line = std::str::from_utf8(&head[..line_end]).ok()?;
-    let mut parts = line.split(' ');
-    let method = parts.next()?;
-    let target = parts.next()?;
-    let path = target.split('?').next().unwrap_or(target);
-
-    if path.starts_with("/apiws") {
-        return None;
-    }
-    let head_only = method.eq_ignore_ascii_case("HEAD");
-    let readable = method.eq_ignore_ascii_case("GET") || head_only;
-    if !readable {
-        return Some(http_response(
-            405,
-            "text/plain; charset=utf-8",
-            b"method not allowed",
-        ));
-    }
-    match path {
-        "/owpengram/server-info" => Some(http_response(
-            200,
-            "application/json; charset=utf-8",
-            info_json(info).as_bytes(),
-        )),
-        "/owpengram/server-icon" => Some(match &info.icon {
-            Some((data, ext)) => http_response(200, icon_content_type(ext), data),
-            None => http_response(404, "text/plain; charset=utf-8", b"not found"),
-        }),
-        _ => Some(http_response(
-            404,
-            "text/plain; charset=utf-8",
-            b"not found",
-        )),
-    }
-}
-
-/// Serializes the descriptor as JSON, matching gramsrv's `serverinfo.Info`.
-fn info_json(info: &ServerInfo) -> String {
-    format!(
-        "{{\"dc_id\":{},\"rsa_public_key_pem\":{},\"name\":{},\"description\":{},\"has_icon\":{}}}",
-        info.dc_id,
-        json_string(&info.rsa_public_key_pem),
-        json_string(&info.name),
-        json_string(&info.description),
-        info.icon.is_some(),
-    )
-}
-
-/// Encodes `value` as a JSON string literal.
-fn json_string(value: &str) -> String {
-    let mut out = String::with_capacity(value.len() + 2);
-    out.push('"');
-    for ch in value.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            ch if (ch as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", ch as u32)),
-            ch => out.push(ch),
-        }
-    }
-    out.push('"');
-    out
-}
-
-/// Builds an explicit-`Content-Length` HTTP/1.1 response (the desktop client's
-/// minimal parser cannot decode a chunked body).
-fn http_response(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
-    let reason = match status {
-        200 => "OK",
-        404 => "Not Found",
-        405 => "Method Not Allowed",
-        _ => "Error",
-    };
-    let mut out = Vec::with_capacity(body.len() + 128);
-    out.extend_from_slice(format!("HTTP/1.1 {status} {reason}\r\n").as_bytes());
-    out.extend_from_slice(format!("Content-Type: {content_type}\r\n").as_bytes());
-    out.extend_from_slice(b"Cache-Control: no-store\r\n");
-    out.extend_from_slice(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes());
-    out.extend_from_slice(body);
-    out
-}
-
-/// The content type for an icon with the given file extension.
-fn icon_content_type(extension: &str) -> &'static str {
-    match extension
-        .trim_start_matches('.')
-        .to_ascii_lowercase()
-        .as_str()
-    {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        _ => "application/octet-stream",
     }
 }
 
@@ -1462,58 +1288,5 @@ mod tests {
         codec.write_message(&mut buffer, &[1, 2, 3, 4]).unwrap();
         let length = u32::from_le_bytes(buffer[..4].try_into().unwrap()) as usize;
         assert!(length.is_multiple_of(4));
-    }
-
-    fn server_info() -> ServerInfo {
-        ServerInfo {
-            dc_id: 2,
-            rsa_public_key_pem:
-                "-----BEGIN RSA PUBLIC KEY-----\nAQAB\n-----END RSA PUBLIC KEY-----\n".to_owned(),
-            name: String::new(),
-            description: String::new(),
-            icon: None,
-        }
-    }
-
-    #[test]
-    fn server_info_json_escapes_and_carries_the_key() {
-        let json = info_json(&server_info());
-        assert!(json.contains("\"dc_id\":2"), "{json}");
-        assert!(json.contains("\\n"), "newlines must be escaped: {json}");
-        assert!(json.contains("\"has_icon\":false"), "{json}");
-    }
-
-    #[test]
-    fn server_info_response_routes_paths() {
-        let info = server_info();
-
-        let get = b"GET /owpengram/server-info HTTP/1.1\r\nHost: x\r\n\r\n";
-        let response = server_info_response(&info, get).expect("served");
-        let text = String::from_utf8_lossy(&response);
-        assert!(text.starts_with("HTTP/1.1 200 OK"), "{text}");
-        assert!(text.contains("Content-Length:"), "{text}");
-        assert!(text.contains("RSA PUBLIC KEY"), "{text}");
-
-        // A WebSocket upgrade is left to the caller.
-        let ws = b"GET /apiws HTTP/1.1\r\nUpgrade: websocket\r\n\r\n";
-        assert!(server_info_response(&info, ws).is_none());
-
-        // Any other path is 404.
-        let other = b"GET /nope HTTP/1.1\r\n\r\n";
-        let not_found = server_info_response(&info, other).expect("served");
-        assert!(String::from_utf8_lossy(&not_found).starts_with("HTTP/1.1 404"));
-
-        // The icon is absent.
-        let icon = b"GET /owpengram/server-icon HTTP/1.1\r\n\r\n";
-        let missing = server_info_response(&info, icon).expect("served");
-        assert!(String::from_utf8_lossy(&missing).starts_with("HTTP/1.1 404"));
-    }
-
-    #[test]
-    fn server_info_rejects_non_read_methods() {
-        let info = server_info();
-        let post = b"POST /owpengram/server-info HTTP/1.1\r\n\r\n";
-        let response = server_info_response(&info, post).expect("served");
-        assert!(String::from_utf8_lossy(&response).starts_with("HTTP/1.1 405"));
     }
 }
