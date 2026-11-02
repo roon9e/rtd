@@ -21,14 +21,17 @@ datacenters** from the start.
 |---|---|---|
 | Foundation — protocol core, generator, manifests | `establish-rtd-foundation` | done (archived) |
 | Server runtime — edge, RPC dispatch, in-process core | `add-server-runtime` | done (archived) |
-| Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | in progress (14/20; 173/179 policy routes) |
-| Multi-layer — legacy `ProfileOnly` constructors | `add-legacy-layer-constructors` | proposed |
+| Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | in progress (14/20; 177/179 policy routes) |
+| Multi-layer — legacy `ProfileOnly` constructors | `add-legacy-layer-constructors` | in progress (3/10; the legacy keyboard-rows adapter is emitted) |
 | Multi-DC — routing, migration, authorization transfer, delivery | planned | not started |
 | Client library | planned | not started |
 
 Within `complete-multi-layer`, layers 225–232 are enabled and the generated sidecar
 executes direct, retag and rewrite routes plus the mechanical policy conversions and the
-emitted hook shapes; the remaining conversion shapes fail closed. See
+emitted hook shapes; the remaining conversion shapes fail closed. The legacy keyboard-rows
+adapter (`layerAdaptLegacyInlineKeyboardRows`, tracked by `add-legacy-layer-constructors`)
+is now emitted as a nested codec, so `replyInlineMarkup.rows` is served on layers 225–228.
+See
 [`openspec/changes/complete-multi-layer/`](openspec/changes/complete-multi-layer/) for the
 task list and decisions.
 
