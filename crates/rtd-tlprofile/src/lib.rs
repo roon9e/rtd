@@ -125501,6 +125501,9 @@ pub enum ProjectionError {
     RouteNotEmitted(Route),
     /// A layer conversion hook refused the value.
     Hook(::rtd_layerhooks::HookError),
+    /// The value was projected away by policy: an older layer cannot represent
+    /// it, so a containing vector skips it rather than encoding it lossily.
+    Dropped,
 }
 
 impl std::fmt::Display for ProjectionError {
@@ -125521,11 +125524,23 @@ impl std::fmt::Display for ProjectionError {
                 )
             }
             ProjectionError::Hook(error) => write!(f, "layer conversion failed: {error}"),
+            ProjectionError::Dropped => {
+                write!(f, "value was projected away by the exact-profile policy")
+            }
         }
     }
 }
 
 impl std::error::Error for ProjectionError {}
+
+impl ProjectionError {
+    /// Whether this error is the projection "drop" signal, which a containing
+    /// vector turns into an omitted element rather than a failure.
+    #[must_use]
+    pub const fn is_dropped(&self) -> bool {
+        matches!(self, ProjectionError::Dropped)
+    }
+}
 
 impl From<::rtd_layerhooks::HookError> for ProjectionError {
     fn from(error: ::rtd_layerhooks::HookError) -> Self {
@@ -125821,9 +125836,18 @@ pub fn encode_access_point_rule_profile(
             } = value;
             __w.put_string(phone_prefix_rules.as_str());
             __w.put_i32(*dc_id);
-            __w.put_i32(ips.len() as i32);
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in ips.iter() {
-                encode_ip_port_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_ip_port_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_i32(__items.len() as i32);
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -126335,14 +126359,32 @@ pub fn encode_attach_menu_bot_profile(
             __w.put_i64(*bot_id);
             __w.put_string(short_name.as_str());
             if let Some(value) = peer_types {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_attach_menu_peer_type_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_attach_menu_peer_type_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
-            __w.put_vector_header(icons.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in icons.iter() {
-                encode_attach_menu_bot_icon_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_attach_menu_bot_icon_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -126482,9 +126524,18 @@ pub fn encode_attach_menu_bot_icon_profile(
             __w.put_string(name.as_str());
             encode_document_profile(profile, icon, __w)?;
             if let Some(value) = colors {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_attach_menu_bot_icon_color_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_attach_menu_bot_icon_color_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -126637,13 +126688,31 @@ pub fn encode_attach_menu_bots_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(bots.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in bots.iter() {
-                        encode_attach_menu_bot_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_attach_menu_bot_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -126757,9 +126826,18 @@ pub fn encode_attach_menu_bots_bot_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::AttachMenuBotsBot { bot, users } = value;
             encode_attach_menu_bot_profile(profile, bot, __w)?;
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -128887,8 +128965,75 @@ pub fn encode_bot_command_profile(
             __w.put_string(description.as_str());
             Ok(())
         }
+        RouteMode::Policy => {
+            __w.put_u32(route.wire_id);
+            match profile.layer {
+                225 => encode_policy_bot_command_225(profile, value, __w)?,
+                226 => encode_policy_bot_command_226(profile, value, __w)?,
+                227 => encode_policy_bot_command_227(profile, value, __w)?,
+                _ => return Err(ProjectionError::RouteNotEmitted(route)),
+            }
+            Ok(())
+        }
         _ => Err(ProjectionError::RouteNotEmitted(route)),
     }
+}
+
+fn encode_policy_bot_command_225(
+    _profile: Profile,
+    value: &rtd_tg::BotCommand,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotCommand {
+        command,
+        description,
+        ephemeral,
+        ..
+    } = value;
+    if *ephemeral && rtd_layerhooks::projection::project_ephemeral_bot_command(value)?.is_none() {
+        return Err(ProjectionError::Dropped);
+    }
+    __w.put_string(command.as_str());
+    __w.put_string(description.as_str());
+    Ok(())
+}
+
+fn encode_policy_bot_command_226(
+    _profile: Profile,
+    value: &rtd_tg::BotCommand,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotCommand {
+        command,
+        description,
+        ephemeral,
+        ..
+    } = value;
+    if *ephemeral && rtd_layerhooks::projection::project_ephemeral_bot_command(value)?.is_none() {
+        return Err(ProjectionError::Dropped);
+    }
+    __w.put_string(command.as_str());
+    __w.put_string(description.as_str());
+    Ok(())
+}
+
+fn encode_policy_bot_command_227(
+    _profile: Profile,
+    value: &rtd_tg::BotCommand,
+    __w: &mut Writer,
+) -> Result<(), ProjectionError> {
+    let rtd_tg::BotCommand {
+        command,
+        description,
+        ephemeral,
+        ..
+    } = value;
+    if *ephemeral && rtd_layerhooks::projection::project_ephemeral_bot_command(value)?.is_none() {
+        return Err(ProjectionError::Dropped);
+    }
+    __w.put_string(command.as_str());
+    __w.put_string(description.as_str());
+    Ok(())
 }
 
 pub fn decode_bot_command_profile(
@@ -128918,8 +129063,59 @@ pub fn decode_bot_command_profile(
                 description,
             })
         }
+        RouteMode::Policy => match profile.layer {
+            225 => decode_policy_bot_command_225(profile, __d),
+            226 => decode_policy_bot_command_226(profile, __d),
+            227 => decode_policy_bot_command_227(profile, __d),
+            _ => Err(AdmitError::UnsupportedRoute(route)),
+        },
         _ => Err(AdmitError::UnsupportedRoute(route)),
     }
+}
+
+fn decode_policy_bot_command_225(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotCommand, AdmitError> {
+    let command: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let flags = 0u32;
+    Ok(rtd_tg::BotCommand {
+        flags,
+        ephemeral: false,
+        command,
+        description,
+    })
+}
+
+fn decode_policy_bot_command_226(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotCommand, AdmitError> {
+    let command: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let flags = 0u32;
+    Ok(rtd_tg::BotCommand {
+        flags,
+        ephemeral: false,
+        command,
+        description,
+    })
+}
+
+fn decode_policy_bot_command_227(
+    _profile: Profile,
+    __d: &mut Decoder<'_>,
+) -> Result<rtd_tg::BotCommand, AdmitError> {
+    let command: ::std::string::String = __d.take_string()?.to_owned();
+    let description: ::std::string::String = __d.take_string()?.to_owned();
+    let flags = 0u32;
+    Ok(rtd_tg::BotCommand {
+        flags,
+        ephemeral: false,
+        command,
+        description,
+    })
 }
 
 pub fn encode_bot_command_scope_profile(
@@ -129294,9 +129490,18 @@ pub fn encode_bot_info_profile(
                 encode_document_profile(profile, value, __w)?;
             }
             if let Some(value) = commands {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_bot_command_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_bot_command_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = menu_button {
@@ -129519,9 +129724,19 @@ pub fn encode_bot_inline_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = reply_markup {
@@ -129879,9 +130094,19 @@ pub fn encode_bot_inline_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     __w.put_string(url.as_str());
@@ -129995,9 +130220,19 @@ pub fn encode_bot_inline_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = reply_markup {
@@ -132270,9 +132505,18 @@ pub fn encode_business_chat_link_profile(
             __w.put_string(link.as_str());
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = title {
@@ -132868,9 +133112,18 @@ pub fn encode_business_work_hours_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_string(timezone_id.as_str());
-            __w.put_vector_header(weekly_open.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in weekly_open.iter() {
-                encode_business_weekly_open_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_business_weekly_open_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -133287,9 +133540,18 @@ pub fn encode_cdn_config_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::CdnConfig { public_keys } = value;
-            __w.put_vector_header(public_keys.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in public_keys.iter() {
-                encode_cdn_public_key_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_cdn_public_key_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -135626,9 +135888,18 @@ pub fn encode_channel_messages_filter_profile(
                         __flags_flags |= 1u32 << 1;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(ranges.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in ranges.iter() {
-                        encode_message_range_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_range_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -136932,9 +137203,19 @@ pub fn encode_chat_profile(
                     encode_chat_photo_profile(profile, photo, __w)?;
                     __w.put_i32(*date);
                     if let Some(value) = restriction_reason {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_restriction_reason_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = admin_rights {
@@ -136950,9 +137231,19 @@ pub fn encode_chat_profile(
                         __w.put_i32(*value);
                     }
                     if let Some(value) = usernames {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_username_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_username_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = stories_max_id {
@@ -137609,9 +137900,18 @@ fn encode_policy_chat_channel_225(
     encode_chat_photo_profile(profile, photo, __w)?;
     __w.put_i32(*date);
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = admin_rights {
@@ -137627,9 +137927,18 @@ fn encode_policy_chat_channel_225(
         __w.put_i32(*value);
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -137872,9 +138181,18 @@ fn encode_policy_chat_channel_226(
     encode_chat_photo_profile(profile, photo, __w)?;
     __w.put_i32(*date);
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = admin_rights {
@@ -137890,9 +138208,18 @@ fn encode_policy_chat_channel_226(
         __w.put_i32(*value);
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -138135,9 +138462,18 @@ fn encode_policy_chat_channel_227(
     encode_chat_photo_profile(profile, photo, __w)?;
     __w.put_i32(*date);
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = admin_rights {
@@ -138153,9 +138489,18 @@ fn encode_policy_chat_channel_227(
         __w.put_i32(*value);
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -138402,9 +138747,18 @@ fn encode_policy_chat_channel_228(
     encode_chat_photo_profile(profile, photo, __w)?;
     __w.put_i32(*date);
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = admin_rights {
@@ -138420,9 +138774,18 @@ fn encode_policy_chat_channel_228(
         __w.put_i32(*value);
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -138672,9 +139035,18 @@ fn encode_policy_chat_channel_229(
     encode_chat_photo_profile(profile, photo, __w)?;
     __w.put_i32(*date);
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = admin_rights {
@@ -138690,9 +139062,18 @@ fn encode_policy_chat_channel_229(
         __w.put_i32(*value);
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -138942,9 +139323,18 @@ fn encode_policy_chat_channel_230(
     encode_chat_photo_profile(profile, photo, __w)?;
     __w.put_i32(*date);
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = admin_rights {
@@ -138960,9 +139350,18 @@ fn encode_policy_chat_channel_230(
         __w.put_i32(*value);
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -139212,9 +139611,18 @@ fn encode_policy_chat_channel_231(
     encode_chat_photo_profile(profile, photo, __w)?;
     __w.put_i32(*date);
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = admin_rights {
@@ -139230,9 +139638,18 @@ fn encode_policy_chat_channel_231(
         __w.put_i32(*value);
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -145423,9 +145840,18 @@ pub fn encode_chat_full_profile(
                     if let Some(value) = exported_invite {
                         encode_exported_chat_invite_profile(profile, value, __w)?;
                     }
-                    __w.put_vector_header(bot_info.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in bot_info.iter() {
-                        encode_bot_info_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_bot_info_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = migrated_from_chat_id {
                         __w.put_i64(*value);
@@ -145752,9 +146178,19 @@ pub fn encode_chat_full_profile(
                         encode_exported_chat_invite_profile(profile, value, __w)?;
                     }
                     if let Some(value) = bot_info {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_bot_info_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_bot_info_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = pinned_msg_id {
@@ -145870,9 +146306,18 @@ pub fn encode_chat_full_profile(
                     __w.put_i64(*id);
                     __w.put_string(about.as_str());
                     encode_photo_profile(profile, chat_photo, __w)?;
-                    __w.put_vector_header(linked_peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in linked_peers.iter() {
-                        encode_community_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_community_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = admins_count {
                         __w.put_i32(*value);
@@ -146168,9 +146613,18 @@ fn encode_policy_chat_full_channel_full_225(
     if let Some(value) = exported_invite {
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
-    __w.put_vector_header(bot_info.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in bot_info.iter() {
-        encode_bot_info_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_bot_info_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = migrated_from_chat_id {
         __w.put_i64(*value);
@@ -146553,9 +147007,18 @@ fn encode_policy_chat_full_channel_full_226(
     if let Some(value) = exported_invite {
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
-    __w.put_vector_header(bot_info.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in bot_info.iter() {
-        encode_bot_info_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_bot_info_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = migrated_from_chat_id {
         __w.put_i64(*value);
@@ -146941,9 +147404,18 @@ fn encode_policy_chat_full_channel_full_227(
     if let Some(value) = exported_invite {
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
-    __w.put_vector_header(bot_info.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in bot_info.iter() {
-        encode_bot_info_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_bot_info_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = migrated_from_chat_id {
         __w.put_i64(*value);
@@ -147329,9 +147801,18 @@ fn encode_policy_chat_full_channel_full_228(
     if let Some(value) = exported_invite {
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
-    __w.put_vector_header(bot_info.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in bot_info.iter() {
-        encode_bot_info_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_bot_info_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = migrated_from_chat_id {
         __w.put_i64(*value);
@@ -147721,9 +148202,18 @@ fn encode_policy_chat_full_channel_full_229(
     if let Some(value) = exported_invite {
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
-    __w.put_vector_header(bot_info.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in bot_info.iter() {
-        encode_bot_info_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_bot_info_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = migrated_from_chat_id {
         __w.put_i64(*value);
@@ -148113,9 +148603,18 @@ fn encode_policy_chat_full_channel_full_230(
     if let Some(value) = exported_invite {
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
-    __w.put_vector_header(bot_info.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in bot_info.iter() {
-        encode_bot_info_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_bot_info_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = migrated_from_chat_id {
         __w.put_i64(*value);
@@ -148505,9 +149004,18 @@ fn encode_policy_chat_full_channel_full_231(
     if let Some(value) = exported_invite {
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
-    __w.put_vector_header(bot_info.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in bot_info.iter() {
-        encode_bot_info_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_bot_info_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = migrated_from_chat_id {
         __w.put_i64(*value);
@@ -148704,9 +149212,18 @@ fn encode_policy_chat_full_chat_full_225(
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
     if let Some(value) = bot_info {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_bot_info_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_bot_info_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = pinned_msg_id {
@@ -148837,9 +149354,18 @@ fn encode_policy_chat_full_chat_full_226(
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
     if let Some(value) = bot_info {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_bot_info_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_bot_info_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = pinned_msg_id {
@@ -148970,9 +149496,18 @@ fn encode_policy_chat_full_chat_full_227(
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
     if let Some(value) = bot_info {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_bot_info_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_bot_info_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = pinned_msg_id {
@@ -149103,9 +149638,18 @@ fn encode_policy_chat_full_chat_full_228(
         encode_exported_chat_invite_profile(profile, value, __w)?;
     }
     if let Some(value) = bot_info {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_bot_info_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_bot_info_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = pinned_msg_id {
@@ -155316,9 +155860,19 @@ pub fn encode_chat_invite_profile(
                     encode_photo_profile(profile, photo, __w)?;
                     __w.put_i32(*participants_count);
                     if let Some(value) = participants {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_user_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_user_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     __w.put_i32(*color);
@@ -155965,9 +156519,18 @@ pub fn encode_chat_participants_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*chat_id);
-                    __w.put_vector_header(participants.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in participants.iter() {
-                        encode_chat_participant_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_participant_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*version);
                     Ok(())
@@ -156284,9 +156847,18 @@ pub fn encode_chat_reactions_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(reactions.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in reactions.iter() {
-                        encode_reaction_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_reaction_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -156396,9 +156968,18 @@ pub fn encode_chat_theme_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_star_gift_profile(profile, gift, __w)?;
-                    __w.put_vector_header(theme_settings.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in theme_settings.iter() {
-                        encode_theme_settings_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_theme_settings_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -157146,9 +157727,18 @@ pub fn encode_config_profile(
             __w.put_i32(*expires);
             __w.put_bool(*test_mode);
             __w.put_i32(*this_dc);
-            __w.put_vector_header(dc_options.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in dc_options.iter() {
-                encode_dc_option_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_dc_option_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_string(dc_txt_domain_name.as_str());
             __w.put_i32(*chat_size_max);
@@ -158768,17 +159358,44 @@ pub fn encode_dialog_filter_profile(
                     if let Some(value) = color {
                         __w.put_i32(*value);
                     }
-                    __w.put_vector_header(pinned_peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in pinned_peers.iter() {
-                        encode_input_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(include_peers.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in include_peers.iter() {
-                        encode_input_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(exclude_peers.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in exclude_peers.iter() {
-                        encode_input_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -158861,13 +159478,31 @@ pub fn encode_dialog_filter_profile(
                     if let Some(value) = color {
                         __w.put_i32(*value);
                     }
-                    __w.put_vector_header(pinned_peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in pinned_peers.iter() {
-                        encode_input_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(include_peers.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in include_peers.iter() {
-                        encode_input_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -159460,21 +160095,50 @@ pub fn encode_document_profile(
                     __w.put_string(mime_type.as_str());
                     __w.put_i64(*size);
                     if let Some(value) = thumbs {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_photo_size_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_photo_size_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = video_thumbs {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_video_size_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_video_size_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     __w.put_i32(*dc_id);
-                    __w.put_vector_header(attributes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in attributes.iter() {
-                        encode_document_attribute_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_attribute_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -160279,9 +160943,19 @@ pub fn encode_draft_message_profile(
                     }
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = media {
@@ -160401,9 +161075,18 @@ fn encode_policy_draft_message_draft_message_225(
     }
     __w.put_string(message.as_str());
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = media {
@@ -160467,9 +161150,18 @@ fn encode_policy_draft_message_draft_message_226(
     }
     __w.put_string(message.as_str());
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = media {
@@ -161382,9 +162074,18 @@ pub fn encode_emoji_keywords_difference_profile(
             __w.put_string(lang_code.as_str());
             __w.put_i32(*from_version);
             __w.put_i32(*version);
-            __w.put_vector_header(keywords.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in keywords.iter() {
-                encode_emoji_keyword_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_emoji_keyword_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -162600,9 +163301,18 @@ pub fn encode_ephemeral_message_profile(
             __w.put_i32(*date);
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = media {
@@ -162731,9 +163441,18 @@ fn encode_policy_ephemeral_message_228(
     __w.put_i32(*date);
     __w.put_string(message.as_str());
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = media {
@@ -163436,9 +164155,18 @@ pub fn encode_exported_chatlist_invite_profile(
             __w.put_u32(__flags_flags);
             __w.put_string(title.as_str());
             __w.put_string(url.as_str());
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -166067,9 +166795,20 @@ pub fn encode_group_call_participant_video_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_string(endpoint.as_str());
-            __w.put_vector_header(source_groups.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in source_groups.iter() {
-                encode_group_call_participant_video_source_group_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_group_call_participant_video_source_group_profile(
+                    profile, item, &mut __buf,
+                ) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = audio_source {
                 __w.put_i32(*value);
@@ -166668,9 +167407,19 @@ pub fn encode_inline_button_type_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(query.as_str());
                     if let Some(value) = peer_types {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_inline_query_peer_type_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_inline_query_peer_type_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -167574,9 +168323,19 @@ pub fn encode_input_bot_inline_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = reply_markup {
@@ -167919,9 +168678,19 @@ pub fn encode_input_bot_inline_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     __w.put_string(url.as_str());
@@ -168035,9 +168804,19 @@ pub fn encode_input_bot_inline_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = reply_markup {
@@ -169204,15 +169983,33 @@ pub fn encode_input_business_bot_recipients_profile(
             }
             __w.put_u32(__flags_flags);
             if let Some(value) = users {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_user_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_user_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = exclude_users {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_user_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_user_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -169360,9 +170157,18 @@ pub fn encode_input_business_chat_link_profile(
             __w.put_u32(__flags_flags);
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = title {
@@ -169692,9 +170498,18 @@ pub fn encode_input_business_recipients_profile(
             }
             __w.put_u32(__flags_flags);
             if let Some(value) = users {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_user_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_user_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -173742,9 +174557,18 @@ pub fn encode_input_media_profile(
                     }
                     __w.put_u32(__flags_flags);
                     __w.put_i64(*stars_amount);
-                    __w.put_vector_header(extended_media.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in extended_media.iter() {
-                        encode_input_media_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_media_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = payload {
                         __w.put_string(value.as_str());
@@ -173962,9 +174786,19 @@ pub fn encode_input_media_profile(
                         __w.put_string(value.as_str());
                     }
                     if let Some(value) = solution_entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = solution_media {
@@ -174156,14 +174990,33 @@ pub fn encode_input_media_profile(
                         encode_input_file_profile(profile, value, __w)?;
                     }
                     __w.put_string(mime_type.as_str());
-                    __w.put_vector_header(attributes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in attributes.iter() {
-                        encode_document_attribute_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_attribute_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = stickers {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_document_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_document_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = video_cover {
@@ -174251,9 +175104,19 @@ pub fn encode_input_media_profile(
                     __w.put_u32(__flags_flags);
                     encode_input_file_profile(profile, file, __w)?;
                     if let Some(value) = stickers {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_document_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_document_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = ttl_seconds {
@@ -176915,9 +177778,18 @@ pub fn encode_input_privacy_rule_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_input_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -177026,9 +177898,18 @@ pub fn encode_input_privacy_rule_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_input_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -177367,9 +178248,19 @@ pub fn encode_input_reply_to_profile(
                         __w.put_string(value.as_str());
                     }
                     if let Some(value) = quote_entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = quote_offset {
@@ -177385,9 +178276,19 @@ pub fn encode_input_reply_to_profile(
                         __w.put_bytes(value.as_slice());
                     }
                     if let Some(value) = quote_rich {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_rich_text_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_rich_text_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -177527,9 +178428,18 @@ fn encode_policy_input_reply_to_input_reply_to_message_225(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -177604,9 +178514,18 @@ fn encode_policy_input_reply_to_input_reply_to_message_226(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -177681,9 +178600,18 @@ fn encode_policy_input_reply_to_input_reply_to_message_227(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -177758,9 +178686,18 @@ fn encode_policy_input_reply_to_input_reply_to_message_228(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -177835,9 +178772,18 @@ fn encode_policy_input_reply_to_input_reply_to_message_229(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -177912,9 +178858,18 @@ fn encode_policy_input_reply_to_input_reply_to_message_230(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -177989,9 +178944,18 @@ fn encode_policy_input_reply_to_input_reply_to_message_231(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -179214,26 +180178,65 @@ pub fn encode_input_rich_message_profile(
                         __flags_flags |= 1u32 << 4;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(blocks.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocks.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = photos {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_photo_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_photo_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = documents {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_document_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_document_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = users {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_user_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_user_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -179292,9 +180295,19 @@ pub fn encode_input_rich_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(html.as_str());
                     if let Some(value) = files {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_rich_file_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_rich_file_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -179353,9 +180366,19 @@ pub fn encode_input_rich_message_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(markdown.as_str());
                     if let Some(value) = files {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_rich_file_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_rich_file_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -179907,15 +180930,33 @@ pub fn encode_input_secure_value_profile(
                 encode_input_secure_file_profile(profile, value, __w)?;
             }
             if let Some(value) = translation {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_secure_file_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_secure_file_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = files {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_secure_file_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_secure_file_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = plain_data {
@@ -180137,9 +181178,18 @@ pub fn encode_input_single_media_profile(
             __w.put_i64(*random_id);
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -181007,9 +182057,18 @@ pub fn encode_input_store_payment_purpose_profile(
                         __flags_flags |= 1u32 << 1;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_input_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_input_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = boost_peer {
                         encode_input_peer_profile(profile, value, __w)?;
@@ -181106,9 +182165,19 @@ pub fn encode_input_store_payment_purpose_profile(
                     __w.put_u32(__flags_flags);
                     encode_input_peer_profile(profile, boost_peer, __w)?;
                     if let Some(value) = additional_peers {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_peer_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_peer_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = countries_iso2 {
@@ -181287,9 +182356,19 @@ pub fn encode_input_store_payment_purpose_profile(
                     __w.put_i64(*stars);
                     encode_input_peer_profile(profile, boost_peer, __w)?;
                     if let Some(value) = additional_peers {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_input_peer_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_input_peer_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = countries_iso2 {
@@ -182559,9 +183638,18 @@ pub fn encode_input_web_document_profile(
             __w.put_string(url.as_str());
             __w.put_i32(*size);
             __w.put_string(mime_type.as_str());
-            __w.put_vector_header(attributes.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in attributes.iter() {
-                encode_document_attribute_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_document_attribute_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -183045,9 +184133,18 @@ pub fn encode_invoice_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_string(currency.as_str());
-            __w.put_vector_header(prices.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in prices.iter() {
-                encode_labeled_price_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_labeled_price_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = max_tip_amount {
                 __w.put_i64(*value);
@@ -183339,9 +184436,18 @@ pub fn encode_jsonvalue_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(value.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in value.iter() {
-                        encode_jsonvalue_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_jsonvalue_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -183427,9 +184533,18 @@ pub fn encode_jsonvalue_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(value.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in value.iter() {
-                        encode_jsonobject_value_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_jsonobject_value_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -183781,9 +184896,18 @@ pub fn encode_keyboard_button_row_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::KeyboardButtonRow { buttons } = value;
-            __w.put_vector_header(buttons.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in buttons.iter() {
-                encode_keyboard_button_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_keyboard_button_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -184070,9 +185194,18 @@ pub fn encode_keyboard_inline_button_row_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::KeyboardInlineButtonRow { buttons } = value;
-            __w.put_vector_header(buttons.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in buttons.iter() {
-                encode_keyboard_inline_button_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_keyboard_inline_button_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -184214,9 +185347,18 @@ pub fn encode_lang_pack_difference_profile(
             __w.put_string(lang_code.as_str());
             __w.put_i32(*from_version);
             __w.put_i32(*version);
-            __w.put_vector_header(strings.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in strings.iter() {
-                encode_lang_pack_string_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_lang_pack_string_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -185881,9 +187023,19 @@ pub fn encode_message_profile(
                         encode_reply_markup_profile(profile, value, __w)?;
                     }
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = views {
@@ -185908,9 +187060,19 @@ pub fn encode_message_profile(
                         encode_message_reactions_profile(profile, value, __w)?;
                     }
                     if let Some(value) = restriction_reason {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_restriction_reason_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = ttl_period {
@@ -186381,9 +187543,18 @@ fn encode_policy_message_message_225(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = views {
@@ -186408,9 +187579,18 @@ fn encode_policy_message_message_225(
         encode_message_reactions_profile(profile, value, __w)?;
     }
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = ttl_period {
@@ -186676,9 +187856,18 @@ fn encode_policy_message_message_226(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = views {
@@ -186703,9 +187892,18 @@ fn encode_policy_message_message_226(
         encode_message_reactions_profile(profile, value, __w)?;
     }
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = ttl_period {
@@ -188739,9 +189937,19 @@ pub fn encode_message_action_profile(
                         __w.put_i32(*value);
                     }
                     if let Some(value) = other_participants {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_peer_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_peer_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -190001,9 +191209,18 @@ pub fn encode_message_action_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*button_id);
-                    __w.put_vector_header(peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in peers.iter() {
-                        encode_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -190030,9 +191247,18 @@ pub fn encode_message_action_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*button_id);
-                    __w.put_vector_header(peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in peers.iter() {
-                        encode_requested_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_requested_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -190076,9 +191302,18 @@ pub fn encode_message_action_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(types.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in types.iter() {
-                        encode_secure_value_type_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_secure_value_type_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -190107,9 +191342,18 @@ pub fn encode_message_action_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(values.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in values.iter() {
-                        encode_secure_value_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_secure_value_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_secure_credentials_encrypted_profile(profile, credentials, __w)?;
                     Ok(())
@@ -190985,9 +192229,18 @@ pub fn encode_message_action_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(list.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in list.iter() {
-                        encode_todo_item_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_todo_item_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -195568,9 +196821,19 @@ pub fn encode_message_media_profile(
                         encode_document_profile(profile, value, __w)?;
                     }
                     if let Some(value) = alt_documents {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_document_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_document_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = video_cover {
@@ -196048,9 +197311,18 @@ pub fn encode_message_media_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*stars_amount);
-                    __w.put_vector_header(extended_media.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in extended_media.iter() {
-                        encode_message_extended_media_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_extended_media_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -196267,9 +197539,19 @@ pub fn encode_message_media_profile(
                     __w.put_u32(__flags_flags);
                     encode_todo_list_profile(profile, todo, __w)?;
                     if let Some(value) = completions {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_todo_completion_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_todo_completion_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -197469,20 +198751,47 @@ pub fn encode_message_reactions_profile(
                 __flags_flags |= 1u32 << 4;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(results.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in results.iter() {
-                encode_reaction_count_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_reaction_count_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = recent_reactions {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_peer_reaction_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_peer_reaction_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = top_reactors {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_reactor_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_reactor_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -197800,9 +199109,18 @@ pub fn encode_message_replies_profile(
             __w.put_i32(*replies);
             __w.put_i32(*replies_pts);
             if let Some(value) = recent_repliers {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_peer_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_peer_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = channel_id {
@@ -198080,9 +199398,19 @@ pub fn encode_message_reply_header_profile(
                         __w.put_string(value.as_str());
                     }
                     if let Some(value) = quote_entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = quote_offset {
@@ -198095,9 +199423,19 @@ pub fn encode_message_reply_header_profile(
                         __w.put_bytes(value.as_slice());
                     }
                     if let Some(value) = quote_rich {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_rich_text_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_rich_text_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -198243,9 +199581,18 @@ fn encode_policy_message_reply_header_message_reply_header_225(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -198344,9 +199691,18 @@ fn encode_policy_message_reply_header_message_reply_header_226(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -198449,9 +199805,18 @@ fn encode_policy_message_reply_header_message_reply_header_227(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -198554,9 +199919,18 @@ fn encode_policy_message_reply_header_message_reply_header_228(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -198659,9 +200033,18 @@ fn encode_policy_message_reply_header_message_reply_header_229(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -198764,9 +200147,18 @@ fn encode_policy_message_reply_header_message_reply_header_230(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -198869,9 +200261,18 @@ fn encode_policy_message_reply_header_message_reply_header_231(
         __w.put_string(value.as_str());
     }
     if let Some(value) = quote_entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = quote_offset {
@@ -201495,9 +202896,18 @@ pub fn encode_onramp_availability_profile(
             if let Some(value) = state {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(methods.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in methods.iter() {
-                encode_onramp_method_availability_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_onramp_method_availability_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -202171,17 +203581,44 @@ pub fn encode_page_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_string(url.as_str());
-            __w.put_vector_header(blocks.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in blocks.iter() {
-                encode_page_block_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_page_block_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(photos.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in photos.iter() {
-                encode_photo_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_photo_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(documents.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in documents.iter() {
-                encode_document_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_document_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = views {
                 __w.put_i32(*value);
@@ -202469,9 +203906,18 @@ pub fn encode_page_block_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(blocks.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocks.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_rich_text_profile(profile, caption, __w)?;
                     Ok(())
@@ -202525,9 +203971,18 @@ pub fn encode_page_block_profile(
                         __flags_flags |= 1u32 << 2;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(buttons.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in buttons.iter() {
-                        encode_page_button_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_button_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -202574,9 +204029,18 @@ pub fn encode_page_block_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(items.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in items.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_page_caption_profile(profile, caption, __w)?;
                     Ok(())
@@ -202639,9 +204103,18 @@ pub fn encode_page_block_profile(
                         __flags_flags |= 1u32 << 0;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(blocks.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocks.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_rich_text_profile(profile, title, __w)?;
                     Ok(())
@@ -202838,9 +204311,18 @@ pub fn encode_page_block_profile(
                     __w.put_i64(*author_photo_id);
                     __w.put_string(author.as_str());
                     __w.put_i32(*date);
-                    __w.put_vector_header(blocks.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocks.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_page_caption_profile(profile, caption, __w)?;
                     Ok(())
@@ -203055,9 +204537,18 @@ pub fn encode_page_block_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(items.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in items.iter() {
-                        encode_page_list_item_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_list_item_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -203172,9 +204663,18 @@ pub fn encode_page_block_profile(
                         __flags_flags |= 1u32 << 1;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(items.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in items.iter() {
-                        encode_page_list_ordered_item_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_list_ordered_item_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = start {
                         __w.put_i32(*value);
@@ -203364,9 +204864,18 @@ pub fn encode_page_block_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_rich_text_profile(profile, title, __w)?;
-                    __w.put_vector_header(articles.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in articles.iter() {
-                        encode_page_related_article_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_related_article_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -203392,9 +204901,18 @@ pub fn encode_page_block_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(items.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in items.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_page_caption_profile(profile, caption, __w)?;
                     Ok(())
@@ -203493,9 +205011,18 @@ pub fn encode_page_block_profile(
                     }
                     __w.put_u32(__flags_flags);
                     encode_rich_text_profile(profile, title, __w)?;
-                    __w.put_vector_header(rows.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in rows.iter() {
-                        encode_page_table_row_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_table_row_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -203710,9 +205237,18 @@ fn encode_policy_page_block_page_block_ordered_list_225(
     let rtd_tg::PageBlock::PageBlockOrderedList { items, .. } = value else {
         unreachable!()
     };
-    __w.put_vector_header(items.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in items.iter() {
-        encode_page_list_ordered_item_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_list_ordered_item_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -203725,9 +205261,18 @@ fn encode_policy_page_block_page_block_ordered_list_226(
     let rtd_tg::PageBlock::PageBlockOrderedList { items, .. } = value else {
         unreachable!()
     };
-    __w.put_vector_header(items.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in items.iter() {
-        encode_page_list_ordered_item_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_list_ordered_item_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -203824,9 +205369,18 @@ fn encode_policy_page_block_page_block_table_225(
     }
     __w.put_u32(__flags_flags);
     encode_rich_text_profile(profile, title, __w)?;
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_page_table_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_table_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -203855,9 +205409,18 @@ fn encode_policy_page_block_page_block_table_226(
     }
     __w.put_u32(__flags_flags);
     encode_rich_text_profile(profile, title, __w)?;
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_page_table_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_table_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -203886,9 +205449,18 @@ fn encode_policy_page_block_page_block_table_227(
     }
     __w.put_u32(__flags_flags);
     encode_rich_text_profile(profile, title, __w)?;
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_page_table_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_table_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -203917,9 +205489,18 @@ fn encode_policy_page_block_page_block_table_228(
     }
     __w.put_u32(__flags_flags);
     encode_rich_text_profile(profile, title, __w)?;
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_page_table_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_table_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -205584,9 +207165,18 @@ pub fn encode_page_list_item_profile(
                         __flags_flags |= 1u32 << 1;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(blocks.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocks.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -205672,9 +207262,18 @@ fn encode_policy_page_list_item_page_list_item_blocks_225(
     let rtd_tg::PageListItem::PageListItemBlocks { blocks, .. } = value else {
         unreachable!()
     };
-    __w.put_vector_header(blocks.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in blocks.iter() {
-        encode_page_block_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_block_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -205687,9 +207286,18 @@ fn encode_policy_page_list_item_page_list_item_blocks_226(
     let rtd_tg::PageListItem::PageListItemBlocks { blocks, .. } = value else {
         unreachable!()
     };
-    __w.put_vector_header(blocks.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in blocks.iter() {
-        encode_page_block_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_block_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -205980,9 +207588,18 @@ pub fn encode_page_list_ordered_item_profile(
                     if let Some(value) = num {
                         __w.put_string(value.as_str());
                     }
-                    __w.put_vector_header(blocks.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocks.iter() {
-                        encode_page_block_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_page_block_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = value {
                         __w.put_i32(*value);
@@ -206126,9 +207743,18 @@ fn encode_policy_page_list_ordered_item_page_list_ordered_item_blocks_225(
     } else {
         __w.put_string(::std::string::String::new().as_str());
     }
-    __w.put_vector_header(blocks.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in blocks.iter() {
-        encode_page_block_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_block_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -206146,9 +207772,18 @@ fn encode_policy_page_list_ordered_item_page_list_ordered_item_blocks_226(
     } else {
         __w.put_string(::std::string::String::new().as_str());
     }
-    __w.put_vector_header(blocks.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in blocks.iter() {
-        encode_page_block_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_page_block_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     Ok(())
 }
@@ -206807,9 +208442,18 @@ pub fn encode_page_table_row_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::PageTableRow { cells } = value;
-            __w.put_vector_header(cells.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in cells.iter() {
-                encode_page_table_cell_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_page_table_cell_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -208753,9 +210397,18 @@ pub fn encode_peer_stories_profile(
             if let Some(value) = max_read_id {
                 __w.put_i32(*value);
             }
-            __w.put_vector_header(stories.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stories.iter() {
-                encode_story_item_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_story_item_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -209000,9 +210653,18 @@ pub fn encode_phone_call_profile(
                     __w.put_bytes(g_a_or_b.as_slice());
                     __w.put_i64(*key_fingerprint);
                     encode_phone_call_protocol_profile(profile, protocol, __w)?;
-                    __w.put_vector_header(connections.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in connections.iter() {
-                        encode_phone_connection_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_phone_connection_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*start_date);
                     if let Some(value) = custom_parameters {
@@ -209998,14 +211660,33 @@ pub fn encode_photo_profile(
                     __w.put_i64(*access_hash);
                     __w.put_bytes(file_reference.as_slice());
                     __w.put_i32(*date);
-                    __w.put_vector_header(sizes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in sizes.iter() {
-                        encode_photo_size_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_photo_size_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = video_sizes {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_video_size_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_video_size_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     __w.put_i32(*dc_id);
@@ -210510,9 +212191,18 @@ pub fn encode_poll_profile(
             __w.put_u32(__flags_flags);
             __w.put_i64(*id);
             encode_text_with_entities_profile(profile, question, __w)?;
-            __w.put_vector_header(answers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in answers.iter() {
-                encode_poll_answer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_poll_answer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = close_period {
                 __w.put_i32(*value);
@@ -210932,9 +212622,18 @@ pub fn encode_poll_answer_voters_profile(
                 __w.put_i32(*value);
             }
             if let Some(value) = recent_voters {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_peer_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_peer_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -211129,27 +212828,54 @@ pub fn encode_poll_results_profile(
             }
             __w.put_u32(__flags_flags);
             if let Some(value) = results {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_poll_answer_voters_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_poll_answer_voters_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = total_voters {
                 __w.put_i32(*value);
             }
             if let Some(value) = recent_voters {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_peer_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_peer_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = solution {
                 __w.put_string(value.as_str());
             }
             if let Some(value) = solution_entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = solution_media {
@@ -213866,9 +215592,18 @@ pub fn encode_reply_markup_profile(
                         __flags_flags |= 1u32 << 5;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(rows.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in rows.iter() {
-                        encode_keyboard_inline_button_row_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_keyboard_inline_button_row_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -214026,9 +215761,18 @@ pub fn encode_reply_markup_profile(
                         __flags_flags |= 1u32 << 3;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(rows.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in rows.iter() {
-                        encode_keyboard_button_row_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_keyboard_button_row_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = placeholder {
                         __w.put_string(value.as_str());
@@ -214101,9 +215845,18 @@ fn encode_policy_reply_markup_reply_keyboard_markup_225(
         __flags_flags |= 1u32 << 3;
     }
     __w.put_u32(__flags_flags);
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_keyboard_button_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_keyboard_button_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = placeholder {
         __w.put_string(value.as_str());
@@ -214152,9 +215905,18 @@ fn encode_policy_reply_markup_reply_keyboard_markup_226(
         __flags_flags |= 1u32 << 3;
     }
     __w.put_u32(__flags_flags);
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_keyboard_button_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_keyboard_button_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = placeholder {
         __w.put_string(value.as_str());
@@ -214203,9 +215965,18 @@ fn encode_policy_reply_markup_reply_keyboard_markup_227(
         __flags_flags |= 1u32 << 3;
     }
     __w.put_u32(__flags_flags);
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_keyboard_button_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_keyboard_button_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = placeholder {
         __w.put_string(value.as_str());
@@ -214254,9 +216025,18 @@ fn encode_policy_reply_markup_reply_keyboard_markup_228(
         __flags_flags |= 1u32 << 3;
     }
     __w.put_u32(__flags_flags);
-    __w.put_vector_header(rows.len());
+    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
     for item in rows.iter() {
-        encode_keyboard_button_row_profile(profile, item, __w)?;
+        let mut __buf = Writer::with_capacity(16);
+        match encode_keyboard_button_row_profile(profile, item, &mut __buf) {
+            Ok(()) => __items.push(__buf.into_vec()),
+            Err(ProjectionError::Dropped) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    __w.put_vector_header(__items.len());
+    for __item in &__items {
+        __w.put_raw(__item);
     }
     if let Some(value) = placeholder {
         __w.put_string(value.as_str());
@@ -214905,9 +216685,18 @@ pub fn encode_report_result_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_string(title.as_str());
-                    __w.put_vector_header(options.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in options.iter() {
-                        encode_message_report_option_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_report_option_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -216086,17 +217875,44 @@ pub fn encode_rich_message_profile(
                 __flags_flags |= 1u32 << 1;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(blocks.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in blocks.iter() {
-                encode_page_block_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_page_block_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(photos.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in photos.iter() {
-                encode_photo_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_photo_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(documents.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in documents.iter() {
-                encode_document_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_document_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -216422,9 +218238,18 @@ pub fn encode_rich_text_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(texts.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in texts.iter() {
-                        encode_rich_text_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_rich_text_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -219001,9 +220826,18 @@ pub fn encode_secure_required_type_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(types.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in types.iter() {
-                        encode_secure_required_type_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_secure_required_type_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -219284,15 +221118,33 @@ pub fn encode_secure_value_profile(
                 encode_secure_file_profile(profile, value, __w)?;
             }
             if let Some(value) = translation {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_secure_file_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_secure_file_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = files {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_secure_file_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_secure_file_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = plain_data {
@@ -221523,9 +223375,19 @@ pub fn encode_share_theme_profile(
                         __w.put_i32(*value);
                     }
                     if let Some(value) = emojis {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_reaction_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_reaction_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -221754,9 +223616,19 @@ pub fn encode_share_theme_backdrops_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*hash);
-                    __w.put_vector_header(backdrops.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in backdrops.iter() {
-                        encode_share_theme_backdrop_option_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_share_theme_backdrop_option_profile(profile, item, &mut __buf)
+                        {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -221856,9 +223728,18 @@ pub fn encode_shipping_option_profile(
             let rtd_tg::ShippingOption { id, title, prices } = value;
             __w.put_string(id.as_str());
             __w.put_string(title.as_str());
-            __w.put_vector_header(prices.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in prices.iter() {
-                encode_labeled_price_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_labeled_price_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -222130,9 +224011,18 @@ pub fn encode_sponsored_message_profile(
             __w.put_string(title.as_str());
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = photo {
@@ -223011,9 +224901,18 @@ pub fn encode_star_gift_profile(
                     if let Some(value) = owner_address {
                         __w.put_string(value.as_str());
                     }
-                    __w.put_vector_header(attributes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in attributes.iter() {
-                        encode_star_gift_attribute_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_star_gift_attribute_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*availability_issued);
                     __w.put_i32(*availability_total);
@@ -223021,9 +224920,19 @@ pub fn encode_star_gift_profile(
                         __w.put_string(value.as_str());
                     }
                     if let Some(value) = resell_amount {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_stars_amount_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_stars_amount_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = released_by {
@@ -224491,9 +226400,18 @@ pub fn encode_star_gift_auction_state_profile(
                     __w.put_i32(*start_date);
                     __w.put_i32(*end_date);
                     __w.put_i64(*min_bid_amount);
-                    __w.put_vector_header(bid_levels.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in bid_levels.iter() {
-                        encode_auction_bid_level_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_auction_bid_level_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_vector_header(top_bidders.len());
                     for item in top_bidders.iter() {
@@ -224504,9 +226422,18 @@ pub fn encode_star_gift_auction_state_profile(
                     __w.put_i32(*gifts_left);
                     __w.put_i32(*current_round);
                     __w.put_i32(*total_rounds);
-                    __w.put_vector_header(rounds.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in rounds.iter() {
-                        encode_star_gift_auction_round_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_star_gift_auction_round_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -225546,9 +227473,18 @@ pub fn encode_stars_giveaway_option_profile(
             }
             __w.put_string(currency.as_str());
             __w.put_i64(*amount);
-            __w.put_vector_header(winners.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in winners.iter() {
-                encode_stars_giveaway_winners_option_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_stars_giveaway_winners_option_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -226708,9 +228644,18 @@ pub fn encode_stars_transaction_profile(
                 __w.put_i32(*value);
             }
             if let Some(value) = extended_media {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_media_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_media_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = subscription_period {
@@ -228084,9 +230029,18 @@ pub fn encode_sticker_set_profile(
             __w.put_string(title.as_str());
             __w.put_string(short_name.as_str());
             if let Some(value) = thumbs {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_photo_size_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_photo_size_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = thumb_dc_id {
@@ -228264,17 +230218,44 @@ pub fn encode_sticker_set_covered_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_sticker_set_profile(profile, set, __w)?;
-                    __w.put_vector_header(packs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in packs.iter() {
-                        encode_sticker_pack_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_pack_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(keywords.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in keywords.iter() {
-                        encode_sticker_keyword_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_keyword_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(documents.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in documents.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -228301,9 +230282,18 @@ pub fn encode_sticker_set_covered_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_sticker_set_profile(profile, set, __w)?;
-                    __w.put_vector_header(covers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in covers.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -229068,22 +231058,52 @@ pub fn encode_story_item_profile(
                         __w.put_string(value.as_str());
                     }
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     encode_message_media_profile(profile, media, __w)?;
                     if let Some(value) = media_areas {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_media_area_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_media_area_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = privacy {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_privacy_rule_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_privacy_rule_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = views {
@@ -229936,9 +231956,18 @@ pub fn encode_story_views_profile(
                 __w.put_i32(*value);
             }
             if let Some(value) = reactions {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_reaction_count_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_reaction_count_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = reactions_count {
@@ -230231,9 +232260,18 @@ pub fn encode_text_with_entities_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::TextWithEntities { text, entities } = value;
             __w.put_string(text.as_str());
-            __w.put_vector_header(entities.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in entities.iter() {
-                encode_message_entity_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_entity_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -230399,9 +232437,18 @@ pub fn encode_theme_profile(
                 encode_document_profile(profile, value, __w)?;
             }
             if let Some(value) = settings {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_theme_settings_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_theme_settings_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = emoticon {
@@ -230938,9 +232985,18 @@ pub fn encode_todo_list_profile(
             }
             __w.put_u32(__flags_flags);
             encode_text_with_entities_profile(profile, title, __w)?;
-            __w.put_vector_header(list.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in list.iter() {
-                encode_todo_item_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_todo_item_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -231788,9 +233844,18 @@ pub fn encode_top_peer_category_peers_profile(
             } = value;
             encode_top_peer_category_profile(profile, category, __w)?;
             __w.put_i32(*count);
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_top_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_top_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -232163,9 +234228,18 @@ pub fn encode_update_profile(
                     __w.put_u32(route.wire_id);
                     encode_peer_profile(profile, peer, __w)?;
                     __w.put_i64(*bot_id);
-                    __w.put_vector_header(commands.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in commands.iter() {
-                        encode_bot_command_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_bot_command_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -232299,9 +234373,19 @@ pub fn encode_update_profile(
                     __w.put_i64(*query_id);
                     encode_message_profile(profile, message, __w)?;
                     if let Some(value) = reference_messages {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     __w.put_i32(*qts);
@@ -232495,13 +234579,31 @@ pub fn encode_update_profile(
                     __w.put_i32(*msg_id);
                     __w.put_i32(*date);
                     encode_peer_profile(profile, actor, __w)?;
-                    __w.put_vector_header(old_reactions.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in old_reactions.iter() {
-                        encode_reaction_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_reaction_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(new_reactions.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in new_reactions.iter() {
-                        encode_reaction_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_reaction_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*qts);
                     Ok(())
@@ -232540,9 +234642,18 @@ pub fn encode_update_profile(
                     encode_peer_profile(profile, peer, __w)?;
                     __w.put_i32(*msg_id);
                     __w.put_i32(*date);
-                    __w.put_vector_header(reactions.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in reactions.iter() {
-                        encode_reaction_count_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_reaction_count_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*qts);
                     Ok(())
@@ -233690,9 +235801,18 @@ pub fn encode_update_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(dc_options.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in dc_options.iter() {
-                        encode_dc_option_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_dc_option_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -234457,9 +236577,18 @@ pub fn encode_update_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(folder_peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in folder_peers.iter() {
-                        encode_folder_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_folder_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*pts);
                     __w.put_i32(*pts_count);
@@ -234689,9 +236818,18 @@ pub fn encode_update_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_input_group_call_profile(profile, call, __w)?;
-                    __w.put_vector_header(participants.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in participants.iter() {
-                        encode_group_call_participant_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_group_call_participant_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*version);
                     Ok(())
@@ -234907,9 +237045,18 @@ pub fn encode_update_profile(
                     __w.put_u32(route.wire_id);
                     encode_peer_profile(profile, peer, __w)?;
                     __w.put_i32(*msg_id);
-                    __w.put_vector_header(extended_media.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in extended_media.iter() {
-                        encode_message_extended_media_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_extended_media_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -235699,9 +237846,18 @@ pub fn encode_update_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in peers.iter() {
-                        encode_peer_located_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_located_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -235958,9 +238114,19 @@ pub fn encode_update_profile(
                         __w.put_i32(*value);
                     }
                     if let Some(value) = order {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_dialog_peer_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_dialog_peer_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -236130,9 +238296,19 @@ pub fn encode_update_profile(
                     }
                     __w.put_u32(__flags_flags);
                     if let Some(value) = order {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_dialog_peer_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_dialog_peer_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -236160,9 +238336,18 @@ pub fn encode_update_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_privacy_key_profile(profile, key, __w)?;
-                    __w.put_vector_header(rules.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in rules.iter() {
-                        encode_privacy_rule_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_privacy_rule_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -236206,9 +238391,18 @@ pub fn encode_update_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(quick_replies.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in quick_replies.iter() {
-                        encode_quick_reply_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_quick_reply_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -236976,9 +239170,18 @@ pub fn encode_update_profile(
                     __w.put_string(type_.as_str());
                     __w.put_string(message.as_str());
                     encode_message_media_profile(profile, media, __w)?;
-                    __w.put_vector_header(entities.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in entities.iter() {
-                        encode_message_entity_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_entity_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -237413,9 +239616,18 @@ pub fn encode_update_profile(
                     __w.put_i64(*user_id);
                     __w.put_string(first_name.as_str());
                     __w.put_string(last_name.as_str());
-                    __w.put_vector_header(usernames.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in usernames.iter() {
-                        encode_username_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_username_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -241268,9 +243480,19 @@ pub fn encode_updates_profile(
                         encode_message_reply_header_profile(profile, value, __w)?;
                     }
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = ttl_period {
@@ -241410,9 +243632,19 @@ pub fn encode_updates_profile(
                         encode_message_reply_header_profile(profile, value, __w)?;
                     }
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = ttl_period {
@@ -241499,9 +243731,19 @@ pub fn encode_updates_profile(
                         encode_message_media_profile(profile, value, __w)?;
                     }
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = ttl_period {
@@ -241546,17 +243788,44 @@ pub fn encode_updates_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(updates.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in updates.iter() {
-                        encode_update_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_update_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*date);
                     __w.put_i32(*seq);
@@ -241601,17 +243870,44 @@ pub fn encode_updates_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(updates.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in updates.iter() {
-                        encode_update_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_update_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*date);
                     __w.put_i32(*seq_start);
@@ -244154,9 +246450,19 @@ pub fn encode_user_profile(
                         __w.put_i32(*value);
                     }
                     if let Some(value) = restriction_reason {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_restriction_reason_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = bot_inline_placeholder {
@@ -244169,9 +246475,19 @@ pub fn encode_user_profile(
                         encode_emoji_status_profile(profile, value, __w)?;
                     }
                     if let Some(value) = usernames {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_username_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_username_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = stories_max_id {
@@ -244468,9 +246784,18 @@ fn encode_policy_user_user_225(
         __w.put_i32(*value);
     }
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = bot_inline_placeholder {
@@ -244483,9 +246808,18 @@ fn encode_policy_user_user_225(
         encode_emoji_status_profile(profile, value, __w)?;
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -244747,9 +247081,18 @@ fn encode_policy_user_user_226(
         __w.put_i32(*value);
     }
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = bot_inline_placeholder {
@@ -244762,9 +247105,18 @@ fn encode_policy_user_user_226(
         encode_emoji_status_profile(profile, value, __w)?;
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -245026,9 +247378,18 @@ fn encode_policy_user_user_227(
         __w.put_i32(*value);
     }
     if let Some(value) = restriction_reason {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_restriction_reason_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_restriction_reason_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = bot_inline_placeholder {
@@ -245041,9 +247402,18 @@ fn encode_policy_user_user_227(
         encode_emoji_status_profile(profile, value, __w)?;
     }
     if let Some(value) = usernames {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_username_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_username_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = stories_max_id {
@@ -257202,9 +259572,18 @@ pub fn encode_web_document_profile(
                     __w.put_i64(*access_hash);
                     __w.put_i32(*size);
                     __w.put_string(mime_type.as_str());
-                    __w.put_vector_header(attributes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in attributes.iter() {
-                        encode_document_attribute_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_attribute_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -257240,9 +259619,18 @@ pub fn encode_web_document_profile(
                     __w.put_string(url.as_str());
                     __w.put_i32(*size);
                     __w.put_string(mime_type.as_str());
-                    __w.put_vector_header(attributes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in attributes.iter() {
-                        encode_document_attribute_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_attribute_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -257662,9 +260050,19 @@ pub fn encode_web_page_profile(
                         encode_page_profile(profile, value, __w)?;
                     }
                     if let Some(value) = attributes {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_web_page_attribute_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_web_page_attribute_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -258067,9 +260465,18 @@ pub fn encode_web_page_attribute_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(icons.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in icons.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -258115,9 +260522,18 @@ pub fn encode_web_page_attribute_profile(
                         __flags_flags |= 1u32 << 1;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(stickers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in stickers.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -258212,9 +260628,19 @@ pub fn encode_web_page_attribute_profile(
                     }
                     __w.put_u32(__flags_flags);
                     if let Some(value) = documents {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_document_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_document_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = settings {
@@ -258825,21 +261251,57 @@ pub fn encode_account_authorization_form_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(required_types.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in required_types.iter() {
-                encode_secure_required_type_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_secure_required_type_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(values.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in values.iter() {
-                encode_secure_value_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_secure_value_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(errors.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in errors.iter() {
-                encode_secure_value_error_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_secure_value_error_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = privacy_policy_url {
                 __w.put_string(value.as_str());
@@ -258983,9 +261445,18 @@ pub fn encode_account_authorizations_profile(
                 authorizations,
             } = value;
             __w.put_i32(*authorization_ttl_days);
-            __w.put_vector_header(authorizations.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in authorizations.iter() {
-                encode_authorization_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_authorization_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -259170,17 +261641,44 @@ pub fn encode_account_auto_save_settings_profile(
             encode_auto_save_settings_profile(profile, users_settings, __w)?;
             encode_auto_save_settings_profile(profile, chats_settings, __w)?;
             encode_auto_save_settings_profile(profile, broadcasts_settings, __w)?;
-            __w.put_vector_header(exceptions.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in exceptions.iter() {
-                encode_auto_save_exception_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_auto_save_exception_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -259334,17 +261832,44 @@ pub fn encode_account_business_chat_links_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(links.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in links.iter() {
-                encode_business_chat_link_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_business_chat_link_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -259482,17 +262007,44 @@ pub fn encode_account_chat_themes_profile(
                     }
                     __w.put_u32(__flags_flags);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(themes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in themes.iter() {
-                        encode_chat_theme_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_theme_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = next_offset {
                         __w.put_string(value.as_str());
@@ -259646,13 +262198,31 @@ pub fn encode_account_connected_bots_profile(
                 connected_bots,
                 users,
             } = value;
-            __w.put_vector_header(connected_bots.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in connected_bots.iter() {
-                encode_connected_bot_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_connected_bot_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -259914,9 +262484,18 @@ pub fn encode_account_emoji_statuses_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(statuses.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in statuses.iter() {
-                        encode_emoji_status_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_emoji_status_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -260126,9 +262705,18 @@ pub fn encode_account_passkeys_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::AccountPasskeys { passkeys } = value;
-            __w.put_vector_header(passkeys.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in passkeys.iter() {
-                encode_passkey_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_passkey_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -260776,17 +263364,44 @@ pub fn encode_account_privacy_rules_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(rules.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in rules.iter() {
-                encode_privacy_rule_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_privacy_rule_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -261034,18 +263649,45 @@ pub fn encode_account_resolved_business_chat_links_profile(
             encode_peer_profile(profile, peer, __w)?;
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -261348,9 +263990,18 @@ pub fn encode_account_saved_ringtones_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(ringtones.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in ringtones.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -261562,9 +264213,18 @@ pub fn encode_account_themes_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(themes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in themes.iter() {
-                        encode_theme_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_theme_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -261725,9 +264385,18 @@ pub fn encode_account_wall_papers_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(wallpapers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in wallpapers.iter() {
-                        encode_wall_paper_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_wall_paper_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -261833,13 +264502,31 @@ pub fn encode_account_web_authorizations_profile(
                 authorizations,
                 users,
             } = value;
-            __w.put_vector_header(authorizations.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in authorizations.iter() {
-                encode_web_authorization_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_web_authorization_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -261958,13 +264645,31 @@ pub fn encode_account_web_browser_settings_profile(
                         __flags_flags |= 1u32 << 1;
                     }
                     __w.put_u32(__flags_flags);
-                    __w.put_vector_header(external_exceptions.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in external_exceptions.iter() {
-                        encode_web_domain_exception_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_web_domain_exception_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(inapp_exceptions.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in inapp_exceptions.iter() {
-                        encode_web_domain_exception_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_web_domain_exception_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i64(*hash);
                     Ok(())
@@ -262097,13 +264802,31 @@ pub fn encode_aicompose_tones_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(tones.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in tones.iter() {
-                        encode_ai_compose_tone_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_ai_compose_tone_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -263839,9 +266562,18 @@ pub fn encode_bots_access_settings_profile(
             }
             __w.put_u32(__flags_flags);
             if let Some(value) = add_users {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_user_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_user_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -264066,9 +266798,18 @@ pub fn encode_bots_popular_app_bots_profile(
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -264152,9 +266893,18 @@ pub fn encode_bots_preview_info_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::BotsPreviewInfo { media, lang_codes } = value;
-            __w.put_vector_header(media.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in media.iter() {
-                encode_bot_preview_media_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_bot_preview_media_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_vector_header(lang_codes.len());
             for item in lang_codes.iter() {
@@ -264303,17 +267053,44 @@ pub fn encode_channels_admin_log_results_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(events.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in events.iter() {
-                encode_channel_admin_log_event_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_channel_admin_log_event_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -264435,13 +267212,31 @@ pub fn encode_channels_channel_participant_profile(
                 users,
             } = value;
             encode_channel_participant_profile(profile, participant, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -264557,17 +267352,44 @@ pub fn encode_channels_channel_participants_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(participants.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in participants.iter() {
-                        encode_channel_participant_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_channel_participant_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -264720,17 +267542,44 @@ pub fn encode_channels_send_as_peers_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_send_as_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_send_as_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -264849,9 +267698,18 @@ pub fn encode_channels_sponsored_message_report_result_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_string(title.as_str());
-                    __w.put_vector_header(options.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in options.iter() {
-                        encode_sponsored_message_report_option_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sponsored_message_report_option_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -264993,17 +267851,44 @@ pub fn encode_chatlists_chatlist_invite_profile(
                     if let Some(value) = emoticon {
                         __w.put_string(value.as_str());
                     }
-                    __w.put_vector_header(peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in peers.iter() {
-                        encode_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -265048,21 +267933,57 @@ pub fn encode_chatlists_chatlist_invite_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*filter_id);
-                    __w.put_vector_header(missing_peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in missing_peers.iter() {
-                        encode_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(already_peers.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in already_peers.iter() {
-                        encode_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -265285,17 +268206,44 @@ pub fn encode_chatlists_chatlist_updates_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(missing_peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in missing_peers.iter() {
-                encode_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -265491,17 +268439,44 @@ pub fn encode_chatlists_exported_invites_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(invites.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in invites.iter() {
-                encode_exported_chatlist_invite_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_exported_chatlist_invite_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -265639,13 +268614,31 @@ pub fn encode_communities_participant_joined_chats_profile(
             for item in joined_chat_ids.iter() {
                 __w.put_i64(*item);
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -265791,20 +268784,47 @@ pub fn encode_communities_peer_link_requests_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*total_count);
-            __w.put_vector_header(requests.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in requests.iter() {
-                encode_community_peer_request_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_community_peer_request_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -265934,17 +268954,44 @@ pub fn encode_contacts_blocked_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(blocked.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocked.iter() {
-                        encode_peer_blocked_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_blocked_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -265984,17 +269031,44 @@ pub fn encode_contacts_blocked_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(blocked.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in blocked.iter() {
-                        encode_peer_blocked_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_blocked_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -266166,13 +269240,31 @@ pub fn encode_contacts_contact_birthdays_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::ContactsContactBirthdays { contacts, users } = value;
-            __w.put_vector_header(contacts.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in contacts.iter() {
-                encode_contact_birthday_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_contact_birthday_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -266269,14 +269361,32 @@ pub fn encode_contacts_contacts_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(contacts.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in contacts.iter() {
-                        encode_contact_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_contact_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*saved_count);
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -266414,21 +269524,57 @@ pub fn encode_contacts_found_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(my_results.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in my_results.iter() {
-                encode_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(results.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in results.iter() {
-                encode_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -266573,21 +269719,48 @@ pub fn encode_contacts_imported_contacts_profile(
                 retry_contacts,
                 users,
             } = value;
-            __w.put_vector_header(imported.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in imported.iter() {
-                encode_imported_contact_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_imported_contact_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(popular_invites.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in popular_invites.iter() {
-                encode_popular_contact_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_popular_contact_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_vector_header(retry_contacts.len());
             for item in retry_contacts.iter() {
                 __w.put_i64(*item);
             }
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -266710,13 +269883,31 @@ pub fn encode_contacts_resolved_peer_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::ContactsResolvedPeer { peer, chats, users } = value;
             encode_peer_profile(profile, peer, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -266823,17 +270014,44 @@ pub fn encode_contacts_sponsored_peers_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(peers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in peers.iter() {
-                        encode_sponsored_peer_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sponsored_peer_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -266976,17 +270194,44 @@ pub fn encode_contacts_top_peers_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(categories.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in categories.iter() {
-                        encode_top_peer_category_peers_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_top_peer_category_peers_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -267139,9 +270384,18 @@ pub fn encode_ephemeral_welcome_messages_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_ephemeral_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_ephemeral_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -267468,9 +270722,18 @@ pub fn encode_help_app_update_profile(
                     __w.put_i32(*id);
                     __w.put_string(version.as_str());
                     __w.put_string(text.as_str());
-                    __w.put_vector_header(entities.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in entities.iter() {
-                        encode_message_entity_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_entity_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     if let Some(value) = document {
                         encode_document_profile(profile, value, __w)?;
@@ -267634,9 +270897,18 @@ pub fn encode_help_config_simple_profile(
             } = value;
             __w.put_i32(*date);
             __w.put_i32(*expires);
-            __w.put_i32(rules.len() as i32);
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in rules.iter() {
-                encode_access_point_rule_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_access_point_rule_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_i32(__items.len() as i32);
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -267713,9 +270985,18 @@ pub fn encode_help_countries_list_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(countries.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in countries.iter() {
-                        encode_help_country_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_help_country_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*hash);
                     Ok(())
@@ -267852,9 +271133,18 @@ pub fn encode_help_country_profile(
             if let Some(value) = name {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(country_codes.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in country_codes.iter() {
-                encode_help_country_code_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_help_country_code_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -268101,9 +271391,19 @@ pub fn encode_help_deep_link_info_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_string(message.as_str());
                     if let Some(value) = entities {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_message_entity_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_message_entity_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     Ok(())
@@ -268679,9 +271979,18 @@ pub fn encode_help_peer_colors_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*hash);
-                    __w.put_vector_header(colors.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in colors.iter() {
-                        encode_help_peer_color_option_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_help_peer_color_option_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -268809,25 +272118,61 @@ pub fn encode_help_premium_promo_profile(
                 users,
             } = value;
             __w.put_string(status_text.as_str());
-            __w.put_vector_header(status_entities.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in status_entities.iter() {
-                encode_message_entity_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_entity_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_vector_header(video_sections.len());
             for item in video_sections.iter() {
                 __w.put_string(item.as_str());
             }
-            __w.put_vector_header(videos.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in videos.iter() {
-                encode_document_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_document_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(period_options.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in period_options.iter() {
-                encode_premium_subscription_option_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_premium_subscription_option_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -269053,13 +272398,31 @@ pub fn encode_help_promo_data_profile(
                     if let Some(value) = custom_pending_suggestion {
                         encode_pending_suggestion_profile(profile, value, __w)?;
                     }
-                    __w.put_vector_header(chats.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -269252,17 +272615,44 @@ pub fn encode_help_recent_me_urls_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::HelpRecentMeUrls { urls, chats, users } = value;
-            __w.put_vector_header(urls.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in urls.iter() {
-                encode_recent_me_url_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_recent_me_url_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -269514,9 +272904,18 @@ pub fn encode_help_terms_of_service_profile(
             __w.put_u32(__flags_flags);
             encode_data_json_profile(profile, id, __w)?;
             __w.put_string(text.as_str());
-            __w.put_vector_header(entities.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in entities.iter() {
-                encode_message_entity_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_entity_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = min_age_confirm {
                 __w.put_i32(*value);
@@ -269714,9 +273113,18 @@ pub fn encode_help_timezones_list_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(timezones.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in timezones.iter() {
-                        encode_timezone_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_timezone_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i32(*hash);
                     Ok(())
@@ -269822,9 +273230,18 @@ pub fn encode_help_user_info_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_string(message.as_str());
-                    __w.put_vector_header(entities.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in entities.iter() {
-                        encode_message_entity_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_entity_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_string(author.as_str());
                     __w.put_i32(*date);
@@ -270148,9 +273565,18 @@ pub fn encode_messages_all_stickers_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(sets.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in sets.iter() {
-                        encode_sticker_set_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_set_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -270248,9 +273674,18 @@ pub fn encode_messages_archived_stickers_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesArchivedStickers { count, sets } = value;
             __w.put_i32(*count);
-            __w.put_vector_header(sets.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in sets.iter() {
-                encode_sticker_set_covered_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_sticker_set_covered_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -270333,13 +273768,31 @@ pub fn encode_messages_available_effects_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*hash);
-                    __w.put_vector_header(effects.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in effects.iter() {
-                        encode_available_effect_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_available_effect_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(documents.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in documents.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -270459,9 +273912,18 @@ pub fn encode_messages_available_reactions_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*hash);
-                    __w.put_vector_header(reactions.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in reactions.iter() {
-                        encode_available_reaction_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_available_reaction_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -270930,14 +274392,32 @@ pub fn encode_messages_bot_results_profile(
             if let Some(value) = switch_webview {
                 encode_inline_bot_web_view_profile(profile, value, __w)?;
             }
-            __w.put_vector_header(results.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in results.iter() {
-                encode_bot_inline_result_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_bot_inline_result_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i32(*cache_time);
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -271074,13 +274554,31 @@ pub fn encode_messages_chat_admins_with_invites_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesChatAdminsWithInvites { admins, users } = value;
-            __w.put_vector_header(admins.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in admins.iter() {
-                encode_chat_admin_with_invites_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_admin_with_invites_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -271182,13 +274680,31 @@ pub fn encode_messages_chat_full_profile(
                 users,
             } = value;
             encode_chat_full_profile(profile, full_chat, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -271301,13 +274817,31 @@ pub fn encode_messages_chat_invite_importers_profile(
                 users,
             } = value;
             __w.put_i32(*count);
-            __w.put_vector_header(importers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in importers.iter() {
-                encode_chat_invite_importer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_invite_importer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -271429,9 +274963,18 @@ pub fn encode_messages_chat_invite_join_result_profile(
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*bot_id);
                     __w.put_i64(*query_id);
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -271528,9 +275071,18 @@ pub fn encode_messages_chats_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(chats.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -271557,9 +275109,18 @@ pub fn encode_messages_chats_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(chats.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -271990,9 +275551,18 @@ pub fn encode_messages_dialog_filters_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(filters.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in filters.iter() {
-                encode_dialog_filter_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_dialog_filter_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -272085,21 +275655,57 @@ pub fn encode_messages_dialogs_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(dialogs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in dialogs.iter() {
-                        encode_dialog_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_dialog_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(messages.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -272165,21 +275771,57 @@ pub fn encode_messages_dialogs_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(dialogs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in dialogs.iter() {
-                        encode_dialog_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_dialog_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(messages.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -272443,9 +276085,18 @@ pub fn encode_messages_discussion_message_profile(
                 __flags_flags |= 1u32 << 2;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(messages.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in messages.iter() {
-                encode_message_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = max_id {
                 __w.put_i32(*value);
@@ -272457,13 +276108,31 @@ pub fn encode_messages_discussion_message_profile(
                 __w.put_i32(*value);
             }
             __w.put_i32(*unread_count);
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -272800,9 +276469,18 @@ pub fn encode_messages_emoji_groups_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*hash);
-                    __w.put_vector_header(groups.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in groups.iter() {
-                        encode_emoji_group_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_emoji_group_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -272900,9 +276578,18 @@ pub fn encode_messages_exported_chat_invite_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_exported_chat_invite_profile(profile, invite, __w)?;
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -272935,9 +276622,18 @@ pub fn encode_messages_exported_chat_invite_profile(
                     __w.put_u32(route.wire_id);
                     encode_exported_chat_invite_profile(profile, invite, __w)?;
                     encode_exported_chat_invite_profile(profile, new_invite, __w)?;
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -273080,13 +276776,31 @@ pub fn encode_messages_exported_chat_invites_profile(
                 users,
             } = value;
             __w.put_i32(*count);
-            __w.put_vector_header(invites.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in invites.iter() {
-                encode_exported_chat_invite_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_exported_chat_invite_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -273189,13 +276903,31 @@ pub fn encode_messages_faved_stickers_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(packs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in packs.iter() {
-                        encode_sticker_pack_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_pack_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(stickers.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in stickers.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -273336,9 +277068,18 @@ pub fn encode_messages_featured_stickers_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_i64(*hash);
                     __w.put_i32(*count);
-                    __w.put_vector_header(sets.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in sets.iter() {
-                        encode_sticker_set_covered_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_set_covered_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_vector_header(unread.len());
                     for item in unread.iter() {
@@ -273506,21 +277247,57 @@ pub fn encode_messages_forum_topics_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(topics.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in topics.iter() {
-                encode_forum_topic_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_forum_topic_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(messages.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in messages.iter() {
-                encode_message_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i32(*pts);
             Ok(())
@@ -273654,9 +277431,18 @@ pub fn encode_messages_found_sticker_sets_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(sets.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in sets.iter() {
-                        encode_sticker_set_covered_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_set_covered_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -273777,9 +277563,18 @@ pub fn encode_messages_found_stickers_profile(
                         __w.put_i32(*value);
                     }
                     __w.put_i64(*hash);
-                    __w.put_vector_header(stickers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in stickers.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -273914,13 +277709,31 @@ pub fn encode_messages_high_scores_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesHighScores { scores, users } = value;
-            __w.put_vector_header(scores.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in scores.iter() {
-                encode_high_score_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_high_score_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -274178,13 +277991,31 @@ pub fn encode_messages_inactive_chats_profile(
             for item in dates.iter() {
                 __w.put_i32(*item);
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -274290,9 +278121,18 @@ pub fn encode_messages_invited_users_profile(
                 missing_invitees,
             } = value;
             encode_updates_profile(profile, updates, __w)?;
-            __w.put_vector_header(missing_invitees.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in missing_invitees.iter() {
-                encode_missing_invitee_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_missing_invitee_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -274473,17 +278313,44 @@ pub fn encode_messages_message_reactions_list_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(reactions.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in reactions.iter() {
-                encode_message_peer_reaction_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_peer_reaction_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
@@ -274620,17 +278487,44 @@ pub fn encode_messages_message_views_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(views.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in views.iter() {
-                encode_message_views_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_views_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -274784,21 +278678,57 @@ pub fn encode_messages_messages_profile(
                     if let Some(value) = offset_id_offset {
                         __w.put_i32(*value);
                     }
-                    __w.put_vector_header(messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(topics.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in topics.iter() {
-                        encode_forum_topic_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_forum_topic_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -274840,21 +278770,57 @@ pub fn encode_messages_messages_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(topics.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in topics.iter() {
-                        encode_forum_topic_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_forum_topic_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -274971,21 +278937,57 @@ pub fn encode_messages_messages_profile(
                     if let Some(value) = search_flood {
                         encode_search_posts_flood_profile(profile, value, __w)?;
                     }
-                    __w.put_vector_header(messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(topics.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in topics.iter() {
-                        encode_forum_topic_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_forum_topic_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -275310,9 +279312,18 @@ pub fn encode_messages_my_stickers_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesMyStickers { count, sets } = value;
             __w.put_i32(*count);
-            __w.put_vector_header(sets.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in sets.iter() {
-                encode_sticker_set_covered_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_sticker_set_covered_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -275408,21 +279419,57 @@ pub fn encode_messages_peer_dialogs_profile(
                 users,
                 state,
             } = value;
-            __w.put_vector_header(dialogs.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in dialogs.iter() {
-                encode_dialog_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_dialog_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(messages.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in messages.iter() {
-                encode_message_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             encode_updates_state_profile(profile, state, __w)?;
             Ok(())
@@ -275570,13 +279617,31 @@ pub fn encode_messages_peer_settings_profile(
                 users,
             } = value;
             encode_peer_settings_profile(profile, settings, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -275696,14 +279761,32 @@ pub fn encode_messages_prepared_inline_message_profile(
             } = value;
             __w.put_i64(*query_id);
             encode_bot_inline_result_profile(profile, result, __w)?;
-            __w.put_vector_header(peer_types.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peer_types.iter() {
-                encode_inline_query_peer_type_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_inline_query_peer_type_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i32(*cache_time);
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -275825,21 +279908,57 @@ pub fn encode_messages_quick_replies_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(quick_replies.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in quick_replies.iter() {
-                        encode_quick_reply_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_quick_reply_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(messages.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -275989,9 +280108,18 @@ pub fn encode_messages_reactions_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(reactions.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in reactions.iter() {
-                        encode_reaction_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_reaction_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -276102,13 +280230,31 @@ pub fn encode_messages_recent_stickers_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(packs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in packs.iter() {
-                        encode_sticker_pack_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_pack_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(stickers.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in stickers.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_vector_header(dates.len());
                     for item in dates.iter() {
@@ -276254,21 +280400,57 @@ pub fn encode_messages_saved_dialogs_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(dialogs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in dialogs.iter() {
-                        encode_saved_dialog_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_saved_dialog_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(messages.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -276334,21 +280516,57 @@ pub fn encode_messages_saved_dialogs_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(dialogs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in dialogs.iter() {
-                        encode_saved_dialog_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_saved_dialog_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(messages.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -276556,9 +280774,18 @@ pub fn encode_messages_saved_gifs_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(gifs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in gifs.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -276655,9 +280882,18 @@ pub fn encode_messages_saved_reaction_tags_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(tags.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in tags.iter() {
-                        encode_saved_reaction_tag_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_saved_reaction_tag_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     __w.put_i64(*hash);
                     Ok(())
@@ -276909,21 +281145,57 @@ pub fn encode_messages_search_results_calendar_profile(
             if let Some(value) = offset_id_offset {
                 __w.put_i32(*value);
             }
-            __w.put_vector_header(periods.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in periods.iter() {
-                encode_search_results_calendar_period_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_search_results_calendar_period_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(messages.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in messages.iter() {
-                encode_message_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -277066,9 +281338,18 @@ pub fn encode_messages_search_results_positions_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesSearchResultsPositions { count, positions } = value;
             __w.put_i32(*count);
-            __w.put_vector_header(positions.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in positions.iter() {
-                encode_search_results_position_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_search_results_position_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -277291,17 +281572,44 @@ pub fn encode_messages_sponsored_messages_profile(
                     if let Some(value) = between_delay {
                         __w.put_i32(*value);
                     }
-                    __w.put_vector_header(messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_sponsored_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sponsored_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -277469,17 +281777,44 @@ pub fn encode_messages_sticker_set_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     encode_sticker_set_profile(profile, set, __w)?;
-                    __w.put_vector_header(packs.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in packs.iter() {
-                        encode_sticker_pack_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_pack_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(keywords.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in keywords.iter() {
-                        encode_sticker_keyword_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_keyword_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(documents.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in documents.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -277620,9 +281955,18 @@ pub fn encode_messages_sticker_set_install_result_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(sets.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in sets.iter() {
-                        encode_sticker_set_covered_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_sticker_set_covered_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -277727,9 +282071,18 @@ pub fn encode_messages_stickers_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(stickers.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in stickers.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -277948,9 +282301,18 @@ pub fn encode_messages_translated_rich_message_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesTranslatedRichMessage { result } = value;
-            __w.put_vector_header(result.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in result.iter() {
-                encode_rich_message_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_rich_message_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -278022,9 +282384,18 @@ pub fn encode_messages_translated_text_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(result.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in result.iter() {
-                        encode_text_with_entities_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_text_with_entities_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -278136,17 +282507,44 @@ pub fn encode_messages_votes_list_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(votes.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in votes.iter() {
-                encode_message_peer_vote_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_peer_vote_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
@@ -278279,13 +282677,31 @@ pub fn encode_messages_web_page_profile(
                 users,
             } = value;
             encode_web_page_profile(profile, webpage, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -278398,13 +282814,31 @@ pub fn encode_messages_web_page_preview_profile(
                 users,
             } = value;
             encode_message_media_profile(profile, media, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -278505,9 +282939,18 @@ pub fn encode_payments_bank_card_data_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::PaymentsBankCardData { title, open_urls } = value;
             __w.put_string(title.as_str());
-            __w.put_vector_header(open_urls.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in open_urls.iter() {
-                encode_bank_card_open_url_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_bank_card_open_url_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -278754,13 +283197,31 @@ pub fn encode_payments_checked_gift_code_profile(
             if let Some(value) = used_date {
                 __w.put_i32(*value);
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -278905,13 +283366,31 @@ pub fn encode_payments_connected_star_ref_bots_profile(
                 users,
             } = value;
             __w.put_i32(*count);
-            __w.put_vector_header(connected_bots.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in connected_bots.iter() {
-                encode_connected_bot_star_ref_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_connected_bot_star_ref_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -279004,9 +283483,18 @@ pub fn encode_payments_currency_rates_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::PaymentsCurrencyRates { rates } = value;
-            __w.put_vector_header(rates.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in rates.iter() {
-                encode_currency_rate_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_currency_rate_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -279511,23 +283999,54 @@ pub fn encode_payments_payment_form_profile(
                         encode_data_json_profile(profile, value, __w)?;
                     }
                     if let Some(value) = additional_methods {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_payment_form_method_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_payment_form_method_profile(profile, item, &mut __buf) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
                     if let Some(value) = saved_info {
                         encode_payment_requested_info_profile(profile, value, __w)?;
                     }
                     if let Some(value) = saved_credentials {
-                        __w.put_vector_header(value.len());
+                        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> =
+                            ::std::vec::Vec::new();
                         for item in value.iter() {
-                            encode_payment_saved_credentials_profile(profile, item, __w)?;
+                            let mut __buf = Writer::with_capacity(16);
+                            match encode_payment_saved_credentials_profile(
+                                profile, item, &mut __buf,
+                            ) {
+                                Ok(()) => __items.push(__buf.into_vec()),
+                                Err(ProjectionError::Dropped) => {}
+                                Err(error) => return Err(error),
+                            }
+                        }
+                        __w.put_vector_header(__items.len());
+                        for __item in &__items {
+                            __w.put_raw(__item);
                         }
                     }
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -279610,9 +284129,18 @@ pub fn encode_payments_payment_form_profile(
                         encode_web_document_profile(profile, value, __w)?;
                     }
                     encode_invoice_profile(profile, invoice, __w)?;
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -279971,9 +284499,18 @@ pub fn encode_payments_payment_receipt_profile(
                     __w.put_string(currency.as_str());
                     __w.put_i64(*total_amount);
                     __w.put_string(credentials_title.as_str());
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -280042,9 +284579,18 @@ pub fn encode_payments_payment_receipt_profile(
                     __w.put_string(currency.as_str());
                     __w.put_i64(*total_amount);
                     __w.put_string(transaction_id.as_str());
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -280427,35 +284973,80 @@ pub fn encode_payments_resale_star_gifts_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(gifts.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in gifts.iter() {
-                encode_star_gift_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_star_gift_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
             if let Some(value) = attributes {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_star_gift_attribute_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_star_gift_attribute_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = attributes_hash {
                 __w.put_i64(*value);
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
-            }
-            if let Some(value) = counters {
-                __w.put_vector_header(value.len());
-                for item in value.iter() {
-                    encode_star_gift_attribute_counter_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
                 }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            if let Some(value) = counters {
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
+                for item in value.iter() {
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_star_gift_attribute_counter_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
+                }
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -280774,20 +285365,47 @@ pub fn encode_payments_saved_star_gifts_profile(
             if let Some(value) = chat_notifications_enabled {
                 __w.put_bool(*value);
             }
-            __w.put_vector_header(gifts.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in gifts.iter() {
-                encode_saved_star_gift_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_saved_star_gift_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -280921,17 +285539,46 @@ pub fn encode_payments_star_gift_active_auctions_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(auctions.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in auctions.iter() {
-                        encode_star_gift_active_auction_state_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_star_gift_active_auction_state_profile(
+                            profile, item, &mut __buf,
+                        ) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -281084,17 +285731,44 @@ pub fn encode_payments_star_gift_auction_acquired_gifts_profile(
                 users,
                 chats,
             } = value;
-            __w.put_vector_header(gifts.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in gifts.iter() {
-                encode_star_gift_auction_acquired_gift_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_star_gift_auction_acquired_gift_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -281228,13 +285902,31 @@ pub fn encode_payments_star_gift_auction_state_profile(
             encode_star_gift_auction_state_profile(profile, state, __w)?;
             encode_star_gift_auction_user_state_profile(profile, user_state, __w)?;
             __w.put_i32(*timeout);
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -281357,9 +286049,18 @@ pub fn encode_payments_star_gift_collections_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(collections.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in collections.iter() {
-                        encode_star_gift_collection_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_star_gift_collection_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -281529,9 +286230,18 @@ pub fn encode_payments_star_gift_upgrade_attributes_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::PaymentsStarGiftUpgradeAttributes { attributes } = value;
-            __w.put_vector_header(attributes.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in attributes.iter() {
-                encode_star_gift_attribute_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_star_gift_attribute_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -281619,17 +286329,44 @@ pub fn encode_payments_star_gift_upgrade_preview_profile(
                 prices,
                 next_prices,
             } = value;
-            __w.put_vector_header(sample_attributes.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in sample_attributes.iter() {
-                encode_star_gift_attribute_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_star_gift_attribute_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(prices.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in prices.iter() {
-                encode_star_gift_upgrade_price_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_star_gift_upgrade_price_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(next_prices.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in next_prices.iter() {
-                encode_star_gift_upgrade_price_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_star_gift_upgrade_price_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -281805,17 +286542,44 @@ pub fn encode_payments_star_gifts_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*hash);
-                    __w.put_vector_header(gifts.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in gifts.iter() {
-                        encode_star_gift_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_star_gift_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -282260,9 +287024,18 @@ pub fn encode_payments_stars_status_profile(
             __w.put_u32(__flags_flags);
             encode_stars_amount_profile(profile, balance, __w)?;
             if let Some(value) = subscriptions {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_stars_subscription_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_stars_subscription_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = subscriptions_next_offset {
@@ -282272,21 +287045,48 @@ pub fn encode_payments_stars_status_profile(
                 __w.put_i64(*value);
             }
             if let Some(value) = history {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_stars_transaction_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_stars_transaction_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -282483,13 +287283,31 @@ pub fn encode_payments_suggested_star_ref_bots_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(suggested_bots.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in suggested_bots.iter() {
-                encode_star_ref_program_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_star_ref_program_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
@@ -282599,13 +287417,31 @@ pub fn encode_payments_unique_star_gift_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::PaymentsUniqueStarGift { gift, chats, users } = value;
             encode_star_gift_profile(profile, gift, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -282984,9 +287820,18 @@ pub fn encode_payments_validated_requested_info_profile(
                 __w.put_string(value.as_str());
             }
             if let Some(value) = shipping_options {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_shipping_option_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_shipping_option_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -283151,18 +287996,45 @@ pub fn encode_phone_group_call_profile(
                 users,
             } = value;
             encode_group_call_profile(profile, call, __w)?;
-            __w.put_vector_header(participants.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in participants.iter() {
-                encode_group_call_participant_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_group_call_participant_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_string(participants_next_offset.as_str());
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -283300,17 +288172,44 @@ pub fn encode_phone_group_call_stars_profile(
                 users,
             } = value;
             __w.put_i64(*total_stars);
-            __w.put_vector_header(top_donors.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in top_donors.iter() {
-                encode_group_call_donor_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_group_call_donor_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -283418,9 +288317,18 @@ pub fn encode_phone_group_call_stream_channels_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::PhoneGroupCallStreamChannels { channels } = value;
-            __w.put_vector_header(channels.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in channels.iter() {
-                encode_group_call_stream_channel_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_group_call_stream_channel_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -283574,18 +288482,45 @@ pub fn encode_phone_group_participants_profile(
                 version,
             } = value;
             __w.put_i32(*count);
-            __w.put_vector_header(participants.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in participants.iter() {
-                encode_group_call_participant_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_group_call_participant_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_string(next_offset.as_str());
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i32(*version);
             Ok(())
@@ -283714,17 +288649,44 @@ pub fn encode_phone_join_as_peers_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -283832,9 +288794,18 @@ pub fn encode_phone_phone_call_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::PhonePhoneCall { phone_call, users } = value;
             encode_phone_call_profile(profile, phone_call, __w)?;
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -283915,9 +288886,18 @@ pub fn encode_photos_photo_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::PhotosPhoto { photo, users } = value;
             encode_photo_profile(profile, photo, __w)?;
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -284000,13 +288980,31 @@ pub fn encode_photos_photos_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(photos.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in photos.iter() {
-                        encode_photo_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_photo_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -284041,13 +289039,31 @@ pub fn encode_photos_photos_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(photos.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in photos.iter() {
-                        encode_photo_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_photo_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -284209,16 +289225,34 @@ pub fn encode_premium_boosts_list_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(boosts.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in boosts.iter() {
-                encode_boost_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_boost_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -284416,9 +289450,18 @@ pub fn encode_premium_boosts_status_profile(
             }
             __w.put_string(boost_url.as_str());
             if let Some(value) = prepaid_giveaways {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_prepaid_giveaway_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_prepaid_giveaway_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = my_boost_slots {
@@ -284571,17 +289614,44 @@ pub fn encode_premium_my_boosts_profile(
                 chats,
                 users,
             } = value;
-            __w.put_vector_header(my_boosts.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in my_boosts.iter() {
-                encode_my_boost_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_my_boost_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -284967,9 +290037,18 @@ pub fn encode_stats_broadcast_stats_profile(
             encode_stats_graph_profile(profile, reactions_by_emotion_graph, __w)?;
             encode_stats_graph_profile(profile, story_interactions_graph, __w)?;
             encode_stats_graph_profile(profile, story_reactions_by_emotion_graph, __w)?;
-            __w.put_vector_header(recent_posts_interactions.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in recent_posts_interactions.iter() {
-                encode_post_interaction_counters_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_post_interaction_counters_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -285325,21 +290404,57 @@ pub fn encode_stats_megagroup_stats_profile(
             encode_stats_graph_profile(profile, actions_graph, __w)?;
             encode_stats_graph_profile(profile, top_hours_graph, __w)?;
             encode_stats_graph_profile(profile, weekdays_graph, __w)?;
-            __w.put_vector_header(top_posters.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in top_posters.iter() {
-                encode_stats_group_top_poster_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_stats_group_top_poster_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(top_admins.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in top_admins.iter() {
-                encode_stats_group_top_admin_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_stats_group_top_admin_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(top_inviters.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in top_inviters.iter() {
-                encode_stats_group_top_inviter_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_stats_group_top_inviter_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -285767,20 +290882,47 @@ pub fn encode_stats_public_forwards_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(forwards.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in forwards.iter() {
-                encode_public_forward_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_public_forward_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -286261,9 +291403,18 @@ pub fn encode_stories_albums_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i64(*hash);
-                    __w.put_vector_header(albums.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in albums.iter() {
-                        encode_story_album_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_story_album_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -286391,17 +291542,44 @@ pub fn encode_stories_all_stories_profile(
                     __w.put_u32(__flags_flags);
                     __w.put_i32(*count);
                     __w.put_string(state.as_str());
-                    __w.put_vector_header(peer_stories.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in peer_stories.iter() {
-                        encode_peer_stories_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_peer_stories_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_stories_stealth_mode_profile(profile, stealth_mode, __w)?;
                     Ok(())
@@ -286670,20 +291848,47 @@ pub fn encode_stories_found_stories_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(stories.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stories.iter() {
-                encode_found_story_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_found_story_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -286813,13 +292018,31 @@ pub fn encode_stories_peer_stories_profile(
                 users,
             } = value;
             encode_peer_stories_profile(profile, stories, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -286958,9 +292181,18 @@ pub fn encode_stories_stories_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(stories.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stories.iter() {
-                encode_story_item_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_story_item_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = pinned_to_top {
                 __w.put_vector_header(value.len());
@@ -286968,13 +292200,31 @@ pub fn encode_stories_stories_profile(
                     __w.put_i32(*item);
                 }
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -287134,17 +292384,44 @@ pub fn encode_stories_story_reactions_list_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*count);
-            __w.put_vector_header(reactions.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in reactions.iter() {
-                encode_story_reaction_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_story_reaction_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
@@ -287269,13 +292546,31 @@ pub fn encode_stories_story_views_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::StoriesStoryViews { views, users } = value;
-            __w.put_vector_header(views.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in views.iter() {
-                encode_story_views_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_story_views_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -287410,17 +292705,44 @@ pub fn encode_stories_story_views_list_profile(
             __w.put_i32(*views_count);
             __w.put_i32(*forwards_count);
             __w.put_i32(*reactions_count);
-            __w.put_vector_header(views.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in views.iter() {
-                encode_story_view_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_story_view_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(chats.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
@@ -287703,21 +293025,57 @@ pub fn encode_updates_channel_difference_profile(
                     if let Some(value) = timeout {
                         __w.put_i32(*value);
                     }
-                    __w.put_vector_header(new_messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in new_messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(other_updates.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in other_updates.iter() {
-                        encode_update_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_update_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -287830,17 +293188,44 @@ pub fn encode_updates_channel_difference_profile(
                         __w.put_i32(*value);
                     }
                     encode_dialog_profile(profile, dialog, __w)?;
-                    __w.put_vector_header(messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -288097,25 +293482,70 @@ pub fn encode_updates_difference_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(new_messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in new_messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(new_encrypted_messages.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in new_encrypted_messages.iter() {
-                        encode_encrypted_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_encrypted_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(other_updates.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in other_updates.iter() {
-                        encode_update_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_update_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_updates_state_profile(profile, state, __w)?;
                     Ok(())
@@ -288188,25 +293618,70 @@ pub fn encode_updates_difference_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(new_messages.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in new_messages.iter() {
-                        encode_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(new_encrypted_messages.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in new_encrypted_messages.iter() {
-                        encode_encrypted_message_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_encrypted_message_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(other_updates.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in other_updates.iter() {
-                        encode_update_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_update_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(chats.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in chats.iter() {
-                        encode_chat_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_chat_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
                     }
-                    __w.put_vector_header(users.len());
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
+                    }
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     encode_updates_state_profile(profile, intermediate_state, __w)?;
                     Ok(())
@@ -288696,9 +294171,18 @@ pub fn encode_upload_file_profile(
                     __w.put_bytes(file_token.as_slice());
                     __w.put_bytes(encryption_key.as_slice());
                     __w.put_bytes(encryption_iv.as_slice());
-                    __w.put_vector_header(file_hashes.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in file_hashes.iter() {
-                        encode_file_hash_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_file_hash_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -288892,9 +294376,18 @@ pub fn encode_users_saved_music_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(documents.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in documents.iter() {
-                        encode_document_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_document_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -289009,13 +294502,31 @@ pub fn encode_users_user_full_profile(
                 users,
             } = value;
             encode_user_full_profile(profile, full_user, __w)?;
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -289114,9 +294625,18 @@ pub fn encode_users_users_profile(
                 }
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -289143,9 +294663,18 @@ pub fn encode_users_users_profile(
                 RouteMode::Rewrite => {
                     __w.put_u32(route.wire_id);
                     __w.put_i32(*count);
-                    __w.put_vector_header(users.len());
+                    let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                     for item in users.iter() {
-                        encode_user_profile(profile, item, __w)?;
+                        let mut __buf = Writer::with_capacity(16);
+                        match encode_user_profile(profile, item, &mut __buf) {
+                            Ok(()) => __items.push(__buf.into_vec()),
+                            Err(ProjectionError::Dropped) => {}
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    __w.put_vector_header(__items.len());
+                    for __item in &__items {
+                        __w.put_raw(__item);
                     }
                     Ok(())
                 }
@@ -289276,9 +294805,18 @@ pub fn encode_wallet_card_profile(
             }
             __w.put_u32(__flags_flags);
             if let Some(value) = stickers {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_wallet_card_sticker_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_wallet_card_sticker_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = bg_nft_item {
@@ -289840,9 +295378,18 @@ pub fn encode_wallet_nft_item_profile(
                 encode_web_document_profile(profile, value, __w)?;
             }
             if let Some(value) = attributes {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_wallet_nft_attribute_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_wallet_nft_attribute_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = extra {
@@ -289940,9 +295487,18 @@ fn encode_policy_wallet_nft_item_230(
         encode_web_document_profile(profile, value, __w)?;
     }
     if let Some(value) = attributes {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_wallet_nft_attribute_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_wallet_nft_attribute_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = extra {
@@ -290025,9 +295581,18 @@ fn encode_policy_wallet_nft_item_231(
         encode_web_document_profile(profile, value, __w)?;
     }
     if let Some(value) = attributes {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_wallet_nft_attribute_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_wallet_nft_attribute_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = extra {
@@ -290556,9 +296121,18 @@ pub fn encode_wallet_nft_items_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(items.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in items.iter() {
-                encode_wallet_nft_item_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_wallet_nft_item_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
@@ -290846,9 +296420,18 @@ pub fn encode_wallet_ton_connect_pending_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::WalletTonConnectPending { session, requests } = value;
             encode_ton_connect_session_profile(profile, session, __w)?;
-            __w.put_vector_header(requests.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in requests.iter() {
-                encode_ton_connect_request_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_ton_connect_request_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -290929,9 +296512,18 @@ pub fn encode_wallet_ton_connect_sessions_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::WalletTonConnectSessions { sessions } = value;
-            __w.put_vector_header(sessions.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in sessions.iter() {
-                encode_ton_connect_session_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_ton_connect_session_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -291040,20 +296632,47 @@ pub fn encode_wallet_transactions_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i64(*balance);
-            __w.put_vector_header(transactions.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in transactions.iter() {
-                encode_wallet_transaction_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_wallet_transaction_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = next_offset {
                 __w.put_string(value.as_str());
             }
-            __w.put_vector_header(chats.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in chats.iter() {
-                encode_chat_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_chat_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -291173,13 +296792,31 @@ pub fn encode_wallet_user_addresses_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::WalletUserAddresses { addresses, users } = value;
-            __w.put_vector_header(addresses.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in addresses.iter() {
-                encode_wallet_user_address_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_wallet_user_address_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
             }
-            __w.put_vector_header(users.len());
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
+            }
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -295144,9 +300781,18 @@ pub fn encode_account_set_privacy_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::AccountSetPrivacy { key, rules } = value;
             encode_input_privacy_key_profile(profile, key, __w)?;
-            __w.put_vector_header(rules.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in rules.iter() {
-                encode_input_privacy_rule_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_privacy_rule_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -296282,9 +301928,18 @@ pub fn encode_account_get_secure_value_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::AccountGetSecureValue { types } = value;
-            __w.put_vector_header(types.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in types.iter() {
-                encode_secure_value_type_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_secure_value_type_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -296425,9 +302080,18 @@ pub fn encode_account_delete_secure_value_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::AccountDeleteSecureValue { types } = value;
-            __w.put_vector_header(types.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in types.iter() {
-                encode_secure_value_type_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_secure_value_type_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -296589,9 +302253,18 @@ pub fn encode_account_accept_authorization_profile(
             __w.put_i64(*bot_id);
             __w.put_string(scope.as_str());
             __w.put_string(public_key.as_str());
-            __w.put_vector_header(value_hashes.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in value_hashes.iter() {
-                encode_secure_value_hash_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_secure_value_hash_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             encode_secure_credentials_encrypted_profile(profile, credentials, __w)?;
             Ok(())
@@ -298191,9 +303864,18 @@ pub fn encode_account_create_theme_profile(
                 encode_input_document_profile(profile, value, __w)?;
             }
             if let Some(value) = settings {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_theme_settings_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_theme_settings_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -298362,9 +304044,18 @@ pub fn encode_account_update_theme_profile(
                 encode_input_document_profile(profile, value, __w)?;
             }
             if let Some(value) = settings {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_theme_settings_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_theme_settings_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -298925,9 +304616,18 @@ pub fn encode_account_get_multi_wall_papers_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::AccountGetMultiWallPapers { wallpapers } = value;
-            __w.put_vector_header(wallpapers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in wallpapers.iter() {
-                encode_input_wall_paper_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_wall_paper_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -303190,9 +308890,18 @@ pub fn encode_users_get_users_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::UsersGetUsers { id } = value;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -303323,9 +309032,18 @@ pub fn encode_users_set_secure_value_errors_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::UsersSetSecureValueErrors { id, errors } = value;
             encode_input_user_profile(profile, id, __w)?;
-            __w.put_vector_header(errors.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in errors.iter() {
-                encode_secure_value_error_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_secure_value_error_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -303406,9 +309124,18 @@ pub fn encode_users_get_requirements_to_contact_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::UsersGetRequirementsToContact { id } = value;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -303565,9 +309292,18 @@ pub fn encode_users_get_saved_music_by_id_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::UsersGetSavedMusicByID { id, documents } = value;
             encode_input_user_profile(profile, id, __w)?;
-            __w.put_vector_header(documents.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in documents.iter() {
-                encode_input_document_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_document_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -303862,9 +309598,18 @@ pub fn encode_contacts_import_contacts_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::ContactsImportContacts { contacts } = value;
-            __w.put_vector_header(contacts.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in contacts.iter() {
-                encode_input_contact_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_contact_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -303934,9 +309679,18 @@ pub fn encode_contacts_delete_contacts_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::ContactsDeleteContacts { id } = value;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -305707,9 +311461,18 @@ pub fn encode_contacts_set_blocked_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i32(*limit);
             Ok(())
@@ -306102,9 +311865,18 @@ pub fn encode_messages_get_messages_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesGetMessages { id } = value;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_message_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_message_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -306501,9 +312273,18 @@ pub fn encode_messages_search_profile(
                 encode_input_peer_profile(profile, value, __w)?;
             }
             if let Some(value) = saved_reaction {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_reaction_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_reaction_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = top_msg_id {
@@ -307318,9 +313099,18 @@ pub fn encode_messages_send_message_profile(
                 encode_reply_markup_profile(profile, value, __w)?;
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = schedule_date {
@@ -307457,9 +313247,18 @@ fn encode_policy_messages_send_message_225(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = schedule_date {
@@ -307581,9 +313380,18 @@ fn encode_policy_messages_send_message_226(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = schedule_date {
@@ -308453,9 +314261,18 @@ pub fn encode_messages_send_media_profile(
                 encode_reply_markup_profile(profile, value, __w)?;
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = schedule_date {
@@ -311156,9 +316973,18 @@ pub fn encode_messages_create_chat_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_input_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_string(title.as_str());
             if let Some(value) = ttl_period {
@@ -312261,9 +318087,18 @@ pub fn encode_messages_get_web_page_preview_profile(
             __w.put_u32(__flags_flags);
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -314191,9 +320026,18 @@ pub fn encode_messages_set_inline_bot_results_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i64(*query_id);
-            __w.put_vector_header(results.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in results.iter() {
-                encode_input_bot_inline_result_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_bot_inline_result_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i32(*cache_time);
             if let Some(value) = next_offset {
@@ -314776,9 +320620,18 @@ pub fn encode_messages_edit_message_profile(
                 encode_reply_markup_profile(profile, value, __w)?;
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = schedule_date {
@@ -314868,9 +320721,18 @@ fn encode_policy_messages_edit_message_225(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = schedule_date {
@@ -314945,9 +320807,18 @@ fn encode_policy_messages_edit_message_226(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = schedule_date {
@@ -315472,9 +321343,18 @@ pub fn encode_messages_edit_inline_bot_message_profile(
                 encode_reply_markup_profile(profile, value, __w)?;
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = rich_message {
@@ -315541,9 +321421,18 @@ fn encode_policy_messages_edit_inline_bot_message_225(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     Ok(())
@@ -315595,9 +321484,18 @@ fn encode_policy_messages_edit_inline_bot_message_226(
         encode_reply_markup_profile(profile, value, __w)?;
     }
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     Ok(())
@@ -316208,9 +322106,18 @@ pub fn encode_messages_get_peer_dialogs_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesGetPeerDialogs { peers } = value;
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_input_dialog_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_dialog_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -316381,9 +322288,18 @@ pub fn encode_messages_save_draft_profile(
             encode_input_peer_profile(profile, peer, __w)?;
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = media {
@@ -316459,9 +322375,18 @@ fn encode_policy_messages_save_draft_225(
     encode_input_peer_profile(profile, peer, __w)?;
     __w.put_string(message.as_str());
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = media {
@@ -316522,9 +322447,18 @@ fn encode_policy_messages_save_draft_226(
     encode_input_peer_profile(profile, peer, __w)?;
     __w.put_string(message.as_str());
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = media {
@@ -318154,9 +324088,18 @@ pub fn encode_messages_reorder_pinned_dialogs_profile(
             }
             __w.put_u32(__flags_flags);
             __w.put_i32(*folder_id);
-            __w.put_vector_header(order.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in order.iter() {
-                encode_input_dialog_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_dialog_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -318326,9 +324269,18 @@ pub fn encode_messages_set_bot_shipping_results_profile(
                 __w.put_string(value.as_str());
             }
             if let Some(value) = shipping_options {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_shipping_option_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_shipping_option_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -319250,9 +325202,18 @@ pub fn encode_messages_send_multi_media_profile(
             if let Some(value) = reply_to {
                 encode_input_reply_to_profile(profile, value, __w)?;
             }
-            __w.put_vector_header(multi_media.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in multi_media.iter() {
-                encode_input_single_media_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_single_media_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = schedule_date {
                 __w.put_i32(*value);
@@ -320623,9 +326584,18 @@ pub fn encode_messages_get_search_counters_profile(
             if let Some(value) = top_msg_id {
                 __w.put_i32(*value);
             }
-            __w.put_vector_header(filters.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in filters.iter() {
-                encode_messages_filter_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_messages_filter_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -322480,9 +328450,18 @@ pub fn encode_messages_toggle_sticker_sets_profile(
                 __flags_flags |= 1u32 << 2;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(stickersets.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stickersets.iter() {
-                encode_input_sticker_set_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_sticker_set_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -325340,9 +331319,18 @@ pub fn encode_messages_send_reaction_profile(
             encode_input_peer_profile(profile, peer, __w)?;
             __w.put_i32(*msg_id);
             if let Some(value) = reaction {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_reaction_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_reaction_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -325960,9 +331948,18 @@ pub fn encode_messages_translate_text_profile(
                 }
             }
             if let Some(value) = text {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_text_with_entities_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_text_with_entities_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             __w.put_string(to_lang.as_str());
@@ -328185,9 +334182,18 @@ pub fn encode_messages_send_bot_requested_peer_profile(
                 __w.put_string(value.as_str());
             }
             __w.put_i32(*button_id);
-            __w.put_vector_header(requested_peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in requested_peers.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -329660,9 +335666,18 @@ pub fn encode_messages_reorder_pinned_saved_dialogs_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(order.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in order.iter() {
-                encode_input_dialog_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_dialog_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -331773,9 +337788,18 @@ pub fn encode_messages_save_prepared_inline_message_profile(
             encode_input_bot_inline_result_profile(profile, result, __w)?;
             encode_input_user_profile(profile, user_id, __w)?;
             if let Some(value) = peer_types {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_inline_query_peer_type_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_inline_query_peer_type_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -332188,9 +338212,18 @@ pub fn encode_messages_get_saved_dialogs_by_id_profile(
             if let Some(value) = parent_peer {
                 encode_input_peer_profile(profile, value, __w)?;
             }
-            __w.put_vector_header(ids.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in ids.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -332483,9 +338516,18 @@ pub fn encode_messages_append_todo_list_profile(
             let rtd_tg::MessagesAppendTodoList { peer, msg_id, list } = value;
             encode_input_peer_profile(profile, peer, __w)?;
             __w.put_i32(*msg_id);
-            __w.put_vector_header(list.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in list.iter() {
-                encode_todo_item_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_todo_item_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -334123,9 +340165,18 @@ pub fn encode_messages_report_read_metrics_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::MessagesReportReadMetrics { peer, metrics } = value;
             encode_input_peer_profile(profile, peer, __w)?;
-            __w.put_vector_header(metrics.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in metrics.iter() {
-                encode_input_message_read_metric_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_message_read_metric_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -335104,9 +341155,18 @@ pub fn encode_messages_translate_rich_message_profile(
                 }
             }
             if let Some(value) = text {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_rich_message_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_rich_message_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             __w.put_string(to_lang.as_str());
@@ -336221,9 +342281,18 @@ pub fn encode_photos_delete_photos_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::PhotosDeletePhotos { id } = value;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_photo_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_photo_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -337746,9 +343815,18 @@ pub fn encode_help_save_app_log_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::HelpSaveAppLog { events } = value;
-            __w.put_vector_header(events.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in events.iter() {
-                encode_input_app_event_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_app_event_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -337984,9 +344062,18 @@ pub fn encode_help_edit_user_info_profile(
             } = value;
             encode_input_user_profile(profile, user_id, __w)?;
             __w.put_string(message.as_str());
-            __w.put_vector_header(entities.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in entities.iter() {
-                encode_message_entity_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_message_entity_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -338725,9 +344812,18 @@ pub fn encode_channels_get_messages_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::ChannelsGetMessages { channel, id } = value;
             encode_input_channel_profile(profile, channel, __w)?;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_message_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_message_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -338984,9 +345080,18 @@ pub fn encode_channels_get_channels_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::ChannelsGetChannels { id } = value;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_channel_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_channel_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -339792,9 +345897,18 @@ pub fn encode_channels_invite_to_channel_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::ChannelsInviteToChannel { channel, users } = value;
             encode_input_channel_profile(profile, channel, __w)?;
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_input_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -340546,9 +346660,18 @@ pub fn encode_channels_get_admin_log_profile(
                 encode_channel_admin_log_events_filter_profile(profile, value, __w)?;
             }
             if let Some(value) = admins {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_user_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_user_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             __w.put_i64(*max_id);
@@ -343514,9 +349637,18 @@ pub fn encode_bots_set_bot_commands_profile(
             } = value;
             encode_bot_command_scope_profile(profile, scope, __w)?;
             __w.put_string(lang_code.as_str());
-            __w.put_vector_header(commands.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in commands.iter() {
-                encode_bot_command_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_bot_command_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -344828,9 +350960,18 @@ pub fn encode_bots_delete_preview_media_profile(
             } = value;
             encode_input_user_profile(profile, bot, __w)?;
             __w.put_string(lang_code.as_str());
-            __w.put_vector_header(media.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in media.iter() {
-                encode_input_media_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_media_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -344926,9 +351067,18 @@ pub fn encode_bots_reorder_preview_medias_profile(
             } = value;
             encode_input_user_profile(profile, bot, __w)?;
             __w.put_string(lang_code.as_str());
-            __w.put_vector_header(order.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in order.iter() {
-                encode_input_media_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_media_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -346835,9 +352985,18 @@ pub fn encode_bots_edit_access_settings_profile(
             __w.put_u32(__flags_flags);
             encode_input_user_profile(profile, bot, __w)?;
             if let Some(value) = add_users {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_user_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_user_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -348927,9 +355086,18 @@ pub fn encode_payments_get_stars_transactions_by_id_profile(
             }
             __w.put_u32(__flags_flags);
             encode_input_peer_profile(profile, peer, __w)?;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_stars_transaction_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_stars_transaction_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -350618,9 +356786,18 @@ pub fn encode_payments_get_saved_star_gift_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::PaymentsGetSavedStarGift { stargift } = value;
-            __w.put_vector_header(stargift.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stargift.iter() {
-                encode_input_saved_star_gift_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_saved_star_gift_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -350860,9 +357037,18 @@ pub fn encode_payments_toggle_star_gifts_pinned_to_top_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::PaymentsToggleStarGiftsPinnedToTop { peer, stargift } = value;
             encode_input_peer_profile(profile, peer, __w)?;
-            __w.put_vector_header(stargift.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stargift.iter() {
-                encode_input_saved_star_gift_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_saved_star_gift_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -351079,9 +357265,18 @@ pub fn encode_payments_get_resale_star_gifts_profile(
             }
             __w.put_i64(*gift_id);
             if let Some(value) = attributes {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_star_gift_attribute_id_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_star_gift_attribute_id_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             __w.put_string(offset.as_str());
@@ -351279,9 +357474,18 @@ pub fn encode_payments_create_star_gift_collection_profile(
             } = value;
             encode_input_peer_profile(profile, peer, __w)?;
             __w.put_string(title.as_str());
-            __w.put_vector_header(stargift.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stargift.iter() {
-                encode_input_saved_star_gift_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_saved_star_gift_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -351436,21 +357640,48 @@ pub fn encode_payments_update_star_gift_collection_profile(
                 __w.put_string(value.as_str());
             }
             if let Some(value) = delete_stargift {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_saved_star_gift_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_saved_star_gift_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = add_stargift {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_saved_star_gift_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_saved_star_gift_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = order {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_saved_star_gift_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_saved_star_gift_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -352415,9 +358646,18 @@ pub fn encode_payments_craft_star_gift_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::PaymentsCraftStarGift { stargift } = value;
-            __w.put_vector_header(stargift.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stargift.iter() {
-                encode_input_saved_star_gift_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_saved_star_gift_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -353642,9 +359882,18 @@ pub fn encode_stickers_create_sticker_set_profile(
             if let Some(value) = thumb {
                 encode_input_document_profile(profile, value, __w)?;
             }
-            __w.put_vector_header(stickers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stickers.iter() {
-                encode_input_sticker_set_item_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_sticker_set_item_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = software {
                 __w.put_string(value.as_str());
@@ -355642,9 +361891,18 @@ pub fn encode_phone_invite_to_group_call_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::PhoneInviteToGroupCall { call, users } = value;
             encode_input_group_call_profile(profile, call, __w)?;
-            __w.put_vector_header(users.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in users.iter() {
-                encode_input_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -356009,9 +362267,18 @@ pub fn encode_phone_get_group_participants_profile(
                 limit,
             } = value;
             encode_input_group_call_profile(profile, call, __w)?;
-            __w.put_vector_header(ids.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in ids.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_vector_header(sources.len());
             for item in sources.iter() {
@@ -358758,9 +365025,18 @@ pub fn encode_folders_edit_peer_folders_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::FoldersEditPeerFolders { folder_peers } = value;
-            __w.put_vector_header(folder_peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in folder_peers.iter() {
-                encode_input_folder_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_folder_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -359518,9 +365794,18 @@ pub fn encode_chatlists_export_chatlist_invite_profile(
             } = value;
             encode_input_chatlist_profile(profile, chatlist, __w)?;
             __w.put_string(title.as_str());
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -359711,9 +365996,18 @@ pub fn encode_chatlists_edit_exported_invite_profile(
                 __w.put_string(value.as_str());
             }
             if let Some(value) = peers {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_peer_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_peer_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             Ok(())
@@ -359928,9 +366222,18 @@ pub fn encode_chatlists_join_chatlist_invite_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::ChatlistsJoinChatlistInvite { slug, peers } = value;
             __w.put_string(slug.as_str());
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -360066,9 +366369,18 @@ pub fn encode_chatlists_join_chatlist_updates_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::ChatlistsJoinChatlistUpdates { chatlist, peers } = value;
             encode_input_chatlist_profile(profile, chatlist, __w)?;
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -360273,9 +366585,18 @@ pub fn encode_chatlists_leave_chatlist_profile(
             __w.put_u32(route.wire_id);
             let rtd_tg::ChatlistsLeaveChatlist { chatlist, peers } = value;
             encode_input_chatlist_profile(profile, chatlist, __w)?;
-            __w.put_vector_header(peers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in peers.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -360556,23 +366877,50 @@ pub fn encode_stories_send_story_profile(
             encode_input_peer_profile(profile, peer, __w)?;
             encode_input_media_profile(profile, media, __w)?;
             if let Some(value) = media_areas {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_media_area_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_media_area_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = caption {
                 __w.put_string(value.as_str());
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
-            __w.put_vector_header(privacy_rules.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in privacy_rules.iter() {
-                encode_input_privacy_rule_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_privacy_rule_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i64(*random_id);
             if let Some(value) = period {
@@ -360891,24 +367239,51 @@ pub fn encode_stories_edit_story_profile(
                 encode_input_media_profile(profile, value, __w)?;
             }
             if let Some(value) = media_areas {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_media_area_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_media_area_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = caption {
                 __w.put_string(value.as_str());
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = privacy_rules {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_input_privacy_rule_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_input_privacy_rule_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = music {
@@ -362427,9 +368802,18 @@ pub fn encode_stories_get_peer_max_ids_profile(
         RouteMode::Rewrite => {
             __w.put_u32(route.wire_id);
             let rtd_tg::StoriesGetPeerMaxIDs { id } = value;
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_peer_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_peer_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             Ok(())
         }
@@ -363639,14 +370023,32 @@ pub fn encode_stories_start_live_profile(
                 __w.put_string(value.as_str());
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
-            __w.put_vector_header(privacy_rules.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in privacy_rules.iter() {
-                encode_input_privacy_rule_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_privacy_rule_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_i64(*random_id);
             if let Some(value) = messages_enabled {
@@ -366063,9 +372465,18 @@ pub fn encode_ephemeral_send_message_profile(
             }
             __w.put_string(message.as_str());
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = media {
@@ -366169,9 +372580,18 @@ fn encode_policy_ephemeral_send_message_228(
     }
     __w.put_string(message.as_str());
     if let Some(value) = entities {
-        __w.put_vector_header(value.len());
+        let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
         for item in value.iter() {
-            encode_message_entity_profile(profile, item, __w)?;
+            let mut __buf = Writer::with_capacity(16);
+            match encode_message_entity_profile(profile, item, &mut __buf) {
+                Ok(()) => __items.push(__buf.into_vec()),
+                Err(ProjectionError::Dropped) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        __w.put_vector_header(__items.len());
+        for __item in &__items {
+            __w.put_raw(__item);
         }
     }
     if let Some(value) = media {
@@ -366971,9 +373391,18 @@ pub fn encode_ephemeral_edit_message_profile(
                 encode_input_media_profile(profile, value, __w)?;
             }
             if let Some(value) = entities {
-                __w.put_vector_header(value.len());
+                let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
                 for item in value.iter() {
-                    encode_message_entity_profile(profile, item, __w)?;
+                    let mut __buf = Writer::with_capacity(16);
+                    match encode_message_entity_profile(profile, item, &mut __buf) {
+                        Ok(()) => __items.push(__buf.into_vec()),
+                        Err(ProjectionError::Dropped) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                __w.put_vector_header(__items.len());
+                for __item in &__items {
+                    __w.put_raw(__item);
                 }
             }
             if let Some(value) = reply_markup {
@@ -367560,9 +373989,18 @@ pub fn encode_wallet_get_user_addresses_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(id.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in id.iter() {
-                encode_input_user_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_user_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             __w.put_vector_header(addresses.len());
             for item in addresses.iter() {
@@ -369473,9 +375911,18 @@ pub fn encode_wallet_set_card_stickers_profile(
                 __flags_flags |= 1u32 << 0;
             }
             __w.put_u32(__flags_flags);
-            __w.put_vector_header(stickers.len());
+            let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();
             for item in stickers.iter() {
-                encode_input_wallet_card_sticker_profile(profile, item, __w)?;
+                let mut __buf = Writer::with_capacity(16);
+                match encode_input_wallet_card_sticker_profile(profile, item, &mut __buf) {
+                    Ok(()) => __items.push(__buf.into_vec()),
+                    Err(ProjectionError::Dropped) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            __w.put_vector_header(__items.len());
+            for __item in &__items {
+                __w.put_raw(__item);
             }
             if let Some(value) = bg_nft_address {
                 __w.put_string(value.as_str());

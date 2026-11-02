@@ -128,10 +128,8 @@ pub const HOOKS: &[HookSpec] = &[
     HookSpec {
         name: "layerProjectEphemeralBotCommand",
         direction: Direction::CanonicalToProfile,
-        // The projection drops an ephemeral command from a vector; the exact
-        // call-site shape is pinned with the policy emission (task 3.3).
-        status: Status::Deferred,
-        signature: "layerProjectEphemeralBotCommandProject(profile, value *BotCommand, ephemeral bool) (*BotCommand, bool, error)",
+        status: Status::Implemented,
+        signature: "project_ephemeral_bot_command(value *BotCommand) (*BotCommand, error); None drops the value",
     },
     HookSpec {
         name: "layerProjectLegacyDefaultKeyboardButton",
@@ -203,6 +201,21 @@ pub fn field_convert(name: &str) -> Option<FieldConvert> {
         _ => return None,
     };
     Some(convert)
+}
+
+/// The projection function for a hook that drops a canonical value the older
+/// layer cannot represent. It takes `&Canonical` and returns `Some(value)` to
+/// keep it or `None` to project it away.
+///
+/// Hooks with any other shape return `None`, so their layer stays fail-closed.
+#[must_use]
+pub fn field_project(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "layerProjectEphemeralBotCommand" => {
+            "rtd_layerhooks::projection::project_ephemeral_bot_command"
+        }
+        _ => return None,
+    })
 }
 
 /// The requirement function for a hook that only requires a field to be present

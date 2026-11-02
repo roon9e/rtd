@@ -6,10 +6,10 @@
 
 use rtd_bin::Writer;
 use rtd_tg::{
-    AuthBindTempAuthKey, Bool, BotVerification, ChannelsJoinChannel, ChatAdminRights, Decoder,
-    InitConnection, InputChannel, InputInvoice, InputPeer, InvokeAfterMsg, InvokeAfterMsgs,
-    InvokeWithLayer, MessageEntity, MessagesDeleteMessages, Method, Object, SendMessageAction,
-    TextWithEntities, Update,
+    AuthBindTempAuthKey, Bool, BotCommand, BotInfo, BotVerification, ChannelsJoinChannel,
+    ChatAdminRights, Decoder, InitConnection, InputChannel, InputInvoice, InputPeer,
+    InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, MessageEntity, MessagesDeleteMessages,
+    Method, Object, SendMessageAction, TextWithEntities, Update,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, RouteMode,
@@ -553,6 +553,86 @@ fn freezing_fans_out_to_every_enabled_layer() {
             .unwrap_or_else(|error| panic!("decode for layer {layer}: {error:?}"));
         assert_eq!(decoded, value, "layer {layer} did not round trip");
     }
+}
+
+/// A `project` obligation drops a canonical value the older layer cannot
+/// represent. Layer 225 `botCommand` has no `ephemeral` bit, so an ephemeral
+/// command is projected away (the gate returns `Dropped`) while a plain command
+/// round trips.
+#[test]
+fn policy_projection_gates_an_unrepresentable_value() {
+    let plain = Object::BotCommand(Box::new(BotCommand {
+        flags: 0,
+        ephemeral: false,
+        command: "start".to_owned(),
+        description: "Start".to_owned(),
+    }));
+    let frozen = FrozenObject::freeze(plain.clone()).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode a plain command");
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    assert_eq!(decoded, plain);
+
+    let ephemeral = FrozenObject::freeze(Object::BotCommand(Box::new(BotCommand {
+        flags: 1,
+        ephemeral: true,
+        command: "start".to_owned(),
+        description: "Start".to_owned(),
+    })))
+    .expect("freeze");
+    let error = ephemeral
+        .encode(Profile::new(225), &mut Writer::new())
+        .expect_err("an ephemeral command is projected away");
+    assert_eq!(error, ProjectionError::Dropped);
+}
+
+/// A projected vector element is dropped, not the whole container: a `botInfo`
+/// whose `commands` includes an ephemeral command encodes for layer 225 without
+/// that command.
+#[test]
+fn policy_projection_drops_a_vector_element() {
+    let plain = BotCommand {
+        flags: 0,
+        ephemeral: false,
+        command: "a".to_owned(),
+        description: "A".to_owned(),
+    };
+    let ephemeral = BotCommand {
+        flags: 1,
+        ephemeral: true,
+        command: "b".to_owned(),
+        description: "B".to_owned(),
+    };
+    let value = Object::BotInfo(Box::new(BotInfo {
+        flags: 0,
+        has_preview_medias: false,
+        user_id: None,
+        description: None,
+        description_photo: None,
+        description_document: None,
+        commands: Some(vec![plain, ephemeral]),
+        menu_button: None,
+        privacy_policy_url: None,
+        app_settings: None,
+        verifier_settings: None,
+    }));
+    let frozen = FrozenObject::freeze(value).expect("freeze");
+    let mut writer = Writer::new();
+    frozen
+        .encode(Profile::new(225), &mut writer)
+        .expect("encode for layer 225");
+    let decoded =
+        decode_object(Profile::new(225), &writer.into_vec(), Limits::default()).expect("decode");
+    let Object::BotInfo(info) = decoded else {
+        panic!("expected botInfo");
+    };
+    let commands = info.commands.expect("commands are present");
+    assert_eq!(commands.len(), 1, "the ephemeral command is dropped");
+    assert_eq!(commands[0].command, "a");
+    assert!(!commands[0].ephemeral);
 }
 
 /// A second present-in-both family fans out across the enabled set: layer 225..=228

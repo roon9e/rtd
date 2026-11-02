@@ -17,6 +17,7 @@ pub mod chat_invite;
 pub mod ephemeral;
 pub mod error;
 pub mod keyboard;
+pub mod projection;
 pub mod results;
 pub mod text;
 
@@ -35,6 +36,7 @@ pub const IMPLEMENTED_HOOKS: &[&str] = &[
     "layerBotsSetCustomVerificationText",
     "layerCaptureChatInviteJoinQueryIDFromWebView",
     "layerDefaultLegacyKeyboardButtonType",
+    "layerProjectEphemeralBotCommand",
     "layerRequireCapturedChatInviteJoinQueryID",
     "layerRequireLegacyEphemeralDeletePeer",
     "layerRequireLegacyEphemeralMessagePeer",

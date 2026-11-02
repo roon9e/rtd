@@ -265,18 +265,64 @@ pub(crate) fn encode_value(
             }
         }
         RustType::VectorBoxed(element) => {
-            code.line(&format!("__w.put_vector_header({place}.len());"));
-            code.open(&format!("for item in {place}.iter() {{"));
-            encode_value(code, element, "item", true, profile);
-            code.close("}");
+            if profile && let Some(call) = profile_element_encode_call(element, "item") {
+                emit_filtered_vector(code, place, &call, true);
+            } else {
+                code.line(&format!("__w.put_vector_header({place}.len());"));
+                code.open(&format!("for item in {place}.iter() {{"));
+                encode_value(code, element, "item", true, profile);
+                code.close("}");
+            }
         }
         RustType::VectorBare(element) => {
-            code.line(&format!("__w.put_i32({place}.len() as i32);"));
-            code.open(&format!("for item in {place}.iter() {{"));
-            encode_value(code, element, "item", true, profile);
-            code.close("}");
+            if profile && let Some(call) = profile_element_encode_call(element, "item") {
+                emit_filtered_vector(code, place, &call, false);
+            } else {
+                code.line(&format!("__w.put_i32({place}.len() as i32);"));
+                code.open(&format!("for item in {place}.iter() {{"));
+                encode_value(code, element, "item", true, profile);
+                code.close("}");
+            }
         }
     }
+}
+
+/// The profile-dispatched encode call for a class-bearing vector element, when
+/// the element can be projected away. Returns `None` for scalars and vectors,
+/// which never drop.
+fn profile_element_encode_call(element: &RustType, place: &str) -> Option<String> {
+    let function = match element {
+        RustType::Class(name) | RustType::ClassBare(name, _) => {
+            format!("encode_{}_profile", crate::emit::to_snake_case(name))
+        }
+        RustType::Object => "encode_object_profile".to_owned(),
+        RustType::Method => "encode_method_profile".to_owned(),
+        _ => return None,
+    };
+    Some(format!("{function}(profile, {place}, &mut __buf)"))
+}
+
+/// Emits a vector write that encodes each element through the profile
+/// dispatcher and omits the ones it projects away, with the header written from
+/// the surviving count.
+fn emit_filtered_vector(code: &mut Code, place: &str, call: &str, boxed: bool) {
+    code.line("let mut __items: ::std::vec::Vec<::std::vec::Vec<u8>> = ::std::vec::Vec::new();");
+    code.open(&format!("for item in {place}.iter() {{"));
+    code.line("let mut __buf = Writer::with_capacity(16);");
+    code.open(&format!("match {call} {{"));
+    code.line("Ok(()) => __items.push(__buf.into_vec()),");
+    code.line("Err(ProjectionError::Dropped) => {}");
+    code.line("Err(error) => return Err(error),");
+    code.close("}");
+    code.close("}");
+    if boxed {
+        code.line("__w.put_vector_header(__items.len());");
+    } else {
+        code.line("__w.put_i32(__items.len() as i32);");
+    }
+    code.open("for __item in &__items {");
+    code.line("__w.put_raw(__item);");
+    code.close("}");
 }
 
 pub(crate) fn decode_expr(ty: &RustType, profile: bool) -> String {

@@ -216,6 +216,8 @@ struct AdapterHooks {
     convert: std::collections::BTreeMap<String, FieldHook>,
     /// `canonical field name` to its field requirement function.
     require: std::collections::BTreeMap<String, &'static str>,
+    /// `canonical field name` to its value projection function.
+    project: std::collections::BTreeMap<String, &'static str>,
 }
 
 /// One supported policy layer for a canonical constructor.
@@ -234,6 +236,8 @@ struct PolicyLayer<'a> {
     field_hooks: std::collections::BTreeMap<String, FieldHook>,
     /// `canonical field name` to its field requirement function.
     require_hooks: std::collections::BTreeMap<String, &'static str>,
+    /// `canonical field name` to its value projection function.
+    project_hooks: std::collections::BTreeMap<String, &'static str>,
 }
 
 /// Builds the adapter call sites for a layer, or `None` when an obligation needs
@@ -255,6 +259,7 @@ fn collect_adapter_hooks(
             decode: Option<&'static str>,
         },
         Require(&'static str),
+        Project(&'static str),
     }
 
     let mut pending: std::collections::BTreeMap<String, Pending> =
@@ -308,6 +313,14 @@ fn collect_adapter_hooks(
                     pending.insert(obligation.field.clone(), Pending::Require(function));
                 }
             }
+            "project" => {
+                let function = rtd_layerhooks_registry::field_project(&resolution.hook)?;
+                // A projection is canonical-to-profile only.
+                if obligation.direction != "canonical-to-profile" {
+                    return None;
+                }
+                pending.insert(obligation.field.clone(), Pending::Project(function));
+            }
             _ => return None,
         }
     }
@@ -315,6 +328,7 @@ fn collect_adapter_hooks(
     let mut adapter = AdapterHooks {
         convert: std::collections::BTreeMap::new(),
         require: std::collections::BTreeMap::new(),
+        project: std::collections::BTreeMap::new(),
     };
     for (canonical, entry) in pending {
         let field = definition
@@ -324,28 +338,33 @@ fn collect_adapter_hooks(
         if field.kind != FieldKind::Value {
             return None;
         }
-        let profile_name = reverse.get(&canonical)?;
-        let profile_field = profile_def
-            .fields
-            .iter()
-            .find(|field| &field.name == profile_name)?;
-        if profile_field.kind != FieldKind::Value {
-            return None;
-        }
         let canonical_optional = field
             .condition
             .as_ref()
             .is_some_and(|condition| !condition.presence_only);
-        let profile_optional = profile_field
-            .condition
-            .as_ref()
-            .is_some_and(|condition| !condition.presence_only);
         match entry {
+            Pending::Project(function) => {
+                // A projection gates the whole value on a canonical field; it
+                // needs no profile counterpart.
+                adapter.project.insert(canonical, function);
+            }
             Pending::Convert { encode, decode } => {
                 // Both directions and aligned optionality are required.
                 let (Some(encode), Some(decode)) = (encode, decode) else {
                     return None;
                 };
+                let profile_name = reverse.get(&canonical)?;
+                let profile_field = profile_def
+                    .fields
+                    .iter()
+                    .find(|field| &field.name == profile_name)?;
+                if profile_field.kind != FieldKind::Value {
+                    return None;
+                }
+                let profile_optional = profile_field
+                    .condition
+                    .as_ref()
+                    .is_some_and(|condition| !condition.presence_only);
                 if canonical_optional != profile_optional {
                     return None;
                 }
@@ -363,6 +382,18 @@ fn collect_adapter_hooks(
             Pending::Require(function) => {
                 // A requirement maps an optional canonical field to a mandatory
                 // profile field.
+                let profile_name = reverse.get(&canonical)?;
+                let profile_field = profile_def
+                    .fields
+                    .iter()
+                    .find(|field| &field.name == profile_name)?;
+                if profile_field.kind != FieldKind::Value {
+                    return None;
+                }
+                let profile_optional = profile_field
+                    .condition
+                    .as_ref()
+                    .is_some_and(|condition| !condition.presence_only);
                 if !canonical_optional || profile_optional {
                     return None;
                 }
@@ -476,6 +507,7 @@ fn collect_policy_layers<'a>(
             canonical_defaults,
             field_hooks: adapter.convert,
             require_hooks: adapter.require,
+            project_hooks: adapter.project,
         });
     }
     layers
@@ -491,6 +523,31 @@ fn emit_policy_layer_body(
     use crate::emit::field_ident;
     use crate::emit_tg::encode_value;
     use crate::model::FieldKind;
+
+    // A value projection gates the whole value: a canonical value the older
+    // layer cannot represent is projected away rather than encoded lossily. A
+    // containing vector turns the `Dropped` signal into an omitted element.
+    for (canonical, project_fn) in &layer.project_hooks {
+        let field = definition
+            .fields
+            .iter()
+            .find(|field| &field.name == canonical)
+            .ok_or_else(|| format!("policy: no canonical field {canonical}"))?;
+        let binding = field_ident(&field.name);
+        let presence = match &field.condition {
+            Some(condition) if condition.presence_only => format!("*{binding}"),
+            Some(_) => format!("{binding}.is_some()"),
+            None => "true".to_owned(),
+        };
+        let guard = if presence == "true" {
+            String::new()
+        } else {
+            format!("{presence} && ")
+        };
+        code.line(&format!(
+            "if {guard}{project_fn}(value)?.is_none() {{ return Err(ProjectionError::Dropped); }}"
+        ));
+    }
 
     for obligation in &layer.obligations {
         if obligation
@@ -757,6 +814,11 @@ fn emit_policy_encode_fns(
                 && !used.contains(&obligation.field)
             {
                 used.push(obligation.field.clone());
+            }
+        }
+        for canonical in layer.project_hooks.keys() {
+            if !used.contains(canonical) {
+                used.push(canonical.clone());
             }
         }
         used.sort();
@@ -2378,6 +2440,9 @@ pub enum ProjectionError {
     RouteNotEmitted(Route),
     /// A layer conversion hook refused the value.
     Hook(::rtd_layerhooks::HookError),
+    /// The value was projected away by policy: an older layer cannot represent
+    /// it, so a containing vector skips it rather than encoding it lossily.
+    Dropped,
 }
 
 impl std::fmt::Display for ProjectionError {
@@ -2394,11 +2459,23 @@ impl std::fmt::Display for ProjectionError {
                 write!(f, "route {} is not emitted in this build", route.mode.as_str())
             }
             ProjectionError::Hook(error) => write!(f, "layer conversion failed: {error}"),
+            ProjectionError::Dropped => {
+                write!(f, "value was projected away by the exact-profile policy")
+            }
         }
     }
 }
 
 impl std::error::Error for ProjectionError {}
+
+impl ProjectionError {
+    /// Whether this error is the projection "drop" signal, which a containing
+    /// vector turns into an omitted element rather than a failure.
+    #[must_use]
+    pub const fn is_dropped(&self) -> bool {
+        matches!(self, ProjectionError::Dropped)
+    }
+}
 
 impl From<::rtd_layerhooks::HookError> for ProjectionError {
     fn from(error: ::rtd_layerhooks::HookError) -> Self {
