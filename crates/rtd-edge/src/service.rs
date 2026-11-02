@@ -90,8 +90,12 @@ pub async fn shutdown_signal() {
 async fn build_core(config: &EdgeConfig) -> Result<Arc<dyn Core>, EdgeError> {
     match &config.core_endpoint {
         Some(endpoint) => {
+            // Connect lazily: the edge must start and listen even while the core
+            // is still coming up, and reconnect once it is reachable, rather
+            // than exiting and restart-looping.
             let endpoint = Endpoint::from_shared(endpoint.clone()).map_err(EdgeError::Core)?;
-            let mut core = GrpcCore::connect(endpoint).await.map_err(EdgeError::Core)?;
+            let channel = endpoint.connect_lazy();
+            let mut core = GrpcCore::new(channel);
             if let Some(token) = &config.core_token {
                 core = core.with_token(token.clone());
             }

@@ -530,12 +530,20 @@ impl Server {
 
     /// Serves connections until the process is shut down.
     ///
+    /// A per-connection failure — the peer closed before its transport header
+    /// arrived, or an accept was interrupted — is not fatal: the listener backs
+    /// off briefly and keeps accepting, so one bad or probed connection cannot
+    /// stop the server.
+    ///
     /// # Errors
     ///
-    /// Returns [`IngressError`] when accepting fails.
+    /// Never returns; the returned `Result` keeps the signature stable for
+    /// callers that select on it.
     pub async fn serve(self) -> Result<(), IngressError> {
         loop {
-            let _ = self.accept().await?;
+            if self.accept().await.is_err() {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
         }
     }
 }
@@ -2548,6 +2556,35 @@ mod tests {
             .expect("admitted connection");
         client.await.expect("client task");
         handle.await.expect("actor");
+    }
+
+    #[tokio::test]
+    async fn serve_survives_a_bad_connection() {
+        let core: Arc<dyn Core> = Arc::new(FakeCore::new());
+        let options = options(never_exchange(), BudgetLimits::default());
+        let server = Server::bind("127.0.0.1:0", IngressConfig::default(), core, options)
+            .await
+            .expect("bind");
+        let addr = server.local_addr().expect("addr");
+        let serving = tokio::spawn(server.serve());
+
+        // A probed connection: connect and close before the transport header.
+        drop(tokio::net::TcpStream::connect(addr).await.expect("connect"));
+
+        // The listener must still accept a well-formed connection.
+        let mut socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
+        socket
+            .write_all(&rtd_proto::codec::INTERMEDIATE_HEADER)
+            .await
+            .expect("header");
+        socket.flush().await.expect("flush");
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(
+            !serving.is_finished(),
+            "a bad connection stopped the listener"
+        );
+        serving.abort();
     }
 
     #[tokio::test]
