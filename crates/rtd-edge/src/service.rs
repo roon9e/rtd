@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use rtd_server::actor::{BudgetLimits, Exchange, Server, ServerOptions};
 use rtd_server::core::{Core, LocalCore};
-use rtd_server::ingress::IngressConfig;
+use rtd_server::ingress::{IngressConfig, ServerInfo};
 use rtd_server::rpc::{DataCenter, ServerConfig};
 use rtd_tlprofile::{CANONICAL_LAYER, Profile};
 use rtd_util::SystemClock;
@@ -37,6 +37,7 @@ const ADVERTISED_PORT: i32 = 443;
 /// be dialed, or the listener cannot be bound.
 pub async fn bind(config: EdgeConfig) -> Result<Server, EdgeError> {
     let key = config.load_rsa_key()?;
+    let server_info = server_info(&key, config.dc)?;
     let core = build_core(&config).await?;
     let exchange: Arc<dyn Exchange> = Arc::new(ServerExchange::new(key, config.dc));
     let options = ServerOptions {
@@ -47,10 +48,30 @@ pub async fn bind(config: EdgeConfig) -> Result<Server, EdgeError> {
         idle_timeout: IDLE_TIMEOUT,
         budget_limits: BudgetLimits::default(),
     };
-    let ingress = ingress_config(&config);
+    let ingress = ingress_config(&config).with_server_info(server_info);
     Server::bind(config.bind, ingress, core, options)
         .await
         .map_err(EdgeError::Ingress)
+}
+
+/// Builds the public server descriptor served on the MTProto port.
+///
+/// The RSA public key is the PKCS#1 `RSA PUBLIC KEY` PEM an OwpenGram client
+/// expects; the name/description/icon are operator overrides this edge does not
+/// carry (empty / absent).
+fn server_info(key: &rsa::RsaPrivateKey, dc: i32) -> Result<ServerInfo, EdgeError> {
+    let public_key_pem = rsa::pkcs1::EncodeRsaPublicKey::to_pkcs1_pem(
+        &key.to_public_key(),
+        rsa::pkcs1::LineEnding::LF,
+    )
+    .map_err(|error| EdgeError::KeyEncode(error.to_string()))?;
+    Ok(ServerInfo {
+        dc_id: dc,
+        rsa_public_key_pem: public_key_pem,
+        name: String::new(),
+        description: String::new(),
+        icon: None,
+    })
 }
 
 /// Builds the edge and serves until the process receives a shutdown signal.

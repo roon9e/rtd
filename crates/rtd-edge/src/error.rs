@@ -24,6 +24,8 @@ pub enum EdgeError {
     },
     /// The RSA private key PEM could not be parsed.
     KeyParse(rtd_crypto::Error),
+    /// The RSA public key could not be encoded for the server descriptor.
+    KeyEncode(String),
     /// The configured core endpoint could not be parsed or dialed.
     Core(tonic::transport::Error),
     /// The edge listener could not be bound or accept a connection.
@@ -38,6 +40,7 @@ impl fmt::Display for EdgeError {
                 write!(f, "could not read RSA key {}: {source}", path.display())
             }
             Self::KeyParse(error) => write!(f, "could not parse RSA key: {error}"),
+            Self::KeyEncode(error) => write!(f, "could not encode RSA public key: {error}"),
             Self::Core(error) => write!(f, "core endpoint failed: {error}"),
             Self::Ingress(error) => write!(f, "listener failed: {error}"),
         }
@@ -47,7 +50,7 @@ impl fmt::Display for EdgeError {
 impl std::error::Error for EdgeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Usage(_) => None,
+            Self::Usage(_) | Self::KeyEncode(_) => None,
             Self::KeyFile { source, .. } => Some(source),
             Self::KeyParse(error) => Some(error),
             Self::Core(error) => Some(error),

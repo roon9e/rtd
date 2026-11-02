@@ -65,8 +65,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
     let public_key = rtd_crypto::parse_rsa_public_key(&public_pem)?;
 
-    println!("connecting to {address} (dc {dc})");
-    let transport = connect_tcp(&address, dc as u16, CodecKind::Intermediate, None)?;
+    let obfuscated = std::env::var("RTD_EDGE_OBFUSCATED").is_ok();
+    println!(
+        "connecting to {address} (dc {dc}, {})",
+        if obfuscated { "obfuscated2" } else { "plain" }
+    );
+    let obfuscation = if obfuscated { Some(&[][..]) } else { None };
+    let transport = connect_tcp(&address, dc as u16, CodecKind::Intermediate, obfuscation)?;
     let clock: Arc<dyn Clock + Send + Sync> = Arc::new(SystemClock);
     let config = ClientConfig {
         dc,
