@@ -436,6 +436,47 @@ mod tests {
         }
     }
 
+    /// Every registered `old-only` hook is a `ProfileOnly` button route, and the
+    /// only `ProfileOnly` constructor without one is the passkey credential.
+    #[test]
+    fn legacy_hooks_cover_the_profile_only_buttons() {
+        use super::obligations;
+        use crate::routes::build_route_table;
+        use std::collections::BTreeSet;
+
+        let root = workspace_root();
+        let (universe, _) =
+            crate::load::load_universe(&root.join("schema/layers/manifest.json")).unwrap();
+        let policy = crate::schema::load_policy(&root.join("schema/layers/policy.json")).unwrap();
+        let config = crate::schema::load_rtd_config(&root.join("schema/rtd.json")).unwrap();
+        let plan = obligations::analyze(&universe, &policy).unwrap();
+        let table = build_route_table(&universe, &plan, &config.enabled_layers).unwrap();
+
+        let profile_only: BTreeSet<u32> = table
+            .routes
+            .iter()
+            .filter(|route| route.mode.as_str() == "profile-only")
+            .map(|route| route.wire_id)
+            .collect();
+        let registered: BTreeSet<u32> = rtd_layerhooks_registry::LEGACY_HOOKS
+            .iter()
+            .map(|hook| hook.wire_id)
+            .collect();
+
+        for wire in &registered {
+            assert!(
+                profile_only.contains(wire),
+                "registered legacy hook {wire:#010x} is not a profile-only route"
+            );
+        }
+        let unregistered: BTreeSet<u32> = profile_only.difference(&registered).copied().collect();
+        assert_eq!(
+            unregistered,
+            BTreeSet::from([0x5b1c_cb28]),
+            "only inputPasskeyCredentialFirebasePNV may lack a legacy hook"
+        );
+    }
+
     #[test]
     fn wrapper_metadata_is_emitted() {
         let generated = generate(workspace_root()).expect("generation");
