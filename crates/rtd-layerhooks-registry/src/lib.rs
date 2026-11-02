@@ -169,6 +169,163 @@ pub fn lookup(name: &str) -> Option<&'static HookSpec> {
     HOOKS.iter().find(|spec| spec.name == name)
 }
 
+/// The canonical value a legacy button constructor maps to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LegacyCanonical {
+    /// The reply-keyboard `KeyboardButton`.
+    KeyboardButton,
+    /// The inline `KeyboardInlineButton`.
+    KeyboardInlineButton,
+}
+
+/// An `old-only` hook: a legacy keyboard-button constructor that exists only in
+/// an older layer, mapped to and from the canonical value it became.
+#[derive(Debug, Clone, Copy)]
+pub struct OldOnlyHook {
+    /// The hook name as written in `policy.json`.
+    pub name: &'static str,
+    /// The legacy constructor wire id in the older layer.
+    pub wire_id: u32,
+    /// The canonical value the constructor maps to.
+    pub canonical: LegacyCanonical,
+    /// The profile-to-canonical builder, taking the legacy fields in order.
+    pub decode: &'static str,
+    /// The canonical-to-profile field extractor.
+    pub encode: &'static str,
+}
+
+/// Every `old-only` hook, ordered by wire id.
+///
+/// `inputPasskeyCredentialFirebasePNV` is the one `ProfileOnly` constructor with
+/// no legacy hook, so it stays fail-closed.
+pub const LEGACY_HOOKS: &[OldOnlyHook] = &[
+    OldOnlyHook {
+        name: "layerAdaptLegacyInputKeyboardButtonRequestPeer",
+        wire_id: 0x02b7_8156,
+        canonical: LegacyCanonical::KeyboardButton,
+        decode: "rtd_layerhooks::legacy::input_keyboard_button_request_peer",
+        encode: "rtd_layerhooks::legacy::input_keyboard_button_request_peer_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardButtonBuy",
+        wire_id: 0x3fa5_3905,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_buy",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_buy_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardButtonRequestPhone",
+        wire_id: 0x417e_fd8f,
+        canonical: LegacyCanonical::KeyboardButton,
+        decode: "rtd_layerhooks::legacy::keyboard_button_request_phone",
+        encode: "rtd_layerhooks::legacy::keyboard_button_request_phone_style_text",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardButtonRequestPeer",
+        wire_id: 0x5b0f_15f5,
+        canonical: LegacyCanonical::KeyboardButton,
+        decode: "rtd_layerhooks::legacy::keyboard_button_request_peer",
+        encode: "rtd_layerhooks::legacy::keyboard_button_request_peer_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyInputKeyboardInlineButtonURLAuth",
+        wire_id: 0x6801_3e72,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth",
+        encode: "rtd_layerhooks::legacy::input_keyboard_inline_button_url_auth_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardButtonRequestPoll",
+        wire_id: 0x7a11_d782,
+        canonical: LegacyCanonical::KeyboardButton,
+        decode: "rtd_layerhooks::legacy::keyboard_button_request_poll",
+        encode: "rtd_layerhooks::legacy::keyboard_button_request_poll_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyInputKeyboardInlineButtonUserProfile",
+        wire_id: 0x7d5e_07c7,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile",
+        encode: "rtd_layerhooks::legacy::input_keyboard_inline_button_user_profile_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonGame",
+        wire_id: 0x89c5_90f9,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_game",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_game_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonSwitchInline",
+        wire_id: 0x9913_99fc,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_switch_inline",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_switch_inline_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardButtonRequestGeoLocation",
+        wire_id: 0xaa40_f94d,
+        canonical: LegacyCanonical::KeyboardButton,
+        decode: "rtd_layerhooks::legacy::keyboard_button_request_geo_location",
+        encode: "rtd_layerhooks::legacy::keyboard_button_request_geo_location_style_text",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonCopy",
+        wire_id: 0xbcc4_af10,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_copy",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_copy_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonUserProfile",
+        wire_id: 0xc0fd_5d09,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_user_profile",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_user_profile_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonURL",
+        wire_id: 0xd80c_25ec,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_url",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_url_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardButtonSimpleWebView",
+        wire_id: 0xe15c_4370,
+        canonical: LegacyCanonical::KeyboardButton,
+        decode: "rtd_layerhooks::legacy::keyboard_button_simple_web_view",
+        encode: "rtd_layerhooks::legacy::keyboard_button_simple_web_view_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonCallback",
+        wire_id: 0xe62b_c960,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_callback",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_callback_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonWebView",
+        wire_id: 0xe846_b1a0,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_web_view",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_web_view_fields",
+    },
+    OldOnlyHook {
+        name: "layerAdaptLegacyKeyboardInlineButtonURLAuth",
+        wire_id: 0xf510_06f9,
+        canonical: LegacyCanonical::KeyboardInlineButton,
+        decode: "rtd_layerhooks::legacy::keyboard_inline_button_url_auth",
+        encode: "rtd_layerhooks::legacy::keyboard_inline_button_url_auth_fields",
+    },
+];
+
+/// Looks up an `old-only` hook by the legacy constructor wire id.
+#[must_use]
+pub fn legacy_for_wire(wire_id: u32) -> Option<&'static OldOnlyHook> {
+    LEGACY_HOOKS.iter().find(|hook| hook.wire_id == wire_id)
+}
+
 /// The concrete functions of a field-shaped hook, which converts one field
 /// between its canonical and older-layer types (the surrounding `Option` is
 /// handled by the generated call site).
@@ -287,7 +444,9 @@ pub fn implemented_names() -> Vec<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Direction, HOOKS, Status, implemented_names, lookup};
+    use super::{
+        Direction, HOOKS, LEGACY_HOOKS, Status, implemented_names, legacy_for_wire, lookup,
+    };
 
     #[test]
     fn names_are_unique_and_sorted() {
@@ -314,6 +473,27 @@ mod tests {
         assert!(Direction::CanonicalToProfile.covers("canonical-to-profile"));
         assert!(!Direction::CanonicalToProfile.covers("profile-to-canonical"));
         assert!(!Direction::ProfileToCanonical.covers("canonical-to-profile"));
+    }
+
+    #[test]
+    fn legacy_hooks_are_sorted_unique_and_looked_up() {
+        assert_eq!(LEGACY_HOOKS.len(), 17);
+        for pair in LEGACY_HOOKS.windows(2) {
+            assert!(
+                pair[0].wire_id < pair[1].wire_id,
+                "legacy hooks must be sorted by wire id"
+            );
+        }
+        for hook in LEGACY_HOOKS {
+            assert_eq!(
+                legacy_for_wire(hook.wire_id).map(|h| h.name),
+                Some(hook.name)
+            );
+            assert!(hook.decode.starts_with("rtd_layerhooks::"));
+            assert!(hook.encode.starts_with("rtd_layerhooks::"));
+        }
+        // inputPasskeyCredentialFirebasePNV has no legacy hook.
+        assert!(legacy_for_wire(0x5b1c_cb28).is_none());
     }
 
     #[test]
