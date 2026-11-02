@@ -34,6 +34,7 @@ OPTIONS:
     --websocket        Enable WebSocket ingress [env: RTD_EDGE_WEBSOCKET]
     --core <ENDPOINT>  Core CoreExecService endpoint, e.g. http://127.0.0.1:50051
                        [env: RTD_EDGE_CORE]
+    --core-token <T>   Bearer token for the core CoreExecService [env: RTD_EDGE_CORE_TOKEN]
     -h, --help         Print this help
     -V, --version      Print the version";
 
@@ -52,6 +53,8 @@ pub struct EdgeConfig {
     pub websocket: bool,
     /// The optional core gRPC endpoint; the in-process core is used when unset.
     pub core_endpoint: Option<String>,
+    /// The optional bearer token presented to the core's `CoreExecService`.
+    pub core_token: Option<String>,
 }
 
 impl EdgeConfig {
@@ -74,6 +77,7 @@ impl EdgeConfig {
         let mut secret = None;
         let mut websocket = None;
         let mut core = None;
+        let mut core_token = None;
 
         let mut index = 0;
         while index < args.len() {
@@ -87,6 +91,7 @@ impl EdgeConfig {
                 "--rsa-key" => rsa_key = Some(take(&args, &mut index, inline, &name)?),
                 "--secret" => secret = Some(take(&args, &mut index, inline, &name)?),
                 "--core" => core = Some(take(&args, &mut index, inline, &name)?),
+                "--core-token" => core_token = Some(take(&args, &mut index, inline, &name)?),
                 "--websocket" => {
                     websocket = Some(match inline {
                         Some(value) => parse_bool(&value)?,
@@ -127,6 +132,7 @@ impl EdgeConfig {
                 .unwrap_or(false),
         };
         let core_endpoint = core.or_else(|| env("RTD_EDGE_CORE"));
+        let core_token = core_token.or_else(|| env("RTD_EDGE_CORE_TOKEN"));
 
         Ok(Self {
             bind,
@@ -135,6 +141,7 @@ impl EdgeConfig {
             secret,
             websocket,
             core_endpoint,
+            core_token,
         })
     }
 
@@ -206,6 +213,8 @@ mod tests {
                 "--websocket",
                 "--core",
                 "http://127.0.0.1:50051",
+                "--core-token",
+                "s3cret",
             ],
             no_env,
         )
@@ -218,6 +227,7 @@ mod tests {
             config.core_endpoint.as_deref(),
             Some("http://127.0.0.1:50051")
         );
+        assert_eq!(config.core_token.as_deref(), Some("s3cret"));
         assert!(config.secret.is_none());
     }
 
@@ -227,6 +237,7 @@ mod tests {
             "RTD_EDGE_RSA_KEY" => Some("env-key.pem".to_owned()),
             "RTD_EDGE_DC" => Some("7".to_owned()),
             "RTD_EDGE_WEBSOCKET" => Some("true".to_owned()),
+            "RTD_EDGE_CORE_TOKEN" => Some("env-token".to_owned()),
             _ => None,
         };
         let config = parse(&[], env).expect("config");
@@ -234,6 +245,7 @@ mod tests {
         assert_eq!(config.dc, 7);
         assert!(config.websocket);
         assert_eq!(config.rsa_key_path, PathBuf::from("env-key.pem"));
+        assert_eq!(config.core_token.as_deref(), Some("env-token"));
     }
 
     #[test]

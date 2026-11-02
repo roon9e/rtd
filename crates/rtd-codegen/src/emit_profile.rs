@@ -1,13 +1,13 @@
 //! Emits the `rtd-tlprofile` sidecar: the data-driven profile tables, the
 //! static route table, and the bound admission/dispatch/freeze runtime.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::emit::{ident_for_qname, to_upper_snake};
 use crate::model::{Definition, TypeKind};
 use crate::obligations::ConversionPlan;
 use crate::parse::Category;
-use crate::routes::{PlanSet, RouteMode, RouteTable};
+use crate::routes::{Plan, PlanSet, RouteMode, RouteTable};
 use crate::schema::RtdConfig;
 use crate::universe::Universe;
 
@@ -39,7 +39,7 @@ pub(crate) fn emit(
     universe: &Universe,
     plan: &ConversionPlan,
     table: &RouteTable,
-    _plans: &PlanSet,
+    plans: &PlanSet,
     config: &RtdConfig,
 ) -> Result<String, String> {
     let mut out = String::new();
@@ -79,7 +79,7 @@ pub(crate) fn emit(
     }
     out.push_str("];\n\n");
     emit_lookup(&mut out);
-    emit_invariant(&mut out, universe, table);
+    emit_invariant(&mut out, universe, table, plans);
     emit_wrappers(&mut out, universe)?;
     emit_runtime(&mut out);
     emit_profile_codec(&mut out, universe, plan, table)?;
@@ -2668,17 +2668,35 @@ pub fn wire_id(profile: Profile, semantic: SemanticId) -> Option<u32> {
     );
 }
 
-fn emit_invariant(out: &mut String, universe: &Universe, table: &RouteTable) {
-    // A method is wire-invariant when it is direct in every enabled profile and
-    // its result type agrees across those profiles.
+/// Indexes a plan set by `(layer, semantic key)` to its stable plan id.
+fn plan_index(plans: &[Plan]) -> BTreeMap<(i32, String), usize> {
+    let mut index = BTreeMap::new();
+    for plan in plans {
+        for (profile, key, _wire_id, _mode) in &plan.routes {
+            index.insert((*profile, key.as_string()), plan.id);
+        }
+    }
+    index
+}
+
+fn emit_invariant(out: &mut String, universe: &Universe, table: &RouteTable, plans: &PlanSet) {
+    // A method is wire-invariant when it is direct in every enabled profile with
+    // the same wire id, preflight plan and result plan everywhere — the rule the
+    // reference `td` generator applies. Comparing only the result *type* would
+    // over-mark a method whose request or result fields changed across layers
+    // (for example `auth.sendCode`), which a remote core rejects as an admitted
+    // wire-proof mismatch.
     let canonical = universe.canonical();
+    let result_plan = plan_index(&plans.result);
+    let preflight_plan = plan_index(&plans.preflight);
     let mut invariant: Vec<u32> = Vec::new();
     for definition in &canonical.definitions {
         if definition.key.category != Category::Function {
             continue;
         }
+        let key = definition.key.as_string();
         let mut ok = true;
-        let mut first_result: Option<String> = None;
+        let mut first: Option<(usize, Option<usize>)> = None;
         for layer in &table.profiles {
             let Some(route) = table.lookup(*layer, definition.wire_id) else {
                 ok = false;
@@ -2688,18 +2706,19 @@ fn emit_invariant(out: &mut String, universe: &Universe, table: &RouteTable) {
                 ok = false;
                 break;
             }
-            let Some(other) = universe.schemas[layer].find_key(&definition.key) else {
+            let Some(result) = result_plan.get(&(*layer, key.clone())).copied() else {
                 ok = false;
                 break;
             };
-            let rendered = other.result.as_string();
-            match &first_result {
-                None => first_result = Some(rendered),
-                Some(expected) if expected != &rendered => {
-                    ok = false;
-                    break;
+            let preflight = preflight_plan.get(&(*layer, key.clone())).copied();
+            match first {
+                None => first = Some((result, preflight)),
+                Some((want_result, want_preflight)) => {
+                    if result != want_result || preflight != want_preflight {
+                        ok = false;
+                        break;
+                    }
                 }
-                Some(_) => {}
             }
         }
         if ok {

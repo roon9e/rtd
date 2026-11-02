@@ -29,6 +29,14 @@ datacenters** from the start.
 | Client library — async façade | `add-client-async` | done (archived) |
 | Client library — authorization | `add-client-authorization` | done (archived) |
 | Client library — updates | `add-client-updates` | done (archived) |
+| Server — gramsrv v2 core-exec credential and container | `add-edge-coreexec-token` | done |
+| Server — gramsrv v2 dispatch parity (binding, layer, wire proof) | `add-edge-coreexec-binding` | done |
+
+`rtd-edge` runs as a **drop-in container in a gramsrv v2 stack** (postgres, redis, migrate,
+file, core): it presents the core-exec bearer token, completes the authorization-key exchange,
+persists keys, and dispatches admitted calls. Verified end to end — `rtd-client` through
+`rtd-edge` to the prebuilt `core:v2` completes `help.getConfig`, `auth.sendCode` and
+`auth.signIn` at layer 229 (the core pins `td v1.7.0`, canonical 229; rtd's canonical is 232).
 
 Layers 225–232 are enabled and the generated sidecar executes direct, retag and rewrite
 routes plus every policy conversion: the mechanical classes, the present-in-both hooks, the

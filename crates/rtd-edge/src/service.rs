@@ -91,7 +91,10 @@ async fn build_core(config: &EdgeConfig) -> Result<Arc<dyn Core>, EdgeError> {
     match &config.core_endpoint {
         Some(endpoint) => {
             let endpoint = Endpoint::from_shared(endpoint.clone()).map_err(EdgeError::Core)?;
-            let core = GrpcCore::connect(endpoint).await.map_err(EdgeError::Core)?;
+            let mut core = GrpcCore::connect(endpoint).await.map_err(EdgeError::Core)?;
+            if let Some(token) = &config.core_token {
+                core = core.with_token(token.clone());
+            }
             Ok(Arc::new(core))
         }
         None => Ok(Arc::new(LocalCore::with_builtins(&server_config(
@@ -127,6 +130,7 @@ mod tests {
             secret: Some(rtd_transport::Secret::parse("00112233445566778899aabbccddeeff").unwrap()),
             websocket: true,
             core_endpoint: None,
+            core_token: None,
         };
         let ingress = ingress_config(&config);
         // The secret and WebSocket settings are only observable through their
@@ -152,6 +156,7 @@ mod tests {
             secret: None,
             websocket: false,
             core_endpoint: None,
+            core_token: None,
         };
         assert!(matches!(
             config.load_rsa_key().expect_err("missing file"),

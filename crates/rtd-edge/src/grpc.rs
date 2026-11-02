@@ -17,8 +17,8 @@ use rtd_edge_proto::methods;
 use rtd_edge_proto::{
     AdmissionMode, AdvanceSessionLayerResponse, AuthKeyRecord as ProtoAuthKeyRecord,
     AuthKeyRequest, CoreExecInfoRequest, CoreExecInfoResponse, DispatchRequest, DispatchResponse,
-    ErrorResponse, GetAuthKeyResponse, PublishLayerEvidenceRequest, ResolveSessionLayerResponse,
-    SessionOfflineBatchRequest, SessionOfflineEvent, WireProof,
+    ErrorResponse, GetAuthKeyResponse, ProfileMark, PublishLayerEvidenceRequest,
+    ResolveSessionLayerResponse, SessionOfflineBatchRequest, SessionOfflineEvent, WireProof,
 };
 use rtd_error::Error as RtdError;
 use rtd_server::core::{
@@ -29,10 +29,14 @@ use tonic::Request;
 use tonic::client::Grpc;
 use tonic::codec::ProstCodec;
 use tonic::codegen::http::uri::PathAndQuery;
+use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, Endpoint};
 
 /// The TL error code reported for a control-plane failure at the boundary.
 const CORE_FAILURE_CODE: i32 = 500;
+
+/// The gRPC metadata key carrying the core-exec bearer credential.
+const AUTHORIZATION_METADATA: &str = "authorization";
 
 /// A [`Core`] implementation that dials a remote core's `CoreExecService`.
 ///
@@ -44,13 +48,24 @@ const CORE_FAILURE_CODE: i32 = 500;
 #[derive(Debug, Clone)]
 pub struct GrpcCore {
     channel: Channel,
+    token: Option<String>,
 }
 
 impl GrpcCore {
     /// Creates an adapter over an already-connected channel.
     #[must_use]
     pub fn new(channel: Channel) -> Self {
-        Self { channel }
+        Self {
+            channel,
+            token: None,
+        }
+    }
+
+    /// Sets the bearer token presented to the core on every call.
+    #[must_use]
+    pub fn with_token(mut self, token: impl Into<String>) -> Self {
+        self.token = Some(token.into());
+        self
     }
 
     /// Dials `endpoint` and returns a connected adapter.
@@ -86,16 +101,39 @@ impl GrpcCore {
         let mut client = Grpc::new(self.channel.clone());
         client.ready().await.map_err(|_| core_failure_error())?;
         let codec = ProstCodec::<M1, M2>::default();
+        let mut request = Request::new(message);
+        self.authorize(&mut request)?;
         let response = client
-            .unary(
-                Request::new(message),
-                PathAndQuery::from_static(path),
-                codec,
-            )
+            .unary(request, PathAndQuery::from_static(path), codec)
             .await
             .map_err(|_| core_failure_error())?;
         Ok(response.into_inner())
     }
+
+    /// Inserts the configured bearer credential into `request`'s metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns a control-plane failure when the configured token is not valid
+    /// ASCII metadata.
+    fn authorize<M>(&self, request: &mut Request<M>) -> Result<(), RtdError> {
+        apply_bearer(request, self.token.as_deref())
+    }
+}
+
+/// Inserts `authorization: Bearer <token>` into `request` when `token` is set.
+///
+/// # Errors
+///
+/// Returns a control-plane failure when `token` is not valid ASCII metadata.
+fn apply_bearer<M>(request: &mut Request<M>, token: Option<&str>) -> Result<(), RtdError> {
+    let Some(token) = token else {
+        return Ok(());
+    };
+    let value = MetadataValue::try_from(format!("Bearer {token}"))
+        .map_err(|_| RtdError::new(CORE_FAILURE_CODE, "core-exec token is not valid metadata"))?;
+    request.metadata_mut().insert(AUTHORIZATION_METADATA, value);
+    Ok(())
 }
 
 impl Core for GrpcCore {
@@ -125,13 +163,14 @@ impl Core for GrpcCore {
 
     fn dispatch(&self, call: AdmittedCall) -> CoreFuture<'_, Result<CallResult, RtdError>> {
         Box::pin(async move {
+            // The connection actor admitted with default inheritance, so the
+            // core must re-admit in the matching default mode.
             let mode = if call.layer.is_some() {
-                AdmissionMode::Layer
+                AdmissionMode::Default
             } else {
                 AdmissionMode::Unprofiled
             };
             let profile = call.layer.unwrap_or(0);
-            let wire_size = call.request.len() as i64;
             let request = DispatchRequest {
                 mode: mode as i32,
                 profile,
@@ -141,15 +180,21 @@ impl Core for GrpcCore {
                     profile,
                     method: call.semantic.get(),
                     wire_id: call.wire_id,
-                    wire_size,
-                    wire_digest: String::new(),
-                    wire_invariant: false,
-                    effective_profile: None,
-                    profile_evidence: None,
+                    wire_size: call.wire_size as i64,
+                    wire_digest: hex_lower(&call.wire_digest),
+                    wire_invariant: call.wire_invariant,
+                    effective_profile: call.effective_profile.map(|value| ProfileMark {
+                        profile: value,
+                        present: true,
+                    }),
+                    profile_evidence: call.profile_evidence.map(|value| ProfileMark {
+                        profile: value,
+                        present: true,
+                    }),
                 }),
-                auth_key_id: Vec::new(),
+                auth_key_id: call.auth_key_id.0.to_vec(),
                 session_id: call.session.0,
-                msg_id: 0,
+                msg_id: call.msg_id,
                 admission_seq: 0,
                 profile_evidence_fresh: false,
                 identity_hint: None,
@@ -257,11 +302,15 @@ impl Core for GrpcCore {
         })
     }
 
-    fn report_session_offline(&self, session: SessionId) -> CoreFuture<'_, Result<(), RtdError>> {
+    fn report_session_offline(
+        &self,
+        auth_key_id: AuthKeyId,
+        session: SessionId,
+    ) -> CoreFuture<'_, Result<(), RtdError>> {
         Box::pin(async move {
             let request = SessionOfflineBatchRequest {
                 events: vec![SessionOfflineEvent {
-                    raw_auth_key_id: Vec::new(),
+                    raw_auth_key_id: auth_key_id.0.to_vec(),
                     session_id: session.0,
                     user_id: 0,
                     last_for_user: false,
@@ -273,6 +322,17 @@ impl Core for GrpcCore {
             control_result(response)
         })
     }
+}
+
+/// Lowercase hex encoding, matching gramsrv's `hex.EncodeToString`.
+fn hex_lower(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(DIGITS[(byte >> 4) as usize] as char);
+        out.push(DIGITS[(byte & 0x0f) as usize] as char);
+    }
+    out
 }
 
 /// Maps an [`ErrorResponse`] control result to a TL result.
@@ -349,7 +409,7 @@ mod tests {
     use tonic::transport::{Endpoint, Server};
     use tonic::{Request, Response, Status};
 
-    use super::GrpcCore;
+    use super::{GrpcCore, apply_bearer};
 
     /// A unary service built from a handler closure.
     struct UnaryServiceFn<M1, M2, F> {
@@ -445,8 +505,15 @@ mod tests {
     {
         let service = UnaryServiceFn::<CoreExecInfoRequest, CoreExecInfoResponse, _>::new(
             |request: Request<CoreExecInfoRequest>| async move {
+                // Echo the inbound authorization metadata as a capability so a
+                // test can observe what the edge presented.
+                let auth = request
+                    .metadata()
+                    .get("authorization")
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::to_owned);
                 let request = request.into_inner();
-                let response = match rtd_edge_proto::handshake(&request) {
+                let mut response = match rtd_edge_proto::handshake(&request) {
                     Ok(response) => response,
                     Err(error) => CoreExecInfoResponse {
                         protocol_version: 0,
@@ -457,6 +524,9 @@ mod tests {
                         instance_id: String::new(),
                     },
                 };
+                if let Some(auth) = auth {
+                    response.capabilities.push(format!("auth:{auth}"));
+                }
                 Ok::<_, Status>(Response::new(response))
             },
         );
@@ -477,6 +547,10 @@ mod tests {
                 let core = Arc::clone(&core);
                 async move {
                     let request = request.into_inner();
+                    // The real core rejects a call without a resolved auth key;
+                    // mirror that so a missing binding is visible in tests.
+                    let auth_key_id =
+                        parse_auth_key_id(&request.auth_key_id).ok_or_else(bad_auth_key_id)?;
                     let layer = if request.mode == AdmissionMode::Unprofiled as i32 {
                         None
                     } else {
@@ -486,11 +560,19 @@ mod tests {
                         Some(proof) => (SemanticId(proof.method), proof.wire_id),
                         None => (SemanticId(0), 0),
                     };
+                    let wire_size = request.request_wire.len();
                     let call = AdmittedCall {
+                        auth_key_id,
                         session: SessionId(request.session_id),
+                        msg_id: request.msg_id,
                         semantic,
                         layer,
                         wire_id,
+                        wire_size,
+                        wire_digest: [0; 32],
+                        wire_invariant: false,
+                        effective_profile: None,
+                        profile_evidence: None,
                         request: request.request_wire,
                     };
                     let response = match core.dispatch(call).await {
@@ -764,8 +846,13 @@ mod tests {
                 async move {
                     let request = request.into_inner();
                     for event in request.events {
+                        let Some(auth_key_id) = parse_auth_key_id(&event.raw_auth_key_id) else {
+                            return Ok::<_, Status>(Response::new(ErrorResponse {
+                                error: "bad raw auth key".to_owned(),
+                            }));
+                        };
                         if let Err(error) = core
-                            .report_session_offline(SessionId(event.session_id))
+                            .report_session_offline(auth_key_id, SessionId(event.session_id))
                             .await
                         {
                             return Ok::<_, Status>(Response::new(ErrorResponse {
@@ -785,6 +872,10 @@ mod tests {
 
     fn parse_auth_key_id(bytes: &[u8]) -> Option<AuthKeyId> {
         let bytes: [u8; 8] = bytes.try_into().ok()?;
+        // An all-zero id is the unencrypted marker, never a real auth key.
+        if bytes == [0u8; 8] {
+            return None;
+        }
         Some(AuthKeyId(bytes))
     }
 
@@ -819,12 +910,20 @@ mod tests {
     fn canonical_call() -> AdmittedCall {
         let mut writer = Writer::new();
         Method::HelpGetConfig(Box::new(HelpGetConfig)).encode(&mut writer);
+        let request = writer.into_vec();
         AdmittedCall {
+            auth_key_id: AuthKeyId([9, 9, 9, 9, 9, 9, 9, 9]),
             session: SessionId(7),
+            msg_id: 11,
             semantic: METHOD_HELP_GET_CONFIG,
             layer: Some(232),
             wire_id: HelpGetConfig::TYPE_ID,
-            request: writer.into_vec(),
+            wire_size: request.len(),
+            wire_digest: [0; 32],
+            wire_invariant: true,
+            effective_profile: Some(232),
+            profile_evidence: None,
+            request,
         }
     }
 
@@ -836,6 +935,55 @@ mod tests {
         let info = adapter.info().await.expect("info");
         assert_eq!(info.protocol_version, rtd_edge_proto::PROTOCOL_VERSION);
         assert_eq!(info.dc, 0);
+    }
+
+    #[test]
+    fn apply_bearer_sets_and_omits_token() {
+        let mut with = Request::new(());
+        apply_bearer(&mut with, Some("s3cret")).expect("token");
+        assert_eq!(
+            with.metadata().get("authorization").expect("header"),
+            "Bearer s3cret"
+        );
+
+        let mut without = Request::new(());
+        apply_bearer(&mut without, None).expect("no token");
+        assert!(without.metadata().get("authorization").is_none());
+    }
+
+    #[tokio::test]
+    async fn core_exec_token_is_presented_as_bearer_metadata() {
+        let core: Arc<dyn Core> = Arc::new(LocalCore::with_builtins(&server_config()));
+        let (addr, _handle) = spawn_core(core).await;
+        let endpoint = Endpoint::from_shared(format!("http://{addr}")).expect("valid endpoint");
+        let adapter = GrpcCore::connect(endpoint)
+            .await
+            .expect("connect adapter")
+            .with_token("s3cret");
+        let info = adapter.info().await.expect("info");
+        assert!(
+            info.capabilities
+                .iter()
+                .any(|name| name == "auth:Bearer s3cret"),
+            "capabilities were {:?}",
+            info.capabilities
+        );
+    }
+
+    #[tokio::test]
+    async fn no_token_sends_no_authorization_metadata() {
+        let core: Arc<dyn Core> = Arc::new(LocalCore::with_builtins(&server_config()));
+        let (addr, _handle) = spawn_core(core).await;
+        let adapter = connect_adapter(addr).await;
+        let info = adapter.info().await.expect("info");
+        assert!(
+            !info
+                .capabilities
+                .iter()
+                .any(|name| name.starts_with("auth:")),
+            "capabilities were {:?}",
+            info.capabilities
+        );
     }
 
     #[tokio::test]
@@ -860,6 +1008,23 @@ mod tests {
             panic!("help.getConfig did not return a Config");
         };
         assert_eq!(config.this_dc, 2);
+    }
+
+    #[tokio::test]
+    async fn dispatch_without_auth_key_id_fails() {
+        // The mock core rejects an empty auth_key_id (as gramsrv v2 does), so a
+        // call that lost its binding fails rather than being served unbound.
+        let core: Arc<dyn Core> = Arc::new(LocalCore::with_builtins(&server_config()));
+        let (addr, _handle) = spawn_core(core).await;
+        let adapter = connect_adapter(addr).await;
+
+        let mut call = canonical_call();
+        call.auth_key_id = AuthKeyId([0; 8]);
+        let error = adapter
+            .dispatch(call)
+            .await
+            .expect_err("an unbound call is rejected");
+        assert_eq!(error.message(), "CORE_FAILURE");
     }
 
     #[tokio::test]

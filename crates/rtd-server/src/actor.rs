@@ -1399,20 +1399,41 @@ impl Actor {
         header: MessageHeader,
         body: &[u8],
     ) -> Result<(), ActorError> {
-        let profile = self.context.options.layer;
-        let admitted =
-            match rtd_tlprofile::admit_default_with_limits(profile, body, Limits::default()) {
-                Ok(admitted) => admitted,
-                Err(error) => {
-                    let mapped = crate::rpc::map_admit_error(&error);
-                    return self.send_rpc_error(header.msg_id, &mapped).await;
-                }
-            };
+        let default_profile = self.context.options.layer;
+        let admitted = match rtd_tlprofile::admit_default_with_limits(
+            default_profile,
+            body,
+            Limits::default(),
+        ) {
+            Ok(admitted) => admitted,
+            Err(error) => {
+                let mapped = crate::rpc::map_admit_error(&error);
+                return self.send_rpc_error(header.msg_id, &mapped).await;
+            }
+        };
+        // A remote core re-admits the raw wire, so the forwarded profile must be
+        // the profile the wire is actually in: the layer the client negotiated
+        // (an `invokeWithLayer` selector), not this edge's default.
+        let negotiated = admitted
+            .explicit_profile
+            .or(admitted.effective_profile)
+            .unwrap_or(default_profile);
+        let profile = negotiated.layer();
+        // The remote core recomputes a wire proof from the same admission; mirror
+        // the marks it derives (value = the negotiated profile, presence from the
+        // wrapper evidence) so the two proofs are equal.
         let call = AdmittedCall {
+            auth_key_id: self.auth_key_id.unwrap_or(AuthKeyId([0; 8])),
             session: SessionId(self.session_id.unwrap_or(0)),
+            msg_id: header.msg_id,
             semantic: admitted.semantic,
-            layer: Some(profile.layer()),
+            layer: Some(profile),
             wire_id: admitted.wire_id,
+            wire_size: admitted.wire_size,
+            wire_digest: admitted.wire_digest,
+            wire_invariant: rtd_tlprofile::is_invariant_terminal(admitted.wire_id),
+            effective_profile: admitted.effective_profile.map(|_| profile),
+            profile_evidence: admitted.explicit_profile.map(|_| profile),
             request: body.to_vec(),
         };
         match self.context.core.dispatch(call).await {
@@ -1455,7 +1476,7 @@ impl Actor {
             let _ = self
                 .context
                 .core
-                .report_session_offline(SessionId(session_id))
+                .report_session_offline(auth_key_id, SessionId(session_id))
                 .await;
         }
     }
@@ -1717,6 +1738,7 @@ mod tests {
 
         fn report_session_offline(
             &self,
+            _auth_key_id: AuthKeyId,
             _session: SessionId,
         ) -> CoreFuture<'_, Result<(), RtdError>> {
             Box::pin(async move { Ok(()) })

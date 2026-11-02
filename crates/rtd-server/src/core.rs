@@ -74,14 +74,28 @@ pub struct CoreInfo {
 /// together with the metadata needed to bind and validate the result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdmittedCall {
+    /// The authorization key that carried the call.
+    pub auth_key_id: AuthKeyId,
     /// The session that admitted the call.
     pub session: SessionId,
+    /// The message identifier of the request.
+    pub msg_id: i64,
     /// The stable semantic method identity.
     pub semantic: SemanticId,
     /// The negotiated profile layer, if any.
     pub layer: Option<i32>,
     /// The terminal wire identifier.
     pub wire_id: u32,
+    /// The original wire size in bytes.
+    pub wire_size: usize,
+    /// SHA-256 of the original wire bytes.
+    pub wire_digest: [u8; 32],
+    /// Whether the terminal is wire-invariant across profiles.
+    pub wire_invariant: bool,
+    /// The effective profile mark value, when present.
+    pub effective_profile: Option<i32>,
+    /// The explicit profile-evidence mark value, when present.
+    pub profile_evidence: Option<i32>,
     /// The canonical request bytes.
     pub request: Vec<u8>,
 }
@@ -140,7 +154,11 @@ pub trait Core: Send + Sync {
     ) -> CoreFuture<'_, Result<(), RtdError>>;
 
     /// Reports that a session went offline.
-    fn report_session_offline(&self, session: SessionId) -> CoreFuture<'_, Result<(), RtdError>>;
+    fn report_session_offline(
+        &self,
+        auth_key_id: AuthKeyId,
+        session: SessionId,
+    ) -> CoreFuture<'_, Result<(), RtdError>>;
 }
 
 /// An in-process [`Core`] over a [`Router`] and an in-memory durable store.
@@ -280,7 +298,11 @@ impl<R: Router> Core for LocalCore<R> {
         })
     }
 
-    fn report_session_offline(&self, session: SessionId) -> CoreFuture<'_, Result<(), RtdError>> {
+    fn report_session_offline(
+        &self,
+        _auth_key_id: AuthKeyId,
+        session: SessionId,
+    ) -> CoreFuture<'_, Result<(), RtdError>> {
         Box::pin(async move {
             self.evidence
                 .lock()
@@ -307,10 +329,17 @@ mod tests {
         let mut writer = Writer::new();
         Method::HelpGetConfig(Box::new(HelpGetConfig)).encode(&mut writer);
         AdmittedCall {
+            auth_key_id: AuthKeyId([9, 9, 9, 9, 9, 9, 9, 9]),
             session: SessionId(7),
+            msg_id: 11,
             semantic: METHOD_HELP_GET_CONFIG,
             layer: Some(232),
             wire_id: HelpGetConfig::TYPE_ID,
+            wire_size: 0,
+            wire_digest: [0; 32],
+            wire_invariant: false,
+            effective_profile: None,
+            profile_evidence: None,
             request: writer.into_vec(),
         }
     }
@@ -378,7 +407,9 @@ mod tests {
             core.resolve_layer_evidence(session).await.expect("resolve"),
             Some(232)
         );
-        core.report_session_offline(session).await.expect("offline");
+        core.report_session_offline(AuthKeyId([7; 8]), session)
+            .await
+            .expect("offline");
         assert_eq!(
             core.resolve_layer_evidence(session).await.expect("resolve"),
             None

@@ -454,6 +454,7 @@ mod tests {
 
         fn report_session_offline(
             &self,
+            _auth_key_id: AuthKeyId,
             session: SessionId,
         ) -> CoreFuture<'_, Result<(), RtdError>> {
             Box::pin(async move {

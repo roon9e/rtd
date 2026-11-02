@@ -58,6 +58,8 @@ pub struct Client<T: Transport> {
     random: SystemRandom,
     initialized: bool,
     handler: Option<Box<dyn FnMut(Updates) + Send>>,
+    /// The layer every call is wrapped in.
+    layer: i32,
 }
 
 /// One inbound message, reduced to what the caller cares about.
@@ -113,7 +115,17 @@ impl<T: Transport> Client<T> {
             random: SystemRandom,
             initialized: false,
             handler: None,
+            layer: LAYER,
         }
+    }
+
+    /// Sets the layer every call is wrapped in (`invokeWithLayer`).
+    ///
+    /// Defaults to the compiled canonical layer; a server that speaks another
+    /// layer (for example a gramsrv v2 core at layer 229) can be targeted before
+    /// the first call.
+    pub fn set_layer(&mut self, layer: i32) {
+        self.layer = layer;
     }
 
     /// Returns the current server salt.
@@ -242,7 +254,7 @@ impl<T: Transport> Client<T> {
     fn wrap_layer(&self, query: Method) -> Vec<u8> {
         let mut writer = Writer::new();
         Method::InvokeWithLayer(Box::new(InvokeWithLayer {
-            layer: LAYER,
+            layer: self.layer,
             query: Box::new(query),
         }))
         .encode(&mut writer);

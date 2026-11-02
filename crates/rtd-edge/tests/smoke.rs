@@ -75,6 +75,7 @@ async fn binds_from_configuration_with_an_in_process_core() {
         secret: None,
         websocket: false,
         core_endpoint: None,
+        core_token: None,
     };
     let server = service::bind(config).await.expect("bind the edge");
     assert_ne!(server.local_addr().expect("local address").port(), 0);
