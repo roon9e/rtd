@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use rtd_bin::{Reader, Writer};
-use rtd_crypto::{AuthKey, SystemRandom};
+use rtd_crypto::{AuthKey, Key, SystemRandom};
 use rtd_exchange::{ClientConfig, Stream as ExchangeStream, client_exchange};
 use rtd_mt::{
     BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder, MsgsAck,
@@ -19,7 +19,7 @@ use rtd_tg::{
 use rtd_util::Clock;
 
 use crate::error::{Error, Result};
-use crate::session::ClientSession;
+use crate::session::{ClientSession, SessionData};
 use crate::transport::Transport;
 
 /// `bad_server_salt` constructor id.
@@ -117,6 +117,25 @@ impl<T: Transport> Client<T> {
     #[must_use]
     pub fn salt(&self) -> i64 {
         self.session.salt()
+    }
+
+    /// Snapshots the session for persistence; restore it with
+    /// [`Client::from_session`].
+    #[must_use]
+    pub fn session_data(&self) -> SessionData {
+        self.session.snapshot()
+    }
+
+    /// Builds a client over a fresh transport from a saved session, without
+    /// repeating the authorization-key exchange.
+    #[must_use]
+    pub fn from_session(
+        transport: T,
+        data: &SessionData,
+        clock: Arc<dyn Clock + Send + Sync>,
+    ) -> Self {
+        let auth_key = Key::from_array(data.auth_key).with_id();
+        Self::new(transport, auth_key, data.session_id, data.salt, clock)
     }
 
     /// Establishes the session with `invokeWithLayer`/`initConnection` at the

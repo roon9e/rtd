@@ -12,5 +12,5 @@ pub mod transport;
 
 pub use client::{Client, InitParams};
 pub use error::{Error, Result};
-pub use session::ClientSession;
+pub use session::{ClientSession, SessionData};
 pub use transport::{DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp};
