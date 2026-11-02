@@ -21,7 +21,7 @@ datacenters** from the start.
 |---|---|---|
 | Foundation — protocol core, generator, manifests | `establish-rtd-foundation` | done (archived) |
 | Server runtime — edge, RPC dispatch, in-process core | `add-server-runtime` | done (archived) |
-| Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | in progress (14/20; 179/179 policy routes) |
+| Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | in progress (17/20; 179/179 policy routes) |
 | Multi-layer — legacy `ProfileOnly` constructors | `add-legacy-layer-constructors` | in progress (3/10; the legacy keyboard-rows adapter is emitted) |
 | Multi-DC — routing, migration, authorization transfer, delivery | planned | not started |
 | Client library | planned | not started |
