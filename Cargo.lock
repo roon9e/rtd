@@ -981,6 +981,24 @@ name = "rtd-bin"
 version = "0.0.0"
 
 [[package]]
+name = "rtd-client"
+version = "0.0.0"
+dependencies = [
+ "rand",
+ "rsa",
+ "rtd-bin",
+ "rtd-crypto",
+ "rtd-error",
+ "rtd-exchange",
+ "rtd-mt",
+ "rtd-proto",
+ "rtd-tg",
+ "rtd-transport",
+ "rtd-util",
+ "serde_json",
+]
+
+[[package]]
 name = "rtd-codegen"
 version = "0.0.0"
 dependencies = [

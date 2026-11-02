@@ -1,0 +1,304 @@
+//! A synchronous MTProto 2.0 client over a [`Transport`].
+
+use std::sync::Arc;
+
+use rtd_bin::{Reader, Writer};
+use rtd_crypto::{AuthKey, SystemRandom};
+use rtd_exchange::{ClientConfig, Stream as ExchangeStream, client_exchange};
+use rtd_mt::{
+    BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder, MsgsAck,
+    Object as ServiceObject, RpcError,
+};
+use rtd_proto::{
+    GZIP_TYPE_ID, Gzip, MESSAGE_CONTAINER_TYPE_ID, MessageContainer, MessageSeq,
+    RPC_RESULT_TYPE_ID, RpcResult,
+};
+use rtd_tg::{
+    DecodeLimits, Decoder, HelpGetConfig, InitConnection, InvokeWithLayer, LAYER, Method, Object,
+};
+use rtd_util::Clock;
+
+use crate::error::{Error, Result};
+use crate::session::ClientSession;
+use crate::transport::Transport;
+
+/// `bad_server_salt` constructor id.
+const BAD_SERVER_SALT_ID: u32 = 0xedab_447b;
+/// `bad_msg_notification` constructor id.
+const BAD_MSG_NOTIFICATION_ID: u32 = 0xa7ef_f811;
+/// Maximum receive rounds while awaiting one result.
+const MAX_ROUNDS: usize = 64;
+/// Maximum send attempts (initial plus retry).
+const MAX_ATTEMPTS: usize = 8;
+
+/// Parameters for the first `initConnection` call.
+#[derive(Debug, Clone)]
+pub struct InitParams {
+    /// The application id.
+    pub api_id: i32,
+    /// The device model.
+    pub device_model: String,
+    /// The operating system version.
+    pub system_version: String,
+    /// The client application version.
+    pub app_version: String,
+    /// The system language code.
+    pub system_lang_code: String,
+    /// The language pack name.
+    pub lang_pack: String,
+    /// The language code.
+    pub lang_code: String,
+}
+
+/// A synchronous MTProto 2.0 client over a [`Transport`].
+pub struct Client<T: Transport> {
+    transport: T,
+    session: ClientSession,
+    random: SystemRandom,
+    initialized: bool,
+}
+
+/// One inbound message, reduced to what the caller cares about.
+enum Reply {
+    /// The awaited result arrived.
+    Result(Object),
+    /// The server reported a stale salt; resend with the refreshed one.
+    BadSalt,
+    /// A message that did not answer this request.
+    Ignored,
+}
+
+impl<T: Transport> Client<T> {
+    /// Connects over an established transport: completes the requester
+    /// authorization-key exchange and returns a client bound to the result.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Exchange`] when the key exchange fails, or a transport
+    /// error.
+    pub fn connect(
+        mut transport: T,
+        config: &ClientConfig,
+        clock: Arc<dyn Clock + Send + Sync>,
+    ) -> Result<Self> {
+        let result = client_exchange(
+            &mut ExchangeAdapter(&mut transport),
+            config,
+            clock.as_ref(),
+            &mut SystemRandom,
+        )?;
+        Ok(Self::new(
+            transport,
+            result.auth_key,
+            result.session_id,
+            result.server_salt,
+            clock,
+        ))
+    }
+
+    /// Creates a client over an established session.
+    #[must_use]
+    pub fn new(
+        transport: T,
+        auth_key: AuthKey,
+        session_id: i64,
+        salt: i64,
+        clock: Arc<dyn Clock + Send + Sync>,
+    ) -> Self {
+        Self {
+            transport,
+            session: ClientSession::new(auth_key, session_id, salt, clock),
+            random: SystemRandom,
+            initialized: false,
+        }
+    }
+
+    /// Returns the current server salt.
+    #[must_use]
+    pub fn salt(&self) -> i64 {
+        self.session.salt()
+    }
+
+    /// Establishes the session with `invokeWithLayer`/`initConnection` at the
+    /// canonical layer, invoking `help.getConfig`, and returns the inner result.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error.
+    pub fn initialize(&mut self, params: InitParams) -> Result<Object> {
+        let init = Method::InitConnection(Box::new(InitConnection {
+            flags: 0,
+            api_id: params.api_id,
+            device_model: params.device_model,
+            system_version: params.system_version,
+            app_version: params.app_version,
+            system_lang_code: params.system_lang_code,
+            lang_pack: params.lang_pack,
+            lang_code: params.lang_code,
+            proxy: None,
+            params: None,
+            query: Box::new(Method::HelpGetConfig(Box::new(HelpGetConfig))),
+        }));
+        let body = self.wrap_layer(init);
+        let result = self.call(body)?;
+        self.initialized = true;
+        Ok(result)
+    }
+
+    /// Invokes one canonical-layer method and returns its result.
+    ///
+    /// Every call is wrapped in `invokeWithLayer` at the canonical layer, like
+    /// `td`; [`Client::initialize`] must run first for a fresh session.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error.
+    pub fn invoke(&mut self, query: Method) -> Result<Object> {
+        let body = self.wrap_layer(query);
+        self.call(body)
+    }
+
+    fn wrap_layer(&self, query: Method) -> Vec<u8> {
+        let mut writer = Writer::new();
+        Method::InvokeWithLayer(Box::new(InvokeWithLayer {
+            layer: LAYER,
+            query: Box::new(query),
+        }))
+        .encode(&mut writer);
+        writer.into_vec()
+    }
+
+    fn send(&mut self, message: MessageSeq, body: &[u8]) -> Result<()> {
+        let frame = self.session.encode(message, body, &mut self.random);
+        self.transport.send_frame(&frame)
+    }
+
+    fn call(&mut self, body: Vec<u8>) -> Result<Object> {
+        let mut last = 0;
+        for _ in 0..MAX_ATTEMPTS {
+            let message = self.session.allocate_content();
+            last = message.msg_id;
+            self.send(message, &body)?;
+            if let Some(object) = self.await_result(message.msg_id)? {
+                return Ok(object);
+            }
+        }
+        Err(Error::NoResult { message_id: last })
+    }
+
+    fn await_result(&mut self, request_id: i64) -> Result<Option<Object>> {
+        for _ in 0..MAX_ROUNDS {
+            let frame = self.transport.recv_frame()?;
+            let decrypted = self.session.decode(&frame)?;
+            self.flush_acks()?;
+            match self.handle_body(request_id, &decrypted.body)? {
+                Reply::Result(object) => return Ok(Some(object)),
+                Reply::BadSalt => return Ok(None),
+                Reply::Ignored => continue,
+            }
+        }
+        Err(Error::NoResult {
+            message_id: request_id,
+        })
+    }
+
+    fn flush_acks(&mut self) -> Result<()> {
+        let ids = self.session.take_acks();
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let mut writer = Writer::new();
+        MsgsAck::Msgs_ack { msg_ids: ids }.encode(&mut writer);
+        let body = writer.into_vec();
+        let message = self.session.allocate_service();
+        self.send(message, &body)
+    }
+
+    fn handle_body(&mut self, request_id: i64, body: &[u8]) -> Result<Reply> {
+        let id = Reader::new(body)
+            .peek_id()
+            .map_err(|error| Error::Decode(error.to_string()))?;
+        match id {
+            RPC_RESULT_TYPE_ID => {
+                let result =
+                    RpcResult::decode(body).map_err(|error| Error::Decode(error.to_string()))?;
+                if result.request_message_id != request_id {
+                    return Ok(Reply::Ignored);
+                }
+                let payload = self.ungzip(&result.result)?;
+                self.decode_result(&payload).map(Reply::Result)
+            }
+            MESSAGE_CONTAINER_TYPE_ID => {
+                let container = MessageContainer::from_bytes(body)
+                    .map_err(|error| Error::Decode(error.to_string()))?;
+                for message in container.messages {
+                    if let Reply::Result(object) = self.handle_body(request_id, &message.body)? {
+                        return Ok(Reply::Result(object));
+                    }
+                }
+                Ok(Reply::Ignored)
+            }
+            GZIP_TYPE_ID => {
+                let inner = self.ungzip(body)?;
+                self.handle_body(request_id, &inner)
+            }
+            BAD_SERVER_SALT_ID => {
+                let mut decoder = ServiceDecoder::new(body, ServiceDecodeLimits::default());
+                if let Ok(BadMsgNotification::Bad_server_salt {
+                    new_server_salt, ..
+                }) = BadMsgNotification::decode(&mut decoder)
+                {
+                    self.session.set_salt(new_server_salt);
+                }
+                Ok(Reply::BadSalt)
+            }
+            BAD_MSG_NOTIFICATION_ID => Ok(Reply::Ignored),
+            _ => Ok(Reply::Ignored),
+        }
+    }
+
+    fn ungzip(&self, payload: &[u8]) -> Result<Vec<u8>> {
+        if Reader::new(payload).peek_id().ok() == Some(GZIP_TYPE_ID) {
+            let gzip = Gzip::decode(payload).map_err(|error| Error::Decode(error.to_string()))?;
+            Ok(gzip.data)
+        } else {
+            Ok(payload.to_vec())
+        }
+    }
+
+    fn decode_result(&self, payload: &[u8]) -> Result<Object> {
+        let mut decoder = Decoder::new(payload, DecodeLimits::default());
+        if let Ok(object) = Object::decode(&mut decoder) {
+            return Ok(object);
+        }
+        // Otherwise it is an MTProto `rpc_error`.
+        let mut service = ServiceDecoder::new(payload, ServiceDecodeLimits::default());
+        match ServiceObject::decode(&mut service) {
+            Ok(ServiceObject::RpcError(error)) => match *error {
+                RpcError::Rpc_error {
+                    error_code,
+                    error_message,
+                } => Err(Error::Rpc(rtd_error::Error::new(error_code, error_message))),
+            },
+            _ => Err(Error::Decode("unrecognised RPC result".to_owned())),
+        }
+    }
+}
+
+/// Adapts a [`Transport`] to the synchronous `rtd_exchange::Stream` the
+/// authorization-key exchange expects.
+struct ExchangeAdapter<'a, T: Transport>(&'a mut T);
+
+impl<T: Transport> ExchangeStream for ExchangeAdapter<'_, T> {
+    fn send(&mut self, frame: &[u8]) -> rtd_exchange::Result<()> {
+        self.0
+            .send_frame(frame)
+            .map_err(|error| rtd_exchange::Error::Stream(error.to_string()))
+    }
+
+    fn recv(&mut self) -> rtd_exchange::Result<Vec<u8>> {
+        self.0
+            .recv_frame()
+            .map_err(|error| rtd_exchange::Error::Stream(error.to_string()))
+    }
+}

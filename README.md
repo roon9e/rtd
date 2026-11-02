@@ -11,9 +11,9 @@ datacenters** from the start.
 > **Status: in progress.** The sans-IO protocol core (serialization, crypto, framing,
 > transports, injectable clock/randomness, the Go cross-check harness, and the generated
 > `rtd-tg`/`rtd-mt` value and service models), the multi-layer admission/routing runtime
-> (`rtd-tlprofile`), and the server edge/RPC runtime (`rtd-server`, `rtd-edge`) are
-> implemented. Multi-layer conversion coverage is being completed; a client library and
-> multi-DC routing are not started. See [`openspec/`](openspec/) for the plan.
+> (`rtd-tlprofile`), the server edge/RPC runtime (`rtd-server`, `rtd-edge`), and a client
+> runtime (`rtd-client`) that completes the auth-key exchange and invokes canonical methods
+> are implemented. Multi-DC routing is not started. See [`openspec/`](openspec/) for the plan.
 
 ## Progress
 
@@ -24,7 +24,7 @@ datacenters** from the start.
 | Multi-layer — exact-profile routing, admission, conversion hooks | `complete-multi-layer` | done (archived) |
 | Multi-layer — legacy `ProfileOnly` constructors | `add-legacy-layer-constructors` | done (archived) |
 | Multi-DC — routing, migration, authorization transfer, delivery | planned | not started |
-| Client library | planned | not started |
+| Client library — MTProto 2.0 client runtime | `add-client-runtime` | in progress |
 
 Layers 225–232 are enabled and the generated sidecar executes direct, retag and rewrite
 routes plus every policy conversion: the mechanical classes, the present-in-both hooks, the
@@ -60,7 +60,9 @@ Core (sans-IO, no runtime, no I/O):
 | `rtd-tlprofile` | generated multi-layer routing + admission runtime |
 | `rtd-error` | Telegram TL error parsing |
 | `rtd-util` | injectable clock and randomness |
-| `rtd-tmap` | typed map helpers |
+| `rtd-exchange` | authorization-key exchange (client and server flows) |
+| `rtd-client` | MTProto 2.0 client runtime (transport, session, RPC) |
+| `rtd-tmap` | wire-id to name registry |
 
 Runtime and tooling:
 
@@ -110,6 +112,7 @@ socket. The engine is never linked or vendored (it is GPL-2.0).
 ```console
 cargo build --release -p mtproto-testserver --manifest-path path/to/mtproto-engine/Cargo.toml
 RTD_PEER_TESTSERVER=path/to/mtproto-engine/target/release/mtproto-testserver cargo test -p rtd-exchange --test peer_gate
+RTD_PEER_TESTSERVER=path/to/mtproto-engine/target/release/mtproto-testserver cargo test -p rtd-client --test peer_gate
 ```
 
 Without `RTD_PEER_TESTSERVER` the gate is skipped; the local `127.0.0.1` peer
