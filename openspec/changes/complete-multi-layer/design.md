@@ -173,21 +173,23 @@ obligation shape is not yet emitted stays fail-closed (never a canonical fallbac
 - **field requirement** (`required`, e.g. the ephemeral peers) — emitted: `field_require`
   names the function that returns the value or fails when the mandatory profile field's
   optional canonical source is absent.
-- **supply** (a mandatory canonical field absent from the profile whose value comes from
-  a hook, e.g. the legacy default keyboard-button type), **discard/capture** (the chat
-  invite query id, captured from a profile-only `webview` field), **project** (conditional
-  element/field drop) and the **vector row adapter** (`layerAdaptLegacyInlineKeyboardRows`,
-  which transitively needs the `ProfileOnly` keyboard buttons) are not emitted yet and are
-  tracked with tasks 3.3/4.1/5.1/5.3/5.4; the two keyboard-entangled ones belong with
-  `add-legacy-layer-constructors`.
+- **supply** (a mandatory canonical field absent from the profile whose value comes from a
+  hook, e.g. the legacy default keyboard-button type) — emitted: `field_supply`, and the
+  value is materialised on decode.
+- **capture** (a mandatory canonical field derived from a profile-only field, e.g. the chat
+  invite query id) — emitted: `field_capture`, reading the source profile field once.
+- **project** (a value the older layer cannot represent) — emitted: a per-value gate returns
+  `ProjectionError::Dropped`, and a containing profile vector filters those elements (each
+  element is encoded into a scratch buffer and drops are omitted) so the container still
+  encodes with the survivors.
+- the **vector row adapter** (`layerAdaptLegacyInlineKeyboardRows`) — **not emitted**: the
+  older `replyInlineMarkup.rows` carry the profile's `KeyboardButton` *class*, whose old-only
+  constructors are `ProfileOnly`. It needs the per-profile legacy codecs from
+  `add-legacy-layer-constructors` and is the only remaining fail-closed hook.
 
-`project` is the hard one: the reference generator (`td/gen/layer_codec_model.go`,
-`emitFieldProjectionGate` and its preflight cardinality checks) gates a field or vector
-element on a hook that reports whether the value survives, then requires the surviving
-cardinality to be exactly 0 or 1 (else a preflight error). Emitting that needs a
-projection-gate / cardinality subsystem in this generator, which is a focused follow-up; the
-`discard`/capture pair (chat invite) needs a profile-only field read that feeds a canonical
-field. Both keep failing closed until then.
+`project` follows the reference generator (`td/gen/layer_codec_model.go`,
+`emitFieldProjectionGate`): a hook reports whether the value survives; a singular unrepresen-
+table value fails closed (`Dropped`), and a vector omits the dropped elements.
 
 This keeps the change shippable and CI-green after each shape while preserving fail-closed
 semantics for the rest.
