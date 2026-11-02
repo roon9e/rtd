@@ -28,7 +28,7 @@ datacenters** from the start.
 | Client library — session persistence | `add-client-session-persistence` | done (archived) |
 | Client library — async façade | `add-client-async` | done (archived) |
 | Client library — authorization | `add-client-authorization` | done (archived) |
-| Client library — updates | `add-client-updates` | in progress |
+| Client library — updates | `add-client-updates` | done (archived) |
 
 Layers 225–232 are enabled and the generated sidecar executes direct, retag and rewrite
 routes plus every policy conversion: the mechanical classes, the present-in-both hooks, the
