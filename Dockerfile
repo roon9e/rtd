@@ -15,9 +15,12 @@ RUN cargo build --release --locked -p rtd-edge
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y ca-certificates \
+    && apt-get install --no-install-recommends -y ca-certificates openssl \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --create-home rtd
+    && useradd --system --uid 10001 --create-home rtd \
+    && install -d -o rtd -g rtd -m 0750 /var/lib/telesrv-edge
 COPY --from=build /src/target/release/rtd-edge /usr/local/bin/rtd-edge
+COPY docker/entrypoint.sh /usr/local/bin/rtd-edge-entrypoint
+RUN chmod 0555 /usr/local/bin/rtd-edge-entrypoint
 USER 10001
-ENTRYPOINT ["/usr/local/bin/rtd-edge"]
+ENTRYPOINT ["/usr/local/bin/rtd-edge-entrypoint"]
