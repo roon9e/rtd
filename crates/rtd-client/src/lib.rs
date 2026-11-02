@@ -14,5 +14,5 @@ pub mod transport;
 pub use async_client::AsyncClient;
 pub use client::{Client, InitParams};
 pub use error::{Error, Result};
-pub use session::{ClientSession, SessionData};
+pub use session::{ClientSession, SaltStore, SessionData};
 pub use transport::{DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp};
