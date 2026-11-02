@@ -14,7 +14,8 @@ use rtd_proto::{
     RPC_RESULT_TYPE_ID, RpcResult,
 };
 use rtd_tg::{
-    DecodeLimits, Decoder, HelpGetConfig, InitConnection, InvokeWithLayer, LAYER, Method, Object,
+    AuthAuthorization, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder,
+    HelpGetConfig, InitConnection, InvokeWithLayer, LAYER, Method, Object,
 };
 use rtd_util::Clock;
 
@@ -177,6 +178,56 @@ impl<T: Transport> Client<T> {
         self.call(body)
     }
 
+    /// Sends a login code to `phone_number` (`auth.sendCode`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or
+    /// [`Error::Unexpected`] when the server answers with a different constructor.
+    pub fn send_code(
+        &mut self,
+        phone_number: &str,
+        api_id: i32,
+        api_hash: &str,
+        settings: CodeSettings,
+    ) -> Result<AuthSentCode> {
+        let query = Method::AuthSendCode(Box::new(AuthSendCode {
+            phone_number: phone_number.to_owned(),
+            api_id,
+            api_hash: api_hash.to_owned(),
+            settings: Box::new(settings),
+        }));
+        match self.invoke(query)? {
+            Object::AuthSentCode(code) => Ok(*code),
+            other => Err(unexpected("auth.sendCode", &other)),
+        }
+    }
+
+    /// Signs in with a code from [`Client::send_code`] (`auth.signIn`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or
+    /// [`Error::Unexpected`] when the server answers with a different constructor.
+    pub fn sign_in(
+        &mut self,
+        phone_number: &str,
+        phone_code_hash: &str,
+        phone_code: Option<&str>,
+    ) -> Result<AuthAuthorization> {
+        let query = Method::AuthSignIn(Box::new(AuthSignIn {
+            flags: if phone_code.is_some() { 1 } else { 0 },
+            phone_number: phone_number.to_owned(),
+            phone_code_hash: phone_code_hash.to_owned(),
+            phone_code: phone_code.map(str::to_owned),
+            email_verification: None,
+        }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.signIn", &other)),
+        }
+    }
+
     fn wrap_layer(&self, query: Method) -> Vec<u8> {
         let mut writer = Writer::new();
         Method::InvokeWithLayer(Box::new(InvokeWithLayer {
@@ -302,6 +353,15 @@ impl<T: Transport> Client<T> {
             _ => Err(Error::Decode("unrecognised RPC result".to_owned())),
         }
     }
+}
+
+/// An error for a method that answered with a constructor the wrapper expects
+/// differently.
+fn unexpected(what: &str, object: &Object) -> Error {
+    Error::Unexpected(format!(
+        "{what} returned unexpected constructor {:#010x}",
+        object.type_id()
+    ))
 }
 
 /// Adapts a [`Transport`] to the synchronous `rtd_exchange::Stream` the
