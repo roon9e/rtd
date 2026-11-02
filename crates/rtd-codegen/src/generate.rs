@@ -406,6 +406,59 @@ mod tests {
         assert!(actions.contains("reject-if-present"));
     }
 
+    /// Coverage baseline: every `Policy` route in the route table has an emitted
+    /// policy body, except the two obligation shapes not yet emittable (task 5.3):
+    /// a profile-to-canonical `reject` (layer 225 `inputStorePaymentAuthCode`,
+    /// whose mandatory canonical `premium_days` the profile lacks, so decode must
+    /// fail closed) and a profile-to-canonical `drop` of a profile-only field
+    /// (layer 226 `messages.chatInviteJoinResultWebView`, whose extra `url` must
+    /// be read and discarded). Any other unserved route is a regression; this list
+    /// must shrink to empty when those shapes land.
+    #[test]
+    fn policy_route_coverage_is_the_known_baseline() {
+        use super::obligations;
+        use crate::routes::{RouteMode, build_route_table};
+
+        let root = workspace_root();
+        let (universe, _) =
+            crate::load::load_universe(&root.join("schema/layers/manifest.json")).unwrap();
+        let policy = crate::schema::load_policy(&root.join("schema/layers/policy.json")).unwrap();
+        let config = crate::schema::load_rtd_config(&root.join("schema/rtd.json")).unwrap();
+        let plan = obligations::analyze(&universe, &policy).unwrap();
+        let table = build_route_table(&universe, &plan, &config.enabled_layers).unwrap();
+
+        let served = crate::emit_profile::served_policy_routes(&universe, &plan, &table);
+        let mut missing = Vec::new();
+        for route in &table.routes {
+            if route.mode != RouteMode::Policy {
+                continue;
+            }
+            if !served.contains(&(route.layer, route.semantic_id)) {
+                missing.push((
+                    route.layer,
+                    route.semantic.as_string(),
+                    format!("{:#010x}", route.wire_id),
+                ));
+            }
+        }
+        assert_eq!(
+            missing,
+            vec![
+                (
+                    225,
+                    "type:inputStorePaymentAuthCode".to_owned(),
+                    "0x9bb2636d".to_owned()
+                ),
+                (
+                    226,
+                    "type:messages.chatInviteJoinResultWebView".to_owned(),
+                    "0x774bbdf4".to_owned()
+                ),
+            ],
+            "unserved policy routes changed; only the documented gaps may remain"
+        );
+    }
+
     /// Route completeness: every definition present in an enabled layer has an
     /// explicit `(profile, wire id)` route, so no represented pair is silently
     /// absent (a definition the layer lacks is deliberately unrouted, which is

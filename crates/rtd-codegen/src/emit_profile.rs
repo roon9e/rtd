@@ -87,6 +87,31 @@ pub(crate) fn emit(
     Ok(out)
 }
 
+/// The set of `(layer, semantic id)` pairs whose policy body this generator emits.
+///
+/// A `Policy` route has no emitted body when `collect_policy_layers` returns no
+/// supported layer for its canonical definition (an obligation shape that is not
+/// emittable), so comparing this set with the route table detects a coverage gap.
+#[cfg(test)]
+pub(crate) fn served_policy_routes(
+    universe: &Universe,
+    plan: &ConversionPlan,
+    table: &RouteTable,
+) -> BTreeSet<(i32, u64)> {
+    let canonical = universe.canonical();
+    let (_, classes, bare_ids) = crate::emit_tg::class_context(canonical);
+    let mut served = BTreeSet::new();
+    for definition in &canonical.definitions {
+        let Some(route) = table.lookup(canonical.layer, definition.wire_id) else {
+            continue;
+        };
+        for layer in collect_policy_layers(universe, plan, &classes, &bare_ids, definition) {
+            served.insert((layer.layer, route.semantic_id));
+        }
+    }
+    served
+}
+
 /// Emits the per-profile route codecs: a profile-aware encoder/decoder for every
 /// canonical class, object constructor and method, plus the `Object` and `Method`
 /// dispatchers. A container that is `Direct` or `Retag` in a profile writes or
