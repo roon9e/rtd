@@ -27,7 +27,7 @@ datacenters** from the start.
 | Client library — MTProto 2.0 client runtime | `add-client-runtime` | done (archived) |
 | Client library — session persistence | `add-client-session-persistence` | done (archived) |
 | Client library — async façade | `add-client-async` | done (archived) |
-| Client library — authorization | `add-client-authorization` | in progress |
+| Client library — authorization | `add-client-authorization` | done (archived) |
 
 Layers 225–232 are enabled and the generated sidecar executes direct, retag and rewrite
 routes plus every policy conversion: the mechanical classes, the present-in-both hooks, the
