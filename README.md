@@ -26,6 +26,7 @@ datacenters** from the start.
 | Multi-DC — routing, migration, authorization transfer, delivery | planned | not started |
 | Client library — MTProto 2.0 client runtime | `add-client-runtime` | done (archived) |
 | Client library — session persistence | `add-client-session-persistence` | done (archived) |
+| Client library — async façade | `add-client-async` | in progress |
 
 Layers 225–232 are enabled and the generated sidecar executes direct, retag and rewrite
 routes plus every policy conversion: the mechanical classes, the present-in-both hooks, the
@@ -62,7 +63,7 @@ Core (sans-IO, no runtime, no I/O):
 | `rtd-error` | Telegram TL error parsing |
 | `rtd-util` | injectable clock and randomness |
 | `rtd-exchange` | authorization-key exchange (client and server flows) |
-| `rtd-client` | MTProto 2.0 client runtime (transport, session, RPC) |
+| `rtd-client` | MTProto 2.0 client runtime (sync core + tokio async façade) |
 | `rtd-tmap` | wire-id to name registry |
 
 Runtime and tooling:

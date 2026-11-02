@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use rtd_proto::CodecKind;
+use rtd_proto::{Abridged, Codec, CodecKind, Full, Intermediate, PaddedIntermediate};
 use rtd_transport::Obfuscated2;
 
 use crate::error::{Error, Result};
@@ -58,14 +58,27 @@ impl Transport for DuplexStream {
 }
 
 /// A boxed byte stream that a [`Framed`] transport can read and write.
-pub trait ReadWrite: Read + Write {}
+///
+/// The `Send` bound lets a transport move to the asynchronous actor thread.
+pub trait ReadWrite: Read + Write + Send {}
 
-impl<T: Read + Write> ReadWrite for T {}
+impl<T: Read + Write + Send> ReadWrite for T {}
+
+/// Builds a codec boxed with an explicit `Send` bound (the trait object from
+/// `CodecKind::build` is not `Send`).
+fn build_codec(kind: CodecKind) -> Box<dyn Codec + Send> {
+    match kind {
+        CodecKind::Abridged => Box::new(Abridged),
+        CodecKind::Intermediate => Box::new(Intermediate),
+        CodecKind::PaddedIntermediate => Box::new(PaddedIntermediate::new()),
+        CodecKind::Full => Box::new(Full::new()),
+    }
+}
 
 /// A framed transport over a boxed byte stream.
 pub struct Framed<IO> {
     io: IO,
-    codec: Box<dyn rtd_proto::Codec>,
+    codec: Box<dyn Codec + Send>,
 }
 
 impl<IO: Read + Write> Framed<IO> {
@@ -79,7 +92,7 @@ impl<IO: Read + Write> Framed<IO> {
     ///
     /// Returns [`Error::Transport`] when the header cannot be written.
     pub fn new(mut io: IO, codec: CodecKind, write_header: bool) -> Result<Self> {
-        let mut codec = codec.build();
+        let mut codec = build_codec(codec);
         if write_header {
             codec
                 .write_header(&mut io)

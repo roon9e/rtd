@@ -5,11 +5,13 @@
 //! and RPC invocation at the canonical layer.
 #![warn(missing_docs)]
 
+pub mod async_client;
 pub mod client;
 pub mod error;
 pub mod session;
 pub mod transport;
 
+pub use async_client::AsyncClient;
 pub use client::{Client, InitParams};
 pub use error::{Error, Result};
 pub use session::{ClientSession, SessionData};
