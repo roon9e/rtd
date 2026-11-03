@@ -7,7 +7,7 @@
 
 ## 2. Driver
 
-- [ ] 2.1 Add a `QR` helper looping export -> token callback -> import until authorized
+- [x] 2.1 Add a `QR` helper looping export -> token callback -> import until authorized
 
 ## 3. Verification
 

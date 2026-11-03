@@ -74,7 +74,7 @@ pub use peers::{
     MemoryPeerStorage, PeerKey, PeerKind, PeerManager, PeerStorage, PeerValue, ResolvedPeer,
 };
 pub use pool::{Pool, SelectedKey, SessionOptions};
-pub use qr::{LoginToken, login_url};
+pub use qr::{LoginToken, drive_login, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};
 pub use takeout::TakeoutConfig;
