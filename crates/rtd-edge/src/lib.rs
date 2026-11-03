@@ -23,6 +23,7 @@ pub mod error;
 pub mod exchange;
 pub mod grpc;
 pub mod identity;
+pub mod location;
 pub mod service;
 
 pub use config::EdgeConfig;
@@ -30,3 +31,4 @@ pub use error::EdgeError;
 pub use exchange::ServerExchange;
 pub use grpc::GrpcCore;
 pub use identity::{BuildInfo, build_info};
+pub use location::{EdgeLocation, Location, LocationProvider, LocationRegistry, StaticProvider};

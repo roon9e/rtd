@@ -7,7 +7,7 @@
 
 ## 2. Registry
 
-- [ ] 2.1 Add an edge location registry with TTL + heartbeat keyed by instance id
+- [x] 2.1 Add an edge location registry with TTL + heartbeat keyed by instance id
 - [ ] 2.2 Feed location into `help.getConfig` DC hints
 
 ## 3. Verification

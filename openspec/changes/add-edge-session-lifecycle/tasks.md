@@ -2,7 +2,7 @@
 
 ## 1. Lifecycle
 
-- [ ] 1.1 Add `SessionState` (provisional/ready/revoked) and promotion on `new_session_created` (`rtd-server/src/session.rs`)
+- [x] 1.1 Add `SessionState` (provisional/ready/revoked), `state`/`set_state`/`revoke` (`rtd-server/src/session.rs`)
 - [ ] 1.2 Add provisional revocation with a confirmation deadline
 
 ## 2. Shutdown and ack

@@ -56,11 +56,24 @@ impl SessionKey {
     }
 }
 
+/// The lifecycle state of a transient session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionState {
+    /// Registered but not yet confirmed.
+    Provisional,
+    /// Confirmed and usable.
+    Ready,
+    /// Revoked and no longer usable.
+    Revoked,
+}
+
 /// A snapshot of a registered transient session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SessionRecord {
     /// The composite registry key.
     pub key: SessionKey,
+    /// The session's lifecycle state.
+    pub state: SessionState,
     /// When the session was first registered.
     pub registered_at: SystemTime,
     /// When the session last saw activity.
@@ -111,11 +124,37 @@ impl SessionRegistry {
         let mut sessions = self.sessions.lock().await;
         let record = sessions.entry(key).or_insert(SessionRecord {
             key,
+            state: SessionState::Ready,
             registered_at: now,
             last_activity: now,
         });
         record.last_activity = now;
         *record
+    }
+
+    /// Returns the lifecycle state of `key`.
+    pub async fn state(&self, key: SessionKey) -> Option<SessionState> {
+        self.sessions
+            .lock()
+            .await
+            .get(&key)
+            .map(|record| record.state)
+    }
+
+    /// Sets the lifecycle state of `key`, returning whether it was registered.
+    pub async fn set_state(&self, key: SessionKey, state: SessionState) -> bool {
+        match self.sessions.lock().await.get_mut(&key) {
+            Some(record) => {
+                record.state = state;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Revokes `key`, returning whether it was registered.
+    pub async fn revoke(&self, key: SessionKey) -> bool {
+        self.set_state(key, SessionState::Revoked).await
     }
 
     /// Looks up `key`, returning a copy of its record if present.
@@ -649,8 +688,12 @@ mod tests {
 
         let record = registry.register(key).await;
         assert_eq!(record.key, key);
+        assert_eq!(record.state, SessionState::Ready);
         assert_eq!(registry.len().await, 1);
         assert_eq!(registry.lookup(key).await, Some(record));
+
+        assert!(registry.revoke(key).await);
+        assert_eq!(registry.state(key).await, Some(SessionState::Revoked));
 
         assert!(registry.evict(key).await);
         assert!(registry.is_empty().await);
