@@ -42,6 +42,18 @@ impl RequestBuilder {
         }
     }
 
+    /// Creates a builder from HTML text, parsing its entities.
+    #[must_use]
+    pub fn html(peer: InputPeer, html: &str) -> Self {
+        let (text, entities) = crate::entity::parse_html(html);
+        let builder = Self::new(peer, text);
+        if entities.is_empty() {
+            builder
+        } else {
+            builder.entities(entities)
+        }
+    }
+
     /// Sends without a notification sound.
     #[must_use]
     pub fn silent(mut self) -> Self {
@@ -160,6 +172,19 @@ mod tests {
     use rtd_tg::{InputPeer, Method};
 
     use super::RequestBuilder;
+
+    #[test]
+    fn html_builder_parses_entities() {
+        let method = RequestBuilder::html(InputPeer::InputPeerEmpty, "<b>hi</b>").build();
+        match method {
+            Method::MessagesSendMessage(request) => {
+                assert_eq!(request.message, "hi");
+                let entities = request.entities.expect("entities");
+                assert_eq!(entities.len(), 1);
+            }
+            _ => panic!("expected messages.sendMessage"),
+        }
+    }
 
     #[test]
     fn builder_sets_options() {
