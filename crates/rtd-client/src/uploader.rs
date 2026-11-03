@@ -111,6 +111,27 @@ impl Uploader {
         self.upload_with_progress(client, name, data, &NoProgress)
     }
 
+    /// Uploads every byte read from `reader` under `name`.
+    ///
+    /// The reader is drained into memory before uploading; use this for
+    /// file-backed sources.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when the reader fails, otherwise see
+    /// [`Uploader::upload`].
+    pub fn upload_reader<T: Transport>(
+        &self,
+        client: &mut Client<T>,
+        name: &str,
+        mut reader: impl std::io::Read,
+        progress: &dyn Progress,
+    ) -> Result<InputFile> {
+        let mut data = Vec::new();
+        reader.read_to_end(&mut data)?;
+        self.upload_with_progress(client, name, &data, progress)
+    }
+
     /// Uploads `data`, reporting progress after each part.
     ///
     /// # Errors
