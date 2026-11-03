@@ -7,7 +7,7 @@
 
 ## 2. Resolution
 
-- [ ] 2.1 Implement `Manager` resolve/search and update application
+- [x] 2.1 Implement `PeerManager` username resolution with caching
 - [ ] 2.2 Add the `members` submodule (iteration + rights)
 
 ## 3. Verification

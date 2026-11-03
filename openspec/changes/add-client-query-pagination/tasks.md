@@ -7,7 +7,7 @@
 
 ## 2. Queries
 
-- [ ] 2.1 Implement participants, blocked, photos, dialogs, messages and featured-sticker iterators
+- [x] 2.1 Implement the messages-history iterator and `fetch_history` (participants/blocked/photos/dialogs remain)
 - [ ] 2.2 Implement the `cached` variants (hash-based)
 
 ## 3. Verification
