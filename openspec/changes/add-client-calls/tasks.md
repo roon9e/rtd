@@ -2,8 +2,8 @@
 
 ## 1. Signalling
 
-- [ ] 1.1 Add 1:1 call place/answer with the DH exchange and encrypted control channel (`calls/signaling.rs`)
-- [ ] 1.2 Add reflector/STUN endpoint parsing and `phone.*` update dispatch
+- [x] 1.1 Add the AES-IGE signaling control channel and `CallState` (`calls.rs`)
+- [ ] 1.2 Add 1:1 call place/answer (DH exchange), reflector/STUN parsing and `phone.*` dispatch
 
 ## 2. Media
 
