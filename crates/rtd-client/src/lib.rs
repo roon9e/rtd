@@ -32,7 +32,7 @@ pub use message::RequestBuilder;
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
 pub use qr::{LoginToken, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};
-pub use storage::{FileStorage, MemoryStorage, Storage};
+pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};
 pub use takeout::TakeoutConfig;
 pub use transport::{
     DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,

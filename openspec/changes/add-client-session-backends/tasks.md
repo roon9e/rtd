@@ -7,7 +7,7 @@
 
 ## 2. Importers
 
-- [ ] 2.1 Add a Telethon string-session importer
+- [x] 2.1 Add a Telethon string-session importer
 - [ ] 2.2 Add a Telegram Desktop importer (`key_datas`/`tdata`, decrypt with `local_key`)
 
 ## 3. Verification
