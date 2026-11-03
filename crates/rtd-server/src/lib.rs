@@ -18,6 +18,8 @@ pub mod metrics;
 pub mod ratelimit;
 pub mod rpc;
 pub mod session;
+pub mod store;
 
 pub use metrics::Metrics;
 pub use ratelimit::{ClassLimit, MethodClass, RateLimitConfig, RateLimiter};
+pub use store::{AuthKeyStore, LayerEvidenceStore, MemoryStore, StoreError};
