@@ -30,6 +30,40 @@ pub trait Transport {
     fn recv_frame(&mut self) -> Result<Vec<u8>>;
 }
 
+/// Reads framed packets independently of any writer.
+pub trait ReadTransport {
+    /// Reads one framed packet, blocking until one is available.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Closed`] or [`Error::Transport`] on a closed or failing
+    /// connection.
+    fn recv_frame(&mut self) -> Result<Vec<u8>>;
+}
+
+/// Writes framed packets independently of any reader.
+pub trait WriteTransport {
+    /// Writes one already-framed packet.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Closed`] or [`Error::Transport`] when the peer is gone
+    /// or the underlying I/O fails.
+    fn send_frame(&mut self, frame: &[u8]) -> Result<()>;
+}
+
+impl<T: Transport> ReadTransport for T {
+    fn recv_frame(&mut self) -> Result<Vec<u8>> {
+        Transport::recv_frame(self)
+    }
+}
+
+impl<T: Transport> WriteTransport for T {
+    fn send_frame(&mut self, frame: &[u8]) -> Result<()> {
+        Transport::send_frame(self, frame)
+    }
+}
+
 /// An in-memory duplex: the two ends of [`DuplexStream::pair`] exchange frames
 /// without a socket, so the client can be driven against an in-process peer.
 pub struct DuplexStream {
@@ -44,6 +78,34 @@ impl DuplexStream {
         let (a_tx, b_rx) = channel();
         let (b_tx, a_rx) = channel();
         (Self { tx: a_tx, rx: a_rx }, Self { tx: b_tx, rx: b_rx })
+    }
+
+    /// Splits the duplex into independent read and write halves.
+    #[must_use]
+    pub fn split(self) -> (DuplexReader, DuplexWriter) {
+        (DuplexReader { rx: self.rx }, DuplexWriter { tx: self.tx })
+    }
+}
+
+/// The read half of a split [`DuplexStream`].
+pub struct DuplexReader {
+    rx: Receiver<Vec<u8>>,
+}
+
+impl ReadTransport for DuplexReader {
+    fn recv_frame(&mut self) -> Result<Vec<u8>> {
+        self.rx.recv().map_err(|_| Error::Closed)
+    }
+}
+
+/// The write half of a split [`DuplexStream`].
+pub struct DuplexWriter {
+    tx: Sender<Vec<u8>>,
+}
+
+impl WriteTransport for DuplexWriter {
+    fn send_frame(&mut self, frame: &[u8]) -> Result<()> {
+        self.tx.send(frame.to_vec()).map_err(|_| Error::Closed)
     }
 }
 
@@ -182,6 +244,19 @@ mod tests {
         b.send_frame(b"two").unwrap();
         assert_eq!(a.recv_frame().unwrap(), b"two");
         assert_eq!(b.recv_frame().unwrap(), b"one");
+    }
+
+    #[test]
+    fn split_duplex_moves_frames_both_ways() {
+        use super::{ReadTransport, WriteTransport};
+
+        let (a, b) = super::DuplexStream::pair();
+        let (mut a_read, mut a_write) = a.split();
+        let (mut b_read, mut b_write) = b.split();
+        a_write.send_frame(b"hi").unwrap();
+        assert_eq!(b_read.recv_frame().unwrap(), b"hi");
+        b_write.send_frame(b"yo").unwrap();
+        assert_eq!(a_read.recv_frame().unwrap(), b"yo");
     }
 
     #[test]

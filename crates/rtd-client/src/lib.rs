@@ -29,6 +29,7 @@ pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, MemoryStorage, Storage};
 pub use takeout::TakeoutConfig;
 pub use transport::{
-    DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp, dial_tcp,
+    DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,
+    Transport, WriteTransport, connect_tcp, dial_tcp,
 };
 pub use ws::{WebSocketIo, connect_websocket};

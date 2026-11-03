@@ -7,8 +7,8 @@ use rtd_crypto::srp::{Input as SrpInput, hash as srp_hash};
 use rtd_crypto::{AuthKey, Key, SystemRandom};
 use rtd_exchange::{ClientConfig, Stream as ExchangeStream, client_exchange};
 use rtd_mt::{
-    BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder, MsgsAck,
-    Object as ServiceObject, RpcError,
+    BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder,
+    Method as ServiceMethod, MsgsAck, Object as ServiceObject, Ping, Pong, RpcError,
 };
 use rtd_proto::{
     GZIP_TYPE_ID, Gzip, MESSAGE_CONTAINER_TYPE_ID, MessageContainer, MessageSeq,
@@ -431,6 +431,44 @@ impl<T: Transport> Client<T> {
         }))
         .encode(&mut writer);
         writer.into_vec()
+    }
+
+    /// Sends a service `ping` and returns once the matching `pong` arrives.
+    ///
+    /// This is the primitive a keepalive loop drives; it does not schedule
+    /// timers itself.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto or decode error, or [`Error::NoResult`] when
+    /// no `pong` arrives within the bounded read window.
+    pub fn ping(&mut self, ping_id: i64) -> Result<()> {
+        let mut writer = Writer::new();
+        ServiceMethod::Ping(Box::new(Ping { ping_id })).encode(&mut writer);
+        let body = writer.into_vec();
+        let message = self.session.allocate_service();
+        self.send(message, &body)?;
+
+        for _ in 0..MAX_ROUNDS {
+            let frame = self.transport.recv_frame()?;
+            let decrypted = self.session.decode(&frame)?;
+            self.flush_acks()?;
+            if Reader::new(&decrypted.body).peek_id().ok() == Some(Pong::TYPE_ID) {
+                let mut decoder =
+                    ServiceDecoder::new(&decrypted.body, ServiceDecodeLimits::default());
+                if let Ok(ServiceObject::Pong(pong)) = ServiceObject::decode(&mut decoder)
+                    && pong.ping_id == ping_id
+                {
+                    return Ok(());
+                }
+                continue;
+            }
+            // Process unrelated frames (results, containers, updates) as usual.
+            let _ = self.handle_body(0, &decrypted.body)?;
+        }
+        Err(Error::NoResult {
+            message_id: ping_id,
+        })
     }
 
     fn send(&mut self, message: MessageSeq, body: &[u8]) -> Result<()> {

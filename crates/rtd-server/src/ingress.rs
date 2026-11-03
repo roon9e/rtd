@@ -1352,7 +1352,10 @@ mod tests {
     #[tokio::test]
     async fn options_request_is_treated_as_http() {
         let (mut client, server) = tokio::io::duplex(512);
-        client.write_all(b"OPTIONS / HTTP/1.1\r\n\r\n").await.unwrap();
+        client
+            .write_all(b"OPTIONS / HTTP/1.1\r\n\r\n")
+            .await
+            .unwrap();
         let error = accept_stream(server, &IngressConfig::default())
             .await
             .unwrap_err();
