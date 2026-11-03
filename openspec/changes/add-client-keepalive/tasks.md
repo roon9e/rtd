@@ -2,7 +2,7 @@
 
 ## 1. Ping loop
 
-- [ ] 1.1 Send `ping`/`ping_delay_disconnect` on an interval and track `pong`; expose `ClientOptions` interval/timeout (`client.rs`)
+- [x] 1.1 Add a `Keepalive` scheduler and `Client::ping` (service ping -> matching pong) (`keepalive.rs`, `client.rs`)
 - [ ] 1.2 Mark the connection dead when a `pong` is missed
 
 ## 2. Reconnect and retry
