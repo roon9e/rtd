@@ -433,6 +433,37 @@ impl<T: Transport> Client<T> {
         writer.into_vec()
     }
 
+    /// Reads and processes one inbound frame without a pending call.
+    ///
+    /// Returns any update the frame carried, so a caller can drain unsolicited
+    /// updates between calls by looping until it returns `Ok(None)` (or would
+    /// block). Results for no pending request are discarded.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto or decode error.
+    pub fn poll(&mut self) -> Result<Option<Updates>> {
+        let frame = self.transport.recv_frame()?;
+        let decrypted = self.session.decode(&frame)?;
+        self.flush_acks()?;
+        let id = Reader::new(&decrypted.body)
+            .peek_id()
+            .map_err(|error| Error::Decode(error.to_string()))?;
+        let is_result = matches!(
+            id,
+            RPC_RESULT_TYPE_ID
+                | MESSAGE_CONTAINER_TYPE_ID
+                | GZIP_TYPE_ID
+                | BAD_SERVER_SALT_ID
+                | BAD_MSG_NOTIFICATION_ID
+        );
+        if !is_result && let Some(updates) = Self::decode_update(&decrypted.body) {
+            return Ok(Some(updates));
+        }
+        let _ = self.handle_body(0, &decrypted.body)?;
+        Ok(None)
+    }
+
     /// Sends a service `ping` and returns once the matching `pong` arrives.
     ///
     /// This is the primitive a keepalive loop drives; it does not schedule
@@ -569,23 +600,29 @@ impl<T: Transport> Client<T> {
         if self.handler.is_none() {
             return false;
         }
-        let mut decoder = Decoder::new(body, DecodeLimits::default());
-        let updates = if let Ok(updates) = Updates::decode(&mut decoder) {
-            updates
-        } else {
-            let mut decoder = Decoder::new(body, DecodeLimits::default());
-            match Update::decode(&mut decoder) {
-                Ok(update) => Updates::UpdateShort {
-                    update: Box::new(update),
-                    date: 0,
-                },
-                Err(_) => return false,
-            }
+        let Some(updates) = Self::decode_update(body) else {
+            return false;
         };
         if let Some(handler) = self.handler.as_mut() {
             handler(updates);
         }
         true
+    }
+
+    /// Decodes a body as updates, wrapping a bare update in `UpdateShort`.
+    fn decode_update(body: &[u8]) -> Option<Updates> {
+        let mut decoder = Decoder::new(body, DecodeLimits::default());
+        if let Ok(updates) = Updates::decode(&mut decoder) {
+            return Some(updates);
+        }
+        let mut decoder = Decoder::new(body, DecodeLimits::default());
+        match Update::decode(&mut decoder) {
+            Ok(update) => Some(Updates::UpdateShort {
+                update: Box::new(update),
+                date: 0,
+            }),
+            Err(_) => None,
+        }
     }
 
     fn ungzip(&self, payload: &[u8]) -> Result<Vec<u8>> {

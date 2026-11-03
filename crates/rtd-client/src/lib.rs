@@ -23,6 +23,7 @@ pub mod session;
 pub mod storage;
 pub mod takeout;
 pub mod transport;
+pub mod updates;
 pub mod uploader;
 pub mod ws;
 
@@ -46,5 +47,6 @@ pub use transport::{
     DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,
     Transport, WriteTransport, connect_tcp, dial_tcp,
 };
+pub use updates::{PushResult, SequenceBox};
 pub use uploader::Uploader;
 pub use ws::{WebSocketIo, connect_websocket};

@@ -2,7 +2,7 @@
 
 ## 1. Sequence engines
 
-- [ ] 1.1 Add pts/qts/seq `sequenceBox` with gap buffer and gap timeout (`updates/sequence_box.rs`)
+- [x] 1.1 Add a generic `SequenceBox` with gap buffer and gap timeout (`updates/mod.rs`)
 - [ ] 1.2 Add `Manager` implementing the update handler and wiring the boxes (`updates/mod.rs`)
 
 ## 2. Recovery
