@@ -7,8 +7,9 @@ use rtd_crypto::srp::{Input as SrpInput, hash as srp_hash};
 use rtd_crypto::{AuthKey, Key, SystemRandom};
 use rtd_exchange::{ClientConfig, Stream as ExchangeStream, client_exchange};
 use rtd_mt::{
-    BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder,
-    Method as ServiceMethod, MsgsAck, Object as ServiceObject, Ping, Pong, RpcError,
+    BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder, FutureSalt,
+    FutureSalts, Get_future_salts, Method as ServiceMethod, MsgsAck, Object as ServiceObject, Ping,
+    Pong, RpcError,
 };
 use rtd_proto::{
     GZIP_TYPE_ID, Gzip, MESSAGE_CONTAINER_TYPE_ID, MessageContainer, MessageSeq,
@@ -34,6 +35,8 @@ use crate::transport::Transport;
 const BAD_SERVER_SALT_ID: u32 = 0xedab_447b;
 /// `bad_msg_notification` constructor id.
 const BAD_MSG_NOTIFICATION_ID: u32 = 0xa7ef_f811;
+/// `future_salts` constructor id.
+const FUTURE_SALTS_ID: u32 = 0xae50_0895;
 /// Maximum receive rounds while awaiting one result.
 const MAX_ROUNDS: usize = 64;
 /// Maximum send attempts (initial plus retry).
@@ -462,6 +465,56 @@ impl<T: Transport> Client<T> {
         }
         let _ = self.handle_body(0, &decrypted.body)?;
         Ok(None)
+    }
+
+    /// Requests `get_future_salts` and stores the returned salts.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto or decode error, or [`Error::NoResult`] when
+    /// the reply does not arrive within the bounded read window.
+    pub fn request_future_salts(&mut self, num: i32) -> Result<()> {
+        let mut writer = Writer::new();
+        ServiceMethod::Get_future_salts(Box::new(Get_future_salts { num })).encode(&mut writer);
+        let body = writer.into_vec();
+        let message = self.session.allocate_content();
+        self.send(message, &body)?;
+
+        for _ in 0..MAX_ROUNDS {
+            let frame = self.transport.recv_frame()?;
+            let decrypted = self.session.decode(&frame)?;
+            self.flush_acks()?;
+            if Reader::new(&decrypted.body).peek_id().ok() == Some(FUTURE_SALTS_ID) {
+                let mut decoder =
+                    ServiceDecoder::new(&decrypted.body, ServiceDecodeLimits::default());
+                if let Ok(ServiceObject::FutureSalts(salts)) = ServiceObject::decode(&mut decoder) {
+                    let FutureSalts::Future_salts { salts, .. } = *salts;
+                    for salt in salts {
+                        let FutureSalt::Future_salt {
+                            valid_since,
+                            valid_until,
+                            salt,
+                        } = salt;
+                        self.session.insert_future_salt(
+                            i64::from(valid_since),
+                            i64::from(valid_until),
+                            salt,
+                        );
+                    }
+                    return Ok(());
+                }
+                continue;
+            }
+            let _ = self.handle_body(0, &decrypted.body)?;
+        }
+        Err(Error::NoResult { message_id: 0 })
+    }
+
+    /// Advances the active salt to the newest one valid at `now` (Unix seconds).
+    ///
+    /// Returns whether the active salt changed.
+    pub fn advance_salts(&mut self, now: i64) -> bool {
+        self.session.advance_salts(now)
     }
 
     /// Sends a service `ping` and returns once the matching `pong` arrives.
