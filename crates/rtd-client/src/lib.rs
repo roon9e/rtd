@@ -49,7 +49,10 @@ pub use keepalive::Keepalive;
 pub use markup::{InlineButton, inline_keyboard};
 pub use message::RequestBuilder;
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
-pub use pagination::HistoryIter;
+pub use pagination::{
+    BlockedIter, DialogsIter, HistoryIter, ParticipantsIter, PhotosIter, fetch_dialogs,
+    fetch_history, fetch_participants,
+};
 pub use peers::{PeerManager, ResolvedPeer};
 pub use pool::Pool;
 pub use qr::{LoginToken, login_url};
