@@ -3,7 +3,7 @@
 ## 1. Bot sign-in
 
 - [x] 1.1 Add `Client::bot_sign_in` invoking `auth.importBotAuthorization` and returning `auth.Authorization` (`client.rs`)
-- [ ] 1.2 Add a bot-token option (and environment fallback), never logged
+- [x] 1.2 Add a bot-token option (and environment fallback), never logged
 
 ## 2. Verification
 
