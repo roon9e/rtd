@@ -3,7 +3,10 @@
 //! [`RequestBuilder`] constructs a `messages.sendMessage` request from a peer,
 //! text and options; [`send`] invokes it through a client.
 
-use rtd_tg::{InputPeer, MessageEntity, MessagesSendMessage, Method, Object, ReplyMarkup};
+use rtd_tg::{
+    DocumentAttribute, InputFile, InputMedia, InputPeer, MessageEntity, MessagesSendMedia,
+    MessagesSendMessage, Method, Object, ReplyMarkup,
+};
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -160,6 +163,88 @@ impl RequestBuilder {
     }
 }
 
+/// Builds a `messages.sendMedia` request for `media`.
+#[must_use]
+pub fn build_send_media(peer: InputPeer, media: InputMedia, caption: &str) -> Method {
+    Method::MessagesSendMedia(Box::new(MessagesSendMedia {
+        flags: 0,
+        silent: false,
+        background: false,
+        clear_draft: false,
+        noforwards: false,
+        update_stickersets_order: false,
+        invert_media: false,
+        allow_paid_floodskip: false,
+        peer: Box::new(peer),
+        reply_to: None,
+        media: Box::new(media),
+        message: caption.to_owned(),
+        random_id: random_id(),
+        reply_markup: None,
+        entities: None,
+        schedule_date: None,
+        schedule_repeat_period: None,
+        send_as: None,
+        quick_reply_shortcut: None,
+        effect: None,
+        allow_paid_stars: None,
+        suggested_post: None,
+    }))
+}
+
+/// Sends an uploaded photo with `caption`.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_photo<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    file: InputFile,
+) -> Result<Object> {
+    let media = InputMedia::InputMediaUploadedPhoto {
+        flags: 0,
+        spoiler: false,
+        live_photo: false,
+        file: Box::new(file),
+        stickers: None,
+        ttl_seconds: None,
+        video: None,
+    };
+    client.invoke(build_send_media(peer, media, caption))
+}
+
+/// Sends an uploaded document with `caption`.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_document<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    file: InputFile,
+    mime_type: &str,
+    attributes: Vec<DocumentAttribute>,
+) -> Result<Object> {
+    let media = InputMedia::InputMediaUploadedDocument {
+        flags: 0,
+        nosound_video: false,
+        force_file: false,
+        spoiler: false,
+        file: Box::new(file),
+        thumb: None,
+        mime_type: mime_type.to_owned(),
+        attributes,
+        stickers: None,
+        video_cover: None,
+        video_timestamp: None,
+        ttl_seconds: None,
+    };
+    client.invoke(build_send_media(peer, media, caption))
+}
+
 /// Sends `builder`'s message and returns the response object.
 ///
 /// # Errors
@@ -191,6 +276,27 @@ mod tests {
     use rtd_tg::{InputPeer, Method};
 
     use super::RequestBuilder;
+
+    #[test]
+    fn builds_send_media() {
+        use rtd_tg::{InputFile, InputMedia, InputPeer};
+        let media = InputMedia::InputMediaUploadedPhoto {
+            flags: 0,
+            spoiler: false,
+            live_photo: false,
+            file: Box::new(InputFile::InputFile {
+                id: 1,
+                parts: 1,
+                name: "x".to_owned(),
+                md5_checksum: String::new(),
+            }),
+            stickers: None,
+            ttl_seconds: None,
+            video: None,
+        };
+        let method = super::build_send_media(InputPeer::InputPeerEmpty, media, "cap");
+        assert!(matches!(method, rtd_tg::Method::MessagesSendMedia(_)));
+    }
 
     #[test]
     fn html_builder_parses_entities() {

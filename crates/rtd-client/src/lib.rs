@@ -47,7 +47,7 @@ pub use fileid::{FileId, Type as FileType};
 pub use json::{JsonValue, describe, type_name};
 pub use keepalive::Keepalive;
 pub use markup::{InlineButton, inline_keyboard};
-pub use message::RequestBuilder;
+pub use message::{RequestBuilder, build_send_media, send_document, send_photo};
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{
     BlockedIter, DialogsIter, HistoryIter, ParticipantsIter, PhotosIter, fetch_dialogs,
