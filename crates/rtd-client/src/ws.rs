@@ -167,7 +167,7 @@ impl<S: Read + Write> Read for WebSocketIo<S> {
             loop {
                 let (opcode, payload) = self.read_frame()?;
                 match opcode {
-                    OPCODE_BINARY | OPCODE_TEXT | OPCODE_CONTINUATION => {
+                    OPCODE_BINARY | OPCODE_CONTINUATION => {
                         self.buffer = payload;
                         self.pos = 0;
                         if !self.buffer.is_empty() {
@@ -177,6 +177,12 @@ impl<S: Read + Write> Read for WebSocketIo<S> {
                     OPCODE_CLOSE => return Ok(0),
                     OPCODE_PING => self.write_frame(OPCODE_PONG, &payload)?,
                     OPCODE_PONG => {}
+                    OPCODE_TEXT => {
+                        return Err(io::Error::new(
+                            ErrorKind::InvalidData,
+                            "MTProto requires binary websocket frames",
+                        ));
+                    }
                     other => {
                         return Err(io::Error::new(
                             ErrorKind::InvalidData,
@@ -262,5 +268,30 @@ mod tests {
         assert_eq!(base64(b"foob"), "Zm9vYg==");
         assert_eq!(base64(b"fooba"), "Zm9vYmE=");
         assert_eq!(base64(b"foobar"), "Zm9vYmFy");
+    }
+
+    #[test]
+    fn reads_binary_and_rejects_text_frames() {
+        use std::io::{Cursor, Read};
+
+        // A single unmasked binary frame "hi".
+        let binary = vec![0x82, 0x02, b'h', b'i'];
+        let mut io = super::WebSocketIo {
+            io: Cursor::new(binary),
+            buffer: Vec::new(),
+            pos: 0,
+        };
+        let mut buf = [0u8; 2];
+        assert_eq!(io.read(&mut buf).unwrap(), 2);
+        assert_eq!(&buf, b"hi");
+
+        // A text frame is rejected.
+        let text = vec![0x81, 0x02, b'h', b'i'];
+        let mut io = super::WebSocketIo {
+            io: Cursor::new(text),
+            buffer: Vec::new(),
+            pos: 0,
+        };
+        assert!(io.read(&mut buf).is_err());
     }
 }
