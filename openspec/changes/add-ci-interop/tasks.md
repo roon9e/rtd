@@ -2,11 +2,11 @@
 
 ## 1. External peer
 
-- [ ] 1.1 Add a CI job building `mtproto-testserver` from a pinned engine ref and running the `peer_gate` tests (`.github/workflows/ci.yml`)
+- [x] 1.1 Add a manual `Interop` workflow building `mtproto-testserver` and running the `peer_gate` tests (`.github/workflows/interop.yml`)
 
 ## 2. Vectors
 
-- [ ] 2.1 Add a CI job regenerating `interop/vectors.json` and failing on diff
+- [x] 2.1 Add a manual job regenerating `interop/vectors.json` and failing on diff
 
 ## 3. Drop-in
 

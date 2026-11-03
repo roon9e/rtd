@@ -2,8 +2,8 @@
 
 ## 1. Core
 
-- [ ] 1.1 Add `Downloader`/`Builder` with part sizing, threads, verify and sinks (`downloader/mod.rs`)
-- [ ] 1.2 Implement the master (precise range) and web schemas
+- [x] 1.1 Add a sequence `Downloader` with aligned part sizing (`downloader/mod.rs`)
+- [x] 1.2 Implement the master ranged read (`upload.getFile`)
 
 ## 2. CDN
 
