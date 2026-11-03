@@ -1,0 +1,4 @@
+# This directory is a container of frozen (deferred) change proposals, not a
+# change itself. It intentionally modifies no specs.
+schema: spec-driven
+skip_specs: true
