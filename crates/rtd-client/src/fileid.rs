@@ -97,6 +97,253 @@ impl Type {
     }
 }
 
+/// Photo metadata stored for photo/thumbnail file ids.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PhotoSizeSource {
+    /// A legacy photo, keyed by its secret.
+    Legacy {
+        /// The photo secret.
+        secret: i64,
+    },
+    /// A thumbnail of a file of a given type.
+    Thumbnail {
+        /// The type of the underlying file.
+        file_type: Type,
+        /// The thumbnail type marker.
+        thumbnail_type: i32,
+    },
+    /// A small dialog photo.
+    DialogPhotoSmall {
+        /// The dialog peer id (with its TDLib kind bits).
+        dialog_id: i64,
+        /// The dialog access hash.
+        dialog_access_hash: i64,
+    },
+    /// A big dialog photo.
+    DialogPhotoBig {
+        /// The dialog peer id.
+        dialog_id: i64,
+        /// The dialog access hash.
+        dialog_access_hash: i64,
+    },
+    /// A sticker-set thumbnail.
+    StickerSetThumbnail {
+        /// The sticker-set id.
+        set_id: i64,
+        /// The sticker-set access hash.
+        set_access_hash: i64,
+    },
+    /// A legacy full photo.
+    FullLegacy {
+        /// The volume id.
+        volume_id: i64,
+        /// The photo secret.
+        secret: i64,
+        /// The local id.
+        local_id: i32,
+    },
+    /// A legacy small dialog photo.
+    DialogPhotoSmallLegacy {
+        /// The dialog peer id.
+        dialog_id: i64,
+        /// The dialog access hash.
+        dialog_access_hash: i64,
+        /// The volume id.
+        volume_id: i64,
+        /// The local id.
+        local_id: i32,
+    },
+    /// A legacy big dialog photo.
+    DialogPhotoBigLegacy {
+        /// The dialog peer id.
+        dialog_id: i64,
+        /// The dialog access hash.
+        dialog_access_hash: i64,
+        /// The volume id.
+        volume_id: i64,
+        /// The local id.
+        local_id: i32,
+    },
+    /// A legacy sticker-set thumbnail.
+    StickerSetThumbnailLegacy {
+        /// The sticker-set id.
+        set_id: i64,
+        /// The sticker-set access hash.
+        set_access_hash: i64,
+        /// The volume id.
+        volume_id: i64,
+        /// The local id.
+        local_id: i32,
+    },
+    /// A versioned sticker-set thumbnail.
+    StickerSetThumbnailVersion {
+        /// The sticker-set id.
+        set_id: i64,
+        /// The sticker-set access hash.
+        set_access_hash: i64,
+        /// The sticker version.
+        sticker_version: i32,
+    },
+}
+
+impl PhotoSizeSource {
+    /// Returns the wire type id.
+    fn type_id(&self) -> i32 {
+        match self {
+            Self::Legacy { .. } => 0,
+            Self::Thumbnail { .. } => 1,
+            Self::DialogPhotoSmall { .. } => 2,
+            Self::DialogPhotoBig { .. } => 3,
+            Self::StickerSetThumbnail { .. } => 4,
+            Self::FullLegacy { .. } => 5,
+            Self::DialogPhotoSmallLegacy { .. } => 6,
+            Self::DialogPhotoBigLegacy { .. } => 7,
+            Self::StickerSetThumbnailLegacy { .. } => 8,
+            Self::StickerSetThumbnailVersion { .. } => 9,
+        }
+    }
+
+    /// Encodes the source (type id + variant fields).
+    fn encode(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&self.type_id().to_le_bytes());
+        match self {
+            Self::Legacy { secret } => out.extend_from_slice(&secret.to_le_bytes()),
+            Self::Thumbnail {
+                file_type,
+                thumbnail_type,
+            } => {
+                out.extend_from_slice(&file_type.id().to_le_bytes());
+                out.extend_from_slice(&thumbnail_type.to_le_bytes());
+            }
+            Self::DialogPhotoSmall {
+                dialog_id,
+                dialog_access_hash,
+            }
+            | Self::DialogPhotoBig {
+                dialog_id,
+                dialog_access_hash,
+            } => {
+                out.extend_from_slice(&dialog_id.to_le_bytes());
+                out.extend_from_slice(&dialog_access_hash.to_le_bytes());
+            }
+            Self::StickerSetThumbnail {
+                set_id,
+                set_access_hash,
+            } => {
+                out.extend_from_slice(&set_id.to_le_bytes());
+                out.extend_from_slice(&set_access_hash.to_le_bytes());
+            }
+            Self::FullLegacy {
+                volume_id,
+                secret,
+                local_id,
+            } => {
+                out.extend_from_slice(&volume_id.to_le_bytes());
+                out.extend_from_slice(&secret.to_le_bytes());
+                out.extend_from_slice(&local_id.to_le_bytes());
+            }
+            Self::DialogPhotoSmallLegacy {
+                dialog_id,
+                dialog_access_hash,
+                volume_id,
+                local_id,
+            }
+            | Self::DialogPhotoBigLegacy {
+                dialog_id,
+                dialog_access_hash,
+                volume_id,
+                local_id,
+            } => {
+                out.extend_from_slice(&dialog_id.to_le_bytes());
+                out.extend_from_slice(&dialog_access_hash.to_le_bytes());
+                out.extend_from_slice(&volume_id.to_le_bytes());
+                out.extend_from_slice(&local_id.to_le_bytes());
+            }
+            Self::StickerSetThumbnailLegacy {
+                set_id,
+                set_access_hash,
+                volume_id,
+                local_id,
+            } => {
+                out.extend_from_slice(&set_id.to_le_bytes());
+                out.extend_from_slice(&set_access_hash.to_le_bytes());
+                out.extend_from_slice(&volume_id.to_le_bytes());
+                out.extend_from_slice(&local_id.to_le_bytes());
+            }
+            Self::StickerSetThumbnailVersion {
+                set_id,
+                set_access_hash,
+                sticker_version,
+            } => {
+                out.extend_from_slice(&set_id.to_le_bytes());
+                out.extend_from_slice(&set_access_hash.to_le_bytes());
+                out.extend_from_slice(&sticker_version.to_le_bytes());
+            }
+        }
+    }
+
+    /// Decodes a source from `cursor`.
+    fn decode(cursor: &mut Cursor<'_>) -> Result<Self> {
+        let type_id = cursor.i32()?;
+        let source = match type_id {
+            0 => Self::Legacy {
+                secret: cursor.i64()?,
+            },
+            1 => Self::Thumbnail {
+                file_type: Type::from_id(cursor.u32()?)
+                    .ok_or_else(|| Error::Decode("unknown thumbnail file type".to_owned()))?,
+                thumbnail_type: cursor.i32()?,
+            },
+            2 => Self::DialogPhotoSmall {
+                dialog_id: cursor.i64()?,
+                dialog_access_hash: cursor.i64()?,
+            },
+            3 => Self::DialogPhotoBig {
+                dialog_id: cursor.i64()?,
+                dialog_access_hash: cursor.i64()?,
+            },
+            4 => Self::StickerSetThumbnail {
+                set_id: cursor.i64()?,
+                set_access_hash: cursor.i64()?,
+            },
+            5 => Self::FullLegacy {
+                volume_id: cursor.i64()?,
+                secret: cursor.i64()?,
+                local_id: cursor.i32()?,
+            },
+            6 => Self::DialogPhotoSmallLegacy {
+                dialog_id: cursor.i64()?,
+                dialog_access_hash: cursor.i64()?,
+                volume_id: cursor.i64()?,
+                local_id: cursor.i32()?,
+            },
+            7 => Self::DialogPhotoBigLegacy {
+                dialog_id: cursor.i64()?,
+                dialog_access_hash: cursor.i64()?,
+                volume_id: cursor.i64()?,
+                local_id: cursor.i32()?,
+            },
+            8 => Self::StickerSetThumbnailLegacy {
+                set_id: cursor.i64()?,
+                set_access_hash: cursor.i64()?,
+                volume_id: cursor.i64()?,
+                local_id: cursor.i32()?,
+            },
+            9 => Self::StickerSetThumbnailVersion {
+                set_id: cursor.i64()?,
+                set_access_hash: cursor.i64()?,
+                sticker_version: cursor.i32()?,
+            },
+            other => {
+                return Err(Error::Decode(format!(
+                    "unknown photo size source type {other}"
+                )));
+            }
+        };
+        Ok(source)
+    }
+}
+
 /// A parsed file id.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileId {
@@ -112,6 +359,8 @@ pub struct FileId {
     pub file_reference: Vec<u8>,
     /// The URL, for a web location.
     pub url: String,
+    /// The photo metadata, required for photo/thumbnail types.
+    pub photo_size: Option<PhotoSizeSource>,
 }
 
 impl FileId {
@@ -122,11 +371,6 @@ impl FileId {
     /// Returns an error for a photo/thumbnail type (photo-size sources are not
     /// supported yet).
     pub fn encode(&self) -> Result<String> {
-        if self.type_.has_photo_size() {
-            return Err(Error::Unexpected(
-                "photo/thumbnail file ids are not supported yet".to_owned(),
-            ));
-        }
         let has_web = !self.url.is_empty();
         let has_reference = !self.file_reference.is_empty();
 
@@ -148,6 +392,14 @@ impl FileId {
         } else {
             body.extend_from_slice(&self.id.to_le_bytes());
             body.extend_from_slice(&self.access_hash.to_le_bytes());
+            if self.type_.has_photo_size() {
+                let source = self.photo_size.as_ref().ok_or_else(|| {
+                    Error::Unexpected(
+                        "photo/thumbnail file ids require a photo_size source".to_owned(),
+                    )
+                })?;
+                source.encode(&mut body);
+            }
         }
         body.push(LATEST_SUB_VERSION);
         body.push(PERSISTENT_ID_VERSION);
@@ -197,11 +449,11 @@ impl FileId {
         } else {
             (cursor.i64()?, cursor.i64()?)
         };
-        if type_.has_photo_size() {
-            return Err(Error::Decode(
-                "photo/thumbnail file ids are not supported yet".to_owned(),
-            ));
-        }
+        let photo_size = if !has_web && type_.has_photo_size() {
+            Some(PhotoSizeSource::decode(&mut cursor)?)
+        } else {
+            None
+        };
         Ok(Self {
             type_,
             dc,
@@ -209,6 +461,7 @@ impl FileId {
             access_hash,
             file_reference,
             url,
+            photo_size,
         })
     }
 }
@@ -238,6 +491,10 @@ impl<'a> Cursor<'a> {
     fn u32(&mut self) -> Result<u32> {
         let bytes: [u8; 4] = self.take(4)?.try_into().expect("four bytes");
         Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn i32(&mut self) -> Result<i32> {
+        Ok(self.u32()? as i32)
     }
 
     fn i64(&mut self) -> Result<i64> {
@@ -403,6 +660,7 @@ mod tests {
             access_hash: -9,
             file_reference: vec![1, 2, 0, 0, 3],
             url: String::new(),
+            photo_size: None,
         };
         let encoded = id.encode().unwrap();
         assert_eq!(FileId::decode(&encoded).unwrap(), id);
@@ -417,22 +675,29 @@ mod tests {
             access_hash: 0,
             file_reference: Vec::new(),
             url: "https://example.com/x".to_owned(),
+            photo_size: None,
         };
         let encoded = id.encode().unwrap();
         assert_eq!(FileId::decode(&encoded).unwrap(), id);
     }
 
     #[test]
-    fn photo_types_are_rejected_for_now() {
+    fn photo_thumbnail_round_trips_with_source() {
+        use super::PhotoSizeSource;
         let id = FileId {
-            type_: Type::Photo,
+            type_: Type::Thumbnail,
             dc: 2,
             id: 1,
             access_hash: 2,
             file_reference: Vec::new(),
             url: String::new(),
+            photo_size: Some(PhotoSizeSource::Thumbnail {
+                file_type: Type::Photo,
+                thumbnail_type: b'x' as i32,
+            }),
         };
-        assert!(id.encode().is_err());
+        let encoded = id.encode().unwrap();
+        assert_eq!(FileId::decode(&encoded).unwrap(), id);
     }
 
     #[test]
