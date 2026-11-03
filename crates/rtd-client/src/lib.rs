@@ -28,6 +28,7 @@ pub mod qr;
 pub mod session;
 pub mod storage;
 pub mod takeout;
+pub mod tdesktop;
 pub mod thumbnail;
 pub mod transport;
 pub mod unpack;
@@ -63,6 +64,7 @@ pub use qr::{LoginToken, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};
 pub use takeout::TakeoutConfig;
+pub use tdesktop::{Account as TdesktopAccount, TdesktopError, read as read_tdesktop};
 pub use thumbnail::{ThumbnailError, expand as expand_thumbnail};
 pub use transport::{
     DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,

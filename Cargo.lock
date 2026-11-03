@@ -984,6 +984,7 @@ version = "0.0.0"
 name = "rtd-client"
 version = "0.0.0"
 dependencies = [
+ "pbkdf2",
  "rand",
  "rsa",
  "rtd-bin",
@@ -996,6 +997,8 @@ dependencies = [
  "rtd-transport",
  "rtd-util",
  "serde_json",
+ "sha1",
+ "sha2 0.10.9",
  "tokio",
 ]
 

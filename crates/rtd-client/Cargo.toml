@@ -21,6 +21,9 @@ rtd-tg = { path = "../rtd-tg" }
 rtd-transport = { path = "../rtd-transport" }
 rtd-util = { path = "../rtd-util" }
 tokio = { version = "1", features = ["sync"] }
+sha1 = "0.10"
+sha2 = "0.10"
+pbkdf2 = "0.12"
 
 [dev-dependencies]
 rand = "0.8"
