@@ -48,7 +48,7 @@ pub use json::{JsonValue, describe, type_name};
 pub use keepalive::Keepalive;
 pub use markup::{InlineButton, inline_keyboard};
 pub use message::RequestBuilder;
-pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
+pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{
     BlockedIter, DialogsIter, HistoryIter, ParticipantsIter, PhotosIter, fetch_dialogs,
     fetch_history, fetch_participants,

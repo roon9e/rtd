@@ -82,6 +82,38 @@ impl Middleware for FloodWait {
     }
 }
 
+/// Records method invocations and outcomes (a tracing hook point).
+pub trait Tracer: Send + Sync {
+    /// Records one invocation of `method` (its constructor name) and success.
+    fn record(&self, method: &str, ok: bool);
+}
+
+/// A [`Middleware`] forwarding every invocation to a [`Tracer`].
+pub struct Trace {
+    tracer: Arc<dyn Tracer>,
+}
+
+impl Trace {
+    /// Creates a tracing middleware over `tracer`.
+    #[must_use]
+    pub fn new(tracer: Arc<dyn Tracer>) -> Self {
+        Self { tracer }
+    }
+}
+
+impl Middleware for Trace {
+    fn invoke(
+        &self,
+        method: Method,
+        next: &mut dyn FnMut(Method) -> Result<Object>,
+    ) -> Result<Object> {
+        let name = crate::json::type_name(method.type_id()).unwrap_or("unknown");
+        let result = next(method);
+        self.tracer.record(name, result.is_ok());
+        result
+    }
+}
+
 /// Enforces a minimum interval between invocations.
 pub struct RateLimit {
     interval: Duration,
@@ -166,6 +198,38 @@ mod tests {
 
     fn a_method() -> Method {
         Method::HelpGetConfig(Box::new(HelpGetConfig))
+    }
+
+    #[test]
+    fn tracer_records_calls() {
+        use super::{Trace, Tracer};
+        use crate::error::Error;
+        use std::sync::Mutex;
+
+        #[derive(Default)]
+        struct Recording {
+            calls: Mutex<Vec<(String, bool)>>,
+        }
+        impl Tracer for Recording {
+            fn record(&self, method: &str, ok: bool) {
+                self.calls
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push((method.to_owned(), ok));
+            }
+        }
+
+        let recording = Arc::new(Recording::default());
+        let chain: Vec<Box<dyn Middleware + Send>> = vec![Box::new(Trace::new(recording.clone()))];
+        let _ = run_chain(&chain, a_method(), &mut |_m| {
+            Err(Error::Unexpected("x".to_owned()))
+        });
+        let calls = recording
+            .calls
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert_eq!(calls.len(), 1);
+        assert!(!calls[0].1);
     }
 
     #[test]
