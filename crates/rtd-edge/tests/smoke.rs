@@ -88,6 +88,7 @@ async fn binds_from_configuration_with_an_in_process_core() {
         advertise_ip: "127.0.0.1".to_owned(),
         advertise_port: 443,
         strict_dc_check: false,
+        instance_id: None,
     };
     let server = service::bind(config).await.expect("bind the edge");
     assert_ne!(server.local_addr().expect("local address").port(), 0);

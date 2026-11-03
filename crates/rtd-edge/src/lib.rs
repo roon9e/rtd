@@ -22,9 +22,11 @@ pub mod config;
 pub mod error;
 pub mod exchange;
 pub mod grpc;
+pub mod identity;
 pub mod service;
 
 pub use config::EdgeConfig;
 pub use error::EdgeError;
 pub use exchange::ServerExchange;
 pub use grpc::GrpcCore;
+pub use identity::{BuildInfo, build_info};

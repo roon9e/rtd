@@ -57,6 +57,7 @@ OPTIONS:
     --advertise-ip <IP>   Public IP advertised in help.getConfig [env: RTD_EDGE_ADVERTISE_IP]
     --advertise-port <P>  Public port advertised in help.getConfig [env: RTD_EDGE_ADVERTISE_PORT]
     --strict-dc        Require clients to match this DC label [env: RTD_EDGE_STRICT_DC]
+    --instance-id <ID> Instance identity for logs [env: RTD_EDGE_INSTANCE_ID]
     --exchange-test-params  Use fixed test DH parameters [env: RTD_EDGE_EXCHANGE_TEST_PARAMS]
     --auth-key-cache-max <N>   Max cached auth keys [env: RTD_EDGE_AUTH_KEY_CACHE_MAX]
     --auth-key-cache-ttl <S>   Auth-key cache TTL seconds [env: RTD_EDGE_AUTH_KEY_CACHE_TTL]
@@ -102,6 +103,8 @@ pub struct EdgeConfig {
     pub advertise_port: i32,
     /// Whether the client's datacenter label must match this edge's.
     pub strict_dc_check: bool,
+    /// The instance identity used in logs; generated when unset.
+    pub instance_id: Option<String>,
 }
 
 impl EdgeConfig {
@@ -135,6 +138,7 @@ impl EdgeConfig {
         let mut advertise_ip = None;
         let mut advertise_port = None;
         let mut strict_dc = None;
+        let mut instance_id = None;
 
         let mut index = 0;
         while index < args.len() {
@@ -188,6 +192,9 @@ impl EdgeConfig {
                         Some(value) => parse_bool(&value)?,
                         None => true,
                     });
+                }
+                "--instance-id" => {
+                    instance_id = Some(take(&args, &mut index, inline, &name)?);
                 }
                 other => {
                     return Err(EdgeError::Usage(format!("unknown argument {other:?}")));
@@ -302,6 +309,7 @@ impl EdgeConfig {
             advertise_ip,
             advertise_port,
             strict_dc_check,
+            instance_id: instance_id.or_else(|| env("RTD_EDGE_INSTANCE_ID")),
         })
     }
 

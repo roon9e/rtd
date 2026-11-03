@@ -52,9 +52,20 @@ pub async fn bind(config: EdgeConfig) -> Result<Server, EdgeError> {
         temp_key_cache: CacheLimits::new(config.temp_key_cache_max, config.temp_key_cache_ttl),
     };
     let ingress = ingress_config(&config);
-    Server::bind(config.bind, ingress, core, options)
+    let info = crate::identity::build_info();
+    let instance = crate::identity::resolve_instance_id(config.instance_id.as_deref());
+    let server = Server::bind(config.bind, ingress, core, options)
         .await
-        .map_err(EdgeError::Ingress)
+        .map_err(EdgeError::Ingress)?;
+    let address = server
+        .local_addr()
+        .map(|addr| addr.to_string())
+        .unwrap_or_else(|_| "unknown".to_owned());
+    eprintln!(
+        "rtd-edge {} ({}) instance {} listening on {}",
+        info.version, info.commit, instance, address
+    );
+    Ok(server)
 }
 
 /// Builds the edge and serves until the process receives a shutdown signal.
@@ -156,6 +167,7 @@ mod tests {
             advertise_ip: "127.0.0.1".to_owned(),
             advertise_port: 443,
             strict_dc_check: false,
+            instance_id: None,
         };
         let ingress = ingress_config(&config);
         // The secret and WebSocket settings are only observable through their
@@ -194,6 +206,7 @@ mod tests {
             advertise_ip: "127.0.0.1".to_owned(),
             advertise_port: 443,
             strict_dc_check: false,
+            instance_id: None,
         };
         assert!(matches!(
             config.load_rsa_key().expect_err("missing file"),
