@@ -10,6 +10,7 @@ pub mod auth;
 pub mod client;
 pub mod error;
 pub mod middleware;
+pub mod qr;
 pub mod session;
 pub mod storage;
 pub mod transport;
@@ -20,6 +21,7 @@ pub use auth::{ConstantPassword, PasswordProvider};
 pub use client::{Client, InitParams};
 pub use error::{Error, Result};
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
+pub use qr::{LoginToken, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, MemoryStorage, Storage};
 pub use transport::{

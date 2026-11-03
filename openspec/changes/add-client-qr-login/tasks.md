@@ -2,8 +2,8 @@
 
 ## 1. Token calls
 
-- [ ] 1.1 Add `export_login_token`/`import_login_token`/`accept_login_token` (`client.rs`/`qr.rs`)
-- [ ] 1.2 Handle `auth.LoginTokenMigrateTo` as a typed error until DC switching lands
+- [x] 1.1 Add `export_login_token`/`import_login_token`/`accept_login_token` (`client.rs`/`qr.rs`)
+- [x] 1.2 Handle `auth.LoginTokenMigrateTo` as a typed error until DC switching lands
 
 ## 2. Driver
 

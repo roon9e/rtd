@@ -15,7 +15,8 @@ use rtd_proto::{
     RPC_RESULT_TYPE_ID, RpcResult,
 };
 use rtd_tg::{
-    AccountGetPassword, AuthAuthorization, AuthCheckPassword, AuthImportBotAuthorization,
+    AccountGetPassword, AuthAcceptLoginToken, AuthAuthorization, AuthCheckPassword,
+    AuthExportLoginToken, AuthImportBotAuthorization, AuthImportLoginToken, AuthLoginToken,
     AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder, HelpGetConfig,
     InitConnection, InputCheckPasswordSRP, InvokeWithLayer, LAYER, Method, Object, PasswordKdfAlgo,
     Update, Updates,
@@ -25,6 +26,7 @@ use rtd_util::Clock;
 use crate::auth::PasswordProvider;
 use crate::error::{Error, Result};
 use crate::middleware::{Middleware, run_chain};
+use crate::qr::LoginToken;
 use crate::session::{ClientSession, SessionData};
 use crate::transport::Transport;
 
@@ -338,6 +340,65 @@ impl<T: Transport> Client<T> {
         self.check_password(&password)
     }
 
+    /// Exports a QR login token (`auth.exportLoginToken`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a token state other than a fresh token.
+    pub fn export_login_token(
+        &mut self,
+        api_id: i32,
+        api_hash: &str,
+        except_ids: Vec<i64>,
+    ) -> Result<LoginToken> {
+        let query = Method::AuthExportLoginToken(Box::new(AuthExportLoginToken {
+            api_id,
+            api_hash: api_hash.to_owned(),
+            except_ids,
+        }));
+        match self.invoke(query)? {
+            Object::AuthLoginToken(token) => match *token {
+                AuthLoginToken::LoginToken { expires, token } => {
+                    Ok(LoginToken::new(expires, token))
+                }
+                other => Err(unexpected_token("auth.exportLoginToken", &other)),
+            },
+            other => Err(unexpected("auth.exportLoginToken", &other)),
+        }
+    }
+
+    /// Imports an accepted QR login token (`auth.importLoginToken`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the token is not yet a successful authorization.
+    pub fn import_login_token(&mut self, token: Vec<u8>) -> Result<AuthAuthorization> {
+        let query = Method::AuthImportLoginToken(Box::new(AuthImportLoginToken { token }));
+        match self.invoke(query)? {
+            Object::AuthLoginToken(token) => match *token {
+                AuthLoginToken::LoginTokenSuccess { authorization } => Ok(*authorization),
+                other => Err(unexpected_token("auth.importLoginToken", &other)),
+            },
+            other => Err(unexpected("auth.importLoginToken", &other)),
+        }
+    }
+
+    /// Accepts a scanned QR login token (`auth.acceptLoginToken`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server does not answer `Bool`.
+    pub fn accept_login_token(&mut self, token: Vec<u8>) -> Result<()> {
+        let query = Method::AuthAcceptLoginToken(Box::new(AuthAcceptLoginToken { token }));
+        match self.invoke(query)? {
+            Object::Bool(_) => Ok(()),
+            other => Err(unexpected("auth.acceptLoginToken", &other)),
+        }
+    }
+
     /// Authorizes a bot with a token (`auth.importBotAuthorization`).
     ///
     /// # Errors
@@ -515,6 +576,14 @@ impl<T: Transport> Client<T> {
             _ => Err(Error::Decode("unrecognised RPC result".to_owned())),
         }
     }
+}
+
+/// An error for a login-token call that answered with an unexpected token state.
+fn unexpected_token(what: &str, token: &AuthLoginToken) -> Error {
+    Error::Unexpected(format!(
+        "{what} returned unexpected login-token state {:#010x}",
+        token.type_id()
+    ))
 }
 
 /// An error for a method that answered with a constructor the wrapper expects
