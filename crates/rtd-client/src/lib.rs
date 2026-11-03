@@ -70,8 +70,8 @@ pub use takeout::TakeoutConfig;
 pub use tdesktop::{Account as TdesktopAccount, TdesktopError, read as read_tdesktop};
 pub use thumbnail::{ThumbnailError, expand as expand_thumbnail};
 pub use transport::{
-    DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,
-    Transport, WriteTransport, connect_tcp, dial_tcp,
+    DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, Reader,
+    TcpTransport, Transport, WriteTransport, connect_tcp, dial_tcp,
 };
 pub use unpack::{messages, messages_from_updates, update_message};
 pub use updates::{

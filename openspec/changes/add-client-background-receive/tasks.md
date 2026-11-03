@@ -7,7 +7,7 @@
 
 ## 2. Reader and events
 
-- [ ] 2.1 Add a reader thread emitting `ClientEvent::{Result, Update, Error}`; expose `recv_event` on the sync client (`client.rs`)
+- [x] 2.1 Add a background `Reader` over a split transport (`transport.rs`)
 - [ ] 2.2 Bridge events to `tokio::sync::mpsc` in `AsyncClient`, replacing per-call read ownership (`async_client.rs`)
 
 ## 3. Verification

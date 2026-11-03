@@ -233,6 +233,57 @@ pub fn dial_tcp(address: &str, dc: u16, codec: CodecKind, secret: &Secret) -> Re
     Framed::new(Box::new(stream) as Box<dyn ReadWrite>, codec, false)
 }
 
+/// A background reader draining a [`ReadTransport`] on its own thread.
+///
+/// This lets a client keep reading (and receiving unsolicited updates) while a
+/// caller writes on the other half of a split transport.
+pub struct Reader {
+    rx: Receiver<Result<Vec<u8>>>,
+    handle: std::thread::JoinHandle<()>,
+}
+
+impl Reader {
+    /// Spawns a reader over `transport`.
+    pub fn spawn<T: ReadTransport + Send + 'static>(mut transport: T) -> Self {
+        let (tx, rx) = channel();
+        let handle = std::thread::spawn(move || {
+            loop {
+                match transport.recv_frame() {
+                    Ok(frame) => {
+                        if tx.send(Ok(frame)).is_err() {
+                            break;
+                        }
+                    }
+                    Err(error) => {
+                        let _ = tx.send(Err(error));
+                        break;
+                    }
+                }
+            }
+        });
+        Self { rx, handle }
+    }
+
+    /// Returns the next frame, or an error when the reader stopped.
+    ///
+    /// # Errors
+    ///
+    /// Returns the reader's terminal error, or [`Error::Closed`] once it stops.
+    pub fn recv(&self) -> Result<Vec<u8>> {
+        self.rx.recv().map_err(|_| Error::Closed)?
+    }
+
+    /// Waits for the reader thread to finish.
+    ///
+    /// # Errors
+    ///
+    /// Reserved for future use; returns `Ok(())`.
+    pub fn join(self) -> Result<()> {
+        let _ = self.handle.join();
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{DuplexStream, Transport};
@@ -244,6 +295,18 @@ mod tests {
         b.send_frame(b"two").unwrap();
         assert_eq!(a.recv_frame().unwrap(), b"two");
         assert_eq!(b.recv_frame().unwrap(), b"one");
+    }
+
+    #[test]
+    fn reader_drains_a_split_transport() {
+        use super::{Reader, WriteTransport};
+
+        let (a, b) = super::DuplexStream::pair();
+        let (_, mut a_write) = a.split();
+        let (b_read, _) = b.split();
+        let reader = Reader::spawn(b_read);
+        a_write.send_frame(b"ping").unwrap();
+        assert_eq!(reader.recv().unwrap(), b"ping");
     }
 
     #[test]
