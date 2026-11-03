@@ -12,6 +12,110 @@ use crate::client::Client;
 use crate::error::{Error, Result};
 use crate::transport::Transport;
 
+/// A storage key identifying a peer entity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PeerKey {
+    /// The entity prefix (`users`, `chats`, `channel`).
+    pub prefix: String,
+    /// The entity id.
+    pub id: i64,
+}
+
+impl PeerKey {
+    /// Creates a key.
+    #[must_use]
+    pub fn new(prefix: impl Into<String>, id: i64) -> Self {
+        Self {
+            prefix: prefix.into(),
+            id,
+        }
+    }
+}
+
+/// A stored peer value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeerValue {
+    /// The peer's access hash.
+    pub access_hash: i64,
+}
+
+/// A synchronous store for resolved peer access hashes, phone mappings and the
+/// contacts hash.
+pub trait PeerStorage: Send + Sync {
+    /// Saves `value` under `key`.
+    fn save(&self, key: PeerKey, value: PeerValue);
+    /// Finds the value stored under `key`.
+    fn find(&self, key: &PeerKey) -> Option<PeerValue>;
+    /// Saves a phone-number mapping to `key`.
+    fn save_phone(&self, phone: &str, key: PeerKey);
+    /// Finds the phone-number mapping.
+    fn find_phone(&self, phone: &str) -> Option<(PeerKey, PeerValue)>;
+    /// Returns the stored contacts hash.
+    fn contacts_hash(&self) -> i64;
+    /// Stores the contacts hash.
+    fn save_contacts_hash(&self, hash: i64);
+}
+
+/// An in-memory [`PeerStorage`].
+#[derive(Debug, Default)]
+pub struct MemoryPeerStorage {
+    entries: Mutex<HashMap<PeerKey, PeerValue>>,
+    phones: Mutex<HashMap<String, PeerKey>>,
+    contacts_hash: std::sync::atomic::AtomicI64,
+}
+
+impl MemoryPeerStorage {
+    /// Creates an empty storage.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl PeerStorage for MemoryPeerStorage {
+    fn save(&self, key: PeerKey, value: PeerValue) {
+        self.entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(key, value);
+    }
+
+    fn find(&self, key: &PeerKey) -> Option<PeerValue> {
+        self.entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(key)
+            .copied()
+    }
+
+    fn save_phone(&self, phone: &str, key: PeerKey) {
+        self.phones
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(phone.to_owned(), key);
+    }
+
+    fn find_phone(&self, phone: &str) -> Option<(PeerKey, PeerValue)> {
+        let key = self
+            .phones
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(phone)
+            .cloned()?;
+        let value = self.find(&key)?;
+        Some((key, value))
+    }
+
+    fn contacts_hash(&self) -> i64 {
+        self.contacts_hash.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    fn save_contacts_hash(&self, hash: i64) {
+        self.contacts_hash
+            .store(hash, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// A resolved peer with the identity needed to reference it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResolvedPeer {
@@ -279,5 +383,27 @@ mod tests {
             ResolvedPeer::Chat { chat_id: 3 }.input_peer(),
             InputPeer::InputPeerChat { chat_id: 3 }
         );
+    }
+
+    #[test]
+    fn memory_storage_round_trips() {
+        use super::{MemoryPeerStorage, PeerKey, PeerStorage, PeerValue};
+
+        let storage = MemoryPeerStorage::new();
+        let key = PeerKey::new("users", 42);
+        assert!(storage.find(&key).is_none());
+        storage.save(key.clone(), PeerValue { access_hash: 7 });
+        assert_eq!(storage.find(&key), Some(PeerValue { access_hash: 7 }));
+
+        storage.save_phone("+100", key.clone());
+        assert_eq!(
+            storage.find_phone("+100"),
+            Some((key.clone(), PeerValue { access_hash: 7 }))
+        );
+        assert!(storage.find_phone("+200").is_none());
+
+        assert_eq!(storage.contacts_hash(), 0);
+        storage.save_contacts_hash(123);
+        assert_eq!(storage.contacts_hash(), 123);
     }
 }

@@ -13,6 +13,7 @@ pub struct Keepalive {
     timeout_ms: u64,
     next_ping_ms: u64,
     pending: Option<(i64, u64)>,
+    dead: bool,
 }
 
 impl Keepalive {
@@ -26,14 +27,16 @@ impl Keepalive {
             timeout_ms: timeout.as_millis() as u64,
             next_ping_ms: start_ms.saturating_add(interval_ms),
             pending: None,
+            dead: false,
         }
     }
 
     /// Returns a ping id to send when a ping is due, or `None`.
     ///
-    /// A ping is not due while one is still awaiting its `pong`.
+    /// A ping is not due while one is still awaiting its `pong` or once the
+    /// connection has been marked dead.
     pub fn due(&self, now_ms: u64, ping_id: i64) -> Option<i64> {
-        if self.pending.is_some() || now_ms < self.next_ping_ms {
+        if self.dead || self.pending.is_some() || now_ms < self.next_ping_ms {
             None
         } else {
             Some(ping_id)
@@ -64,6 +67,74 @@ impl Keepalive {
             .map(|(_, sent_at)| now_ms.saturating_sub(sent_at) >= self.timeout_ms)
             .unwrap_or(false)
     }
+
+    /// Marks the connection dead if the pending ping has timed out.
+    ///
+    /// Returns whether the connection is dead. Once dead it stays dead until
+    /// [`Keepalive::reconnect`].
+    pub fn check(&mut self, now_ms: u64) -> bool {
+        if self.timed_out(now_ms) {
+            self.dead = true;
+        }
+        self.dead
+    }
+
+    /// Returns whether the connection has been marked dead.
+    #[must_use]
+    pub fn is_dead(&self) -> bool {
+        self.dead
+    }
+
+    /// Clears the dead state and pending ping after a reconnect, scheduling the
+    /// first post-reconnect ping.
+    pub fn reconnect(&mut self, now_ms: u64) {
+        self.pending = None;
+        self.dead = false;
+        self.next_ping_ms = now_ms.saturating_add(self.interval_ms);
+    }
+}
+
+/// Capped exponential backoff, in monotonic milliseconds.
+#[derive(Debug, Clone)]
+pub struct Backoff {
+    initial_ms: u64,
+    max_ms: u64,
+    factor: u64,
+    current_ms: u64,
+}
+
+impl Backoff {
+    /// Creates a backoff starting at `initial` and doubling until `max`.
+    #[must_use]
+    pub fn new(initial: Duration, max: Duration) -> Self {
+        let initial_ms = initial.as_millis() as u64;
+        let max_ms = (max.as_millis() as u64).max(initial_ms);
+        Self {
+            initial_ms,
+            max_ms,
+            factor: 2,
+            current_ms: initial_ms,
+        }
+    }
+
+    /// Overrides the growth factor (values below 2 are raised to 2).
+    #[must_use]
+    pub fn with_factor(mut self, factor: u64) -> Self {
+        self.factor = factor.max(2);
+        self
+    }
+
+    /// Returns the current delay and advances to the next (capped) delay.
+    pub fn next_delay(&mut self) -> Duration {
+        let delay = self.current_ms;
+        self.current_ms = self.current_ms.saturating_mul(self.factor).min(self.max_ms);
+        Duration::from_millis(delay)
+    }
+
+    /// Resets the backoff to its initial delay.
+    pub fn reset(&mut self) {
+        self.current_ms = self.initial_ms;
+    }
 }
 
 #[cfg(test)]
@@ -89,5 +160,34 @@ mod tests {
         assert!(keepalive.on_pong(1, 65_000));
         assert_eq!(keepalive.due(124_000, 2), None);
         assert_eq!(keepalive.due(125_000, 2), Some(2));
+    }
+
+    #[test]
+    fn missed_pong_marks_the_connection_dead_until_reconnect() {
+        let mut keepalive = Keepalive::new(Duration::from_secs(60), Duration::from_secs(5), 0);
+        keepalive.sent(1, 0);
+        assert!(!keepalive.check(4_000));
+        assert!(keepalive.check(5_000));
+        assert!(keepalive.is_dead());
+        // A dead connection schedules no further pings.
+        assert_eq!(keepalive.due(1_000_000, 2), None);
+        keepalive.reconnect(10_000);
+        assert!(!keepalive.is_dead());
+        assert_eq!(keepalive.due(70_000, 3), Some(3));
+    }
+
+    #[test]
+    fn backoff_grows_and_is_capped() {
+        use super::Backoff;
+
+        let mut backoff = Backoff::new(Duration::from_millis(100), Duration::from_millis(800));
+        assert_eq!(backoff.next_delay(), Duration::from_millis(100));
+        assert_eq!(backoff.next_delay(), Duration::from_millis(200));
+        assert_eq!(backoff.next_delay(), Duration::from_millis(400));
+        assert_eq!(backoff.next_delay(), Duration::from_millis(800));
+        // Capped.
+        assert_eq!(backoff.next_delay(), Duration::from_millis(800));
+        backoff.reset();
+        assert_eq!(backoff.next_delay(), Duration::from_millis(100));
     }
 }

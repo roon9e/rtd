@@ -20,6 +20,7 @@ pub mod json;
 pub mod keepalive;
 pub mod markup;
 pub mod md5;
+pub mod members;
 pub mod message;
 pub mod middleware;
 pub mod pagination;
@@ -55,8 +56,9 @@ pub use error::{Error, Result};
 pub use fileid::{FileId, PhotoSizeSource, Type as FileType};
 pub use inline::{article, set_inline_bot_results};
 pub use json::{JsonValue, describe, type_name};
-pub use keepalive::Keepalive;
+pub use keepalive::{Backoff, Keepalive};
 pub use markup::{InlineButton, inline_keyboard};
+pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
     RequestBuilder, build_send_media, delete_messages, edit_message, edit_message_html,
     edit_message_with, forward_messages, send_document, send_photo,
@@ -66,7 +68,9 @@ pub use pagination::{
     BlockedIter, DialogsIter, Hasher, HistoryIter, ParticipantsIter, PhotosIter, Query, fetch_all,
     fetch_dialogs, fetch_history, fetch_participants, for_each,
 };
-pub use peers::{PeerKind, PeerManager, ResolvedPeer};
+pub use peers::{
+    MemoryPeerStorage, PeerKey, PeerKind, PeerManager, PeerStorage, PeerValue, ResolvedPeer,
+};
 pub use pool::{Pool, SelectedKey, SessionOptions};
 pub use qr::{LoginToken, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};

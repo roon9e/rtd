@@ -3,12 +3,12 @@
 ## 1. Entities
 
 - [ ] 1.1 Add `User`/`Chat`/`Channel`/`Supergroup` with `InputPeer` and access hashes (`peers/mod.rs`)
-- [ ] 1.2 Add the `Storage` trait (in-memory default)
+- [x] 1.2 Add the `Storage` trait (in-memory default)
 
 ## 2. Resolution
 
 - [x] 2.1 Implement `PeerManager` username resolution with caching
-- [ ] 2.2 Add the `members` submodule (iteration + rights)
+- [x] 2.2 Add the `members` submodule (iteration + rights)
 
 ## 3. Verification
 

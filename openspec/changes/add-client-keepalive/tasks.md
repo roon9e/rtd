@@ -3,7 +3,7 @@
 ## 1. Ping loop
 
 - [x] 1.1 Add a `Keepalive` scheduler and `Client::ping` (service ping -> matching pong) (`keepalive.rs`, `client.rs`)
-- [ ] 1.2 Mark the connection dead when a `pong` is missed
+- [x] 1.2 Mark the connection dead when a `pong` is missed
 
 ## 2. Reconnect and retry
 
