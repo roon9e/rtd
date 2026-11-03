@@ -8,6 +8,7 @@
 pub mod async_client;
 pub mod auth;
 pub mod client;
+pub mod deeplink;
 pub mod error;
 pub mod middleware;
 pub mod qr;
@@ -20,6 +21,7 @@ pub mod ws;
 pub use async_client::AsyncClient;
 pub use auth::{ConstantPassword, PasswordProvider};
 pub use client::{Client, InitParams};
+pub use deeplink::{Deeplink, DeeplinkError};
 pub use error::{Error, Result};
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
 pub use qr::{LoginToken, login_url};

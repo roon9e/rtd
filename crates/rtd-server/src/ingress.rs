@@ -353,11 +353,8 @@ async fn http_connection<S>(
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    if !config.websocket {
-        return Err(IngressError::Rejected("websocket ingress is not enabled"));
-    }
-
-    // Read up to the end of the header block so the Origin header is available.
+    // Read the whole header block so the request path, upgrade and Origin are
+    // all available.
     let mut prefixed = Prefixed::new(prefix, stream);
     let mut head = Vec::new();
     let mut byte = [0u8; 1];
@@ -375,6 +372,15 @@ where
         }
     }
 
+    // A non-upgrade request is served as plain HTTP on the same port.
+    if !is_websocket_upgrade(&head) {
+        serve_http(&mut prefixed, &head).await?;
+        return Err(IngressError::Rejected("served an http request"));
+    }
+
+    if !config.websocket {
+        return Err(IngressError::Rejected("websocket ingress is not enabled"));
+    }
     if !origin_allowed(&head, &config.websocket_origins) {
         return Err(IngressError::Rejected("websocket origin not allowed"));
     }
@@ -384,6 +390,42 @@ where
         .await
         .map_err(|err| IngressError::WebSocket(Box::new(err)))?;
     websocket_connection(WsStream::new(upgraded), config).await
+}
+
+/// Returns whether the request head asks for a WebSocket upgrade.
+fn is_websocket_upgrade(head: &[u8]) -> bool {
+    String::from_utf8_lossy(head).lines().any(|line| {
+        line.split_once(':').is_some_and(|(name, value)| {
+            name.eq_ignore_ascii_case("upgrade") && value.trim().eq_ignore_ascii_case("websocket")
+        })
+    })
+}
+
+/// Returns the request path from the HTTP request line, if present.
+fn request_path(head: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(head);
+    let line = text.lines().next()?;
+    line.split_whitespace().nth(1).map(str::to_owned)
+}
+
+/// Serves a minimal HTTP response (`/healthz`, otherwise 404) on the shared port.
+async fn serve_http<S>(stream: &mut Prefixed<S>, head: &[u8]) -> Result<(), IngressError>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin,
+{
+    let (status, body) = match request_path(head).as_deref() {
+        Some("/healthz") => ("200 OK", "ok"),
+        _ => ("404 Not Found", "not found"),
+    };
+    let response = format!(
+        "HTTP/1.1 {status}\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    stream
+        .write_all(response.as_bytes())
+        .await
+        .map_err(IngressError::Io)?;
+    stream.flush().await.map_err(IngressError::Io)
 }
 
 /// Returns whether the request head's `Origin` is allowed.
@@ -1299,8 +1341,8 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_reserved_prefix_when_not_configured() {
-        let (mut client, server) = tokio::io::duplex(64);
-        client.write_all(b"GET / HTTP/1.1\r\n").await.unwrap();
+        let (mut client, server) = tokio::io::duplex(512);
+        client.write_all(b"GET / HTTP/1.1\r\n\r\n").await.unwrap();
         let error = accept_stream(server, &IngressConfig::default())
             .await
             .unwrap_err();
@@ -1309,8 +1351,8 @@ mod tests {
 
     #[tokio::test]
     async fn options_request_is_treated_as_http() {
-        let (mut client, server) = tokio::io::duplex(64);
-        client.write_all(b"OPTIONS / HTTP/1.1\r\n").await.unwrap();
+        let (mut client, server) = tokio::io::duplex(512);
+        client.write_all(b"OPTIONS / HTTP/1.1\r\n\r\n").await.unwrap();
         let error = accept_stream(server, &IngressConfig::default())
             .await
             .unwrap_err();
@@ -1383,6 +1425,32 @@ mod tests {
             IngressError::WebSocket(_) | IngressError::Rejected(_)
         ));
         assert!(!client.await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn serves_http_health_on_the_mtproto_port() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let ingress = Ingress::bind("127.0.0.1:0", IngressConfig::new())
+            .await
+            .unwrap();
+        let addr = ingress.local_addr().unwrap();
+
+        let client = tokio::spawn(async move {
+            let mut tcp = tokio::net::TcpStream::connect(addr).await.unwrap();
+            tcp.write_all(b"GET /healthz HTTP/1.1\r\nHost: x\r\n\r\n")
+                .await
+                .unwrap();
+            let mut response = Vec::new();
+            tcp.read_to_end(&mut response).await.unwrap();
+            String::from_utf8_lossy(&response).into_owned()
+        });
+
+        let error = ingress.accept().await.unwrap_err();
+        assert!(matches!(error, IngressError::Rejected(_)));
+        let response = client.await.unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.ends_with("ok"));
     }
 
     #[test]

@@ -3,7 +3,7 @@
 ## 1. Mux
 
 - [ ] 1.1 Add a same-port peeker and a `PrefixedStream` preserving the buffered bytes (`rtd-server/src/ingress.rs`)
-- [ ] 1.2 Route WebSocket upgrades and explicit HTTP routes; default to the MTProto path
+- [x] 1.2 Route WebSocket upgrades and explicit HTTP routes; default to the MTProto path
 
 ## 2. Edge wiring
 

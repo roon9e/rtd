@@ -8,7 +8,7 @@
 ## 2. Thumbnail and deeplink
 
 - [ ] 2.1 Add `thumbnail::expand` and SVG handling
-- [ ] 2.2 Add `deeplink::parse` with `Resolve`/`Join`/`BusinessChat` and domain validation
+- [x] 2.2 Add `deeplink::parse` with `Resolve`/`Join` and domain validation
 
 ## 3. Verification
 
