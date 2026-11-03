@@ -5,7 +5,171 @@
 //! DH exchange. [`CallControl`] implements that channel; the media path
 //! (WebRTC/SFU) is a separate, larger effort.
 
-use rtd_crypto::{ige_decrypt, ige_encrypt};
+use num_bigint::BigUint;
+use rtd_crypto::{RandomSource, ige_decrypt, ige_encrypt};
+use rtd_tg::{MessagesDhConfig, MessagesGetDhConfig, Method, Object};
+use sha1::{Digest as _, Sha1};
+use sha2::Sha256;
+
+use crate::client::Client;
+use crate::error::Error;
+use crate::transport::Transport;
+
+/// The call Diffie-Hellman group size in bytes (2048-bit).
+const KEY_SIZE: usize = 256;
+
+/// The Diffie-Hellman group used for a call (`messages.getDhConfig`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DhConfig {
+    /// The generator `g`.
+    pub g: u32,
+    /// The 2048-bit prime `p`.
+    pub p: BigUint,
+}
+
+impl DhConfig {
+    /// Validates the group parameters.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CallError`] when the prime is not 2048-bit or `g` is out of range.
+    pub fn validate(&self) -> core::result::Result<(), CallError> {
+        if self.p.bits() != (KEY_SIZE * 8) as u64 {
+            return Err(CallError("dh prime is not 2048-bit".to_owned()));
+        }
+        if !(2..=7).contains(&self.g) {
+            return Err(CallError(format!("dh generator out of range: {}", self.g)));
+        }
+        Ok(())
+    }
+
+    /// Generates a secret exponent and the public value `g^exp mod p`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CallError`] when no valid exponent is found.
+    pub fn generate(
+        &self,
+        random: &mut impl RandomSource,
+        server_random: &[u8],
+    ) -> core::result::Result<(BigUint, Vec<u8>), CallError> {
+        let p_minus_three = &self.p - BigUint::from(3u32);
+        let one = BigUint::from(1u32);
+        let p_minus_one = &self.p - &one;
+        for _ in 0..16 {
+            let mut buffer = vec![0u8; KEY_SIZE];
+            random.fill(&mut buffer);
+            if server_random.len() == buffer.len() {
+                for (byte, mask) in buffer.iter_mut().zip(server_random) {
+                    *byte ^= mask;
+                }
+            }
+            let exponent = (BigUint::from_bytes_be(&buffer) % &p_minus_three) + BigUint::from(2u32);
+            let public = BigUint::from(self.g).modpow(&exponent, &self.p);
+            if public > one && public < p_minus_one {
+                return Ok((exponent, pad(&public)));
+            }
+        }
+        Err(CallError(
+            "failed to generate a valid dh exponent".to_owned(),
+        ))
+    }
+
+    /// Computes the 256-byte shared key and its fingerprint from a peer public
+    /// value and the local exponent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CallError`] when the peer public value is out of range.
+    pub fn compute_key(
+        &self,
+        peer_public: &[u8],
+        exponent: &BigUint,
+    ) -> core::result::Result<(Vec<u8>, i64), CallError> {
+        let peer = BigUint::from_bytes_be(peer_public);
+        self.check_value(&peer)?;
+        let key = pad(&peer.modpow(exponent, &self.p));
+        let fingerprint = key_fingerprint(&key);
+        Ok((key, fingerprint))
+    }
+
+    /// Ensures a public value lies in `(1, p-1)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CallError`] when the value is out of range.
+    pub fn check_value(&self, value: &BigUint) -> core::result::Result<(), CallError> {
+        if value <= &BigUint::from(1u32) {
+            return Err(CallError("dh value too small".to_owned()));
+        }
+        if value >= &(&self.p - BigUint::from(1u32)) {
+            return Err(CallError("dh value too large".to_owned()));
+        }
+        Ok(())
+    }
+}
+
+/// Returns `SHA256(g_a)`, the commitment published before `g_b` is revealed.
+#[must_use]
+pub fn g_a_hash(g_a: &[u8]) -> [u8; 32] {
+    Sha256::digest(g_a).into()
+}
+
+/// Returns the low 64 bits (little-endian) of `SHA1(key)`.
+#[must_use]
+pub fn key_fingerprint(key: &[u8]) -> i64 {
+    let digest = Sha1::digest(key);
+    let tail = &digest[digest.len() - 8..];
+    let mut fingerprint = 0i64;
+    for (i, byte) in tail.iter().enumerate() {
+        fingerprint |= i64::from(*byte) << (i * 8);
+    }
+    fingerprint
+}
+
+/// Fetches the call DH configuration (`messages.getDhConfig`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+/// when the server answers with the not-modified constructor.
+pub fn fetch_dh_config<T: Transport>(
+    client: &mut Client<T>,
+) -> crate::error::Result<(DhConfig, Vec<u8>)> {
+    let query = Method::MessagesGetDhConfig(Box::new(MessagesGetDhConfig {
+        version: 0,
+        random_length: KEY_SIZE as i32,
+    }));
+    match client.invoke(query)? {
+        Object::MessagesDhConfig(config) => match *config {
+            MessagesDhConfig::DhConfig { g, p, random, .. } => Ok((
+                DhConfig {
+                    g: g as u32,
+                    p: BigUint::from_bytes_be(&p),
+                },
+                random,
+            )),
+            MessagesDhConfig::DhConfigNotModified { .. } => Err(Error::Unexpected(
+                "messages.getDhConfig returned not-modified with version 0".to_owned(),
+            )),
+        },
+        other => Err(Error::Unexpected(format!(
+            "messages.getDhConfig returned unexpected constructor {:#010x}",
+            other.type_id()
+        ))),
+    }
+}
+
+/// Left-pads the big-endian bytes of `value` to [`KEY_SIZE`].
+fn pad(value: &BigUint) -> Vec<u8> {
+    let bytes = value.to_bytes_be();
+    if bytes.len() >= KEY_SIZE {
+        return bytes;
+    }
+    let mut out = vec![0u8; KEY_SIZE];
+    out[KEY_SIZE - bytes.len()..].copy_from_slice(&bytes);
+    out
+}
 
 /// A call-lifecycle state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

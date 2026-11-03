@@ -984,6 +984,7 @@ version = "0.0.0"
 name = "rtd-client"
 version = "0.0.0"
 dependencies = [
+ "num-bigint",
  "pbkdf2",
  "rand",
  "rsa",
