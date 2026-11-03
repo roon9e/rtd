@@ -4,8 +4,8 @@
 //! text and options; [`send`] invokes it through a client.
 
 use rtd_tg::{
-    DocumentAttribute, InputFile, InputMedia, InputPeer, MessageEntity, MessagesSendMedia,
-    MessagesSendMessage, Method, Object, ReplyMarkup,
+    DocumentAttribute, InputFile, InputMedia, InputPeer, MessageEntity, MessagesDeleteMessages,
+    MessagesForwardMessages, MessagesSendMedia, MessagesSendMessage, Method, Object, ReplyMarkup,
 };
 
 use crate::client::Client;
@@ -243,6 +243,64 @@ pub fn send_document<T: Transport>(
         ttl_seconds: None,
     };
     client.invoke(build_send_media(peer, media, caption))
+}
+
+/// Forwards messages `ids` from `from` to `to`.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn forward_messages<T: Transport>(
+    client: &mut Client<T>,
+    from: InputPeer,
+    to: InputPeer,
+    ids: Vec<i32>,
+) -> Result<Object> {
+    let random_ids: Vec<i64> = ids.iter().map(|_| random_id()).collect();
+    let query = Method::MessagesForwardMessages(Box::new(MessagesForwardMessages {
+        flags: 0,
+        silent: false,
+        background: false,
+        with_my_score: false,
+        drop_author: false,
+        drop_media_captions: false,
+        noforwards: false,
+        allow_paid_floodskip: false,
+        from_ephemeral: false,
+        from_peer: Box::new(from),
+        id: ids,
+        random_id: random_ids,
+        to_peer: Box::new(to),
+        top_msg_id: None,
+        reply_to: None,
+        schedule_date: None,
+        schedule_repeat_period: None,
+        send_as: None,
+        quick_reply_shortcut: None,
+        effect: None,
+        video_timestamp: None,
+        allow_paid_stars: None,
+        suggested_post: None,
+    }));
+    client.invoke(query)
+}
+
+/// Deletes messages `ids`, optionally for everyone when `revoke` is set.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn delete_messages<T: Transport>(
+    client: &mut Client<T>,
+    ids: Vec<i32>,
+    revoke: bool,
+) -> Result<Object> {
+    let query = Method::MessagesDeleteMessages(Box::new(MessagesDeleteMessages {
+        flags: if revoke { 1 } else { 0 },
+        revoke,
+        id: ids,
+    }));
+    client.invoke(query)
 }
 
 /// Sends `builder`'s message and returns the response object.
