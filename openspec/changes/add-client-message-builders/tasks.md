@@ -2,7 +2,7 @@
 
 ## 1. Core
 
-- [ ] 1.1 Add `Sender`/`RequestBuilder` with the standard options (`message/mod.rs`)
+- [x] 1.1 Add `RequestBuilder` with the standard options (`message/mod.rs`)
 - [ ] 1.2 Add entity/text builders and HTML/Markdown parsing
 
 ## 2. Content
