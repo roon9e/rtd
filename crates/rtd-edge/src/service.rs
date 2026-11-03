@@ -27,9 +27,6 @@ use crate::grpc::GrpcCore;
 /// The idle timeout after which a transient session record is evicted.
 const IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 
-/// The port advertised for the serving datacenter's built-in `help.getConfig`.
-const ADVERTISED_PORT: i32 = 443;
-
 /// Builds and binds the edge described by `config`.
 ///
 /// # Errors
@@ -39,8 +36,11 @@ const ADVERTISED_PORT: i32 = 443;
 pub async fn bind(config: EdgeConfig) -> Result<Server, EdgeError> {
     let key = config.load_rsa_key()?;
     let core = build_core(&config).await?;
-    let exchange: Arc<dyn Exchange> =
-        Arc::new(ServerExchange::new(key, config.dc).with_test_params(config.exchange_test_params));
+    let exchange: Arc<dyn Exchange> = Arc::new(
+        ServerExchange::new(key, config.dc)
+            .with_test_params(config.exchange_test_params)
+            .with_strict_dc(config.strict_dc_check),
+    );
     let options = ServerOptions {
         dc: config.dc,
         clock: Arc::new(SystemClock),
@@ -107,6 +107,8 @@ async fn build_core(config: &EdgeConfig) -> Result<Arc<dyn Core>, EdgeError> {
         }
         None => Ok(Arc::new(LocalCore::with_builtins(&server_config(
             config.dc,
+            &config.advertise_ip,
+            config.advertise_port,
         )))),
     }
 }
@@ -122,9 +124,12 @@ fn ingress_config(config: &EdgeConfig) -> IngressConfig {
     }
 }
 
-/// Builds the in-process core's built-in configuration for datacenter `dc`.
-fn server_config(dc: i32) -> ServerConfig {
-    ServerConfig::new(dc, vec![DataCenter::new(dc, "127.0.0.1", ADVERTISED_PORT)])
+/// Builds the in-process core's built-in configuration.
+fn server_config(dc: i32, advertise_ip: &str, advertise_port: i32) -> ServerConfig {
+    ServerConfig::new(
+        dc,
+        vec![DataCenter::new(dc, advertise_ip.to_owned(), advertise_port)],
+    )
 }
 
 #[cfg(test)]
@@ -148,6 +153,9 @@ mod tests {
             auth_key_cache_ttl: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_TTL,
             temp_key_cache_max: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
             temp_key_cache_ttl: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_TTL,
+            advertise_ip: "127.0.0.1".to_owned(),
+            advertise_port: 443,
+            strict_dc_check: false,
         };
         let ingress = ingress_config(&config);
         // The secret and WebSocket settings are only observable through their
@@ -158,10 +166,12 @@ mod tests {
 
     #[test]
     fn advertised_datacenter_matches_the_serving_dc() {
-        let config = server_config(5);
+        let config = server_config(5, "1.2.3.4", 8443);
         assert_eq!(config.dc, 5);
         assert_eq!(config.datacenters.len(), 1);
         assert_eq!(config.datacenters[0].id, 5);
+        assert_eq!(config.datacenters[0].ip_address, "1.2.3.4");
+        assert_eq!(config.datacenters[0].port, 8443);
     }
 
     #[test]
@@ -181,6 +191,9 @@ mod tests {
             auth_key_cache_ttl: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_TTL,
             temp_key_cache_max: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
             temp_key_cache_ttl: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_TTL,
+            advertise_ip: "127.0.0.1".to_owned(),
+            advertise_port: 443,
+            strict_dc_check: false,
         };
         assert!(matches!(
             config.load_rsa_key().expect_err("missing file"),

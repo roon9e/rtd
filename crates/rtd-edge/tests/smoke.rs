@@ -85,6 +85,9 @@ async fn binds_from_configuration_with_an_in_process_core() {
         auth_key_cache_ttl: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_TTL,
         temp_key_cache_max: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
         temp_key_cache_ttl: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_TTL,
+        advertise_ip: "127.0.0.1".to_owned(),
+        advertise_port: 443,
+        strict_dc_check: false,
     };
     let server = service::bind(config).await.expect("bind the edge");
     assert_ne!(server.local_addr().expect("local address").port(), 0);

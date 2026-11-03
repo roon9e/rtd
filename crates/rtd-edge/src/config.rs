@@ -25,6 +25,9 @@ pub const DEFAULT_BIND: &str = "0.0.0.0:443";
 /// The default serving datacenter identifier.
 pub const DEFAULT_DC: i32 = 2;
 
+/// The default public port advertised in `help.getConfig`.
+pub const ADVERTISED_PORT: i32 = 443;
+
 /// The default layer profile the edge admits bare requests under.
 ///
 /// This must match the layer the backing core can re-admit. A gramsrv v2 core
@@ -51,6 +54,9 @@ OPTIONS:
     --core <ENDPOINT>  Core CoreExecService endpoint, e.g. http://127.0.0.1:50051
                        [env: RTD_EDGE_CORE]
     --core-token <T>   Bearer token for the core CoreExecService [env: RTD_EDGE_CORE_TOKEN]
+    --advertise-ip <IP>   Public IP advertised in help.getConfig [env: RTD_EDGE_ADVERTISE_IP]
+    --advertise-port <P>  Public port advertised in help.getConfig [env: RTD_EDGE_ADVERTISE_PORT]
+    --strict-dc        Require clients to match this DC label [env: RTD_EDGE_STRICT_DC]
     --exchange-test-params  Use fixed test DH parameters [env: RTD_EDGE_EXCHANGE_TEST_PARAMS]
     --auth-key-cache-max <N>   Max cached auth keys [env: RTD_EDGE_AUTH_KEY_CACHE_MAX]
     --auth-key-cache-ttl <S>   Auth-key cache TTL seconds [env: RTD_EDGE_AUTH_KEY_CACHE_TTL]
@@ -90,6 +96,12 @@ pub struct EdgeConfig {
     pub temp_key_cache_max: usize,
     /// Time-to-live of a cached temporary key.
     pub temp_key_cache_ttl: Duration,
+    /// The public IP advertised in `help.getConfig`.
+    pub advertise_ip: String,
+    /// The public port advertised in `help.getConfig`.
+    pub advertise_port: i32,
+    /// Whether the client's datacenter label must match this edge's.
+    pub strict_dc_check: bool,
 }
 
 impl EdgeConfig {
@@ -120,6 +132,9 @@ impl EdgeConfig {
         let mut auth_key_cache_ttl = None;
         let mut temp_key_cache_max = None;
         let mut temp_key_cache_ttl = None;
+        let mut advertise_ip = None;
+        let mut advertise_port = None;
+        let mut strict_dc = None;
 
         let mut index = 0;
         while index < args.len() {
@@ -161,6 +176,18 @@ impl EdgeConfig {
                 }
                 "--temp-key-cache-ttl" => {
                     temp_key_cache_ttl = Some(take(&args, &mut index, inline, &name)?);
+                }
+                "--advertise-ip" => {
+                    advertise_ip = Some(take(&args, &mut index, inline, &name)?);
+                }
+                "--advertise-port" => {
+                    advertise_port = Some(take(&args, &mut index, inline, &name)?);
+                }
+                "--strict-dc" => {
+                    strict_dc = Some(match inline {
+                        Some(value) => parse_bool(&value)?,
+                        None => true,
+                    });
                 }
                 other => {
                     return Err(EdgeError::Usage(format!("unknown argument {other:?}")));
@@ -240,6 +267,22 @@ impl EdgeConfig {
             DEFAULT_TEMP_KEY_CACHE_TTL,
             "--temp-key-cache-ttl",
         )?;
+        let advertise_ip = advertise_ip
+            .or_else(|| env("RTD_EDGE_ADVERTISE_IP"))
+            .unwrap_or_else(|| "127.0.0.1".to_owned());
+        let advertise_port = match advertise_port.or_else(|| env("RTD_EDGE_ADVERTISE_PORT")) {
+            Some(value) => value.parse().map_err(|_| {
+                EdgeError::Usage(format!("invalid --advertise-port value {value:?}"))
+            })?,
+            None => ADVERTISED_PORT,
+        };
+        let strict_dc_check = match strict_dc {
+            Some(value) => value,
+            None => env("RTD_EDGE_STRICT_DC")
+                .map(|value| parse_bool(&value))
+                .transpose()?
+                .unwrap_or(false),
+        };
 
         Ok(Self {
             bind,
@@ -256,6 +299,9 @@ impl EdgeConfig {
             auth_key_cache_ttl,
             temp_key_cache_max,
             temp_key_cache_ttl,
+            advertise_ip,
+            advertise_port,
+            strict_dc_check,
         })
     }
 

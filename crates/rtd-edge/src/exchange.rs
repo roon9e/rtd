@@ -23,6 +23,7 @@ pub struct ServerExchange {
     key: Arc<RsaPrivateKey>,
     dc: i32,
     test_params: bool,
+    strict_dc: bool,
 }
 
 impl ServerExchange {
@@ -33,6 +34,7 @@ impl ServerExchange {
             key,
             dc,
             test_params: false,
+            strict_dc: false,
         }
     }
 
@@ -40,6 +42,16 @@ impl ServerExchange {
     #[must_use]
     pub fn with_test_params(mut self, test_params: bool) -> Self {
         self.test_params = test_params;
+        self
+    }
+
+    /// Selects whether a client's datacenter label must match this edge's.
+    ///
+    /// The default (`false`) accepts every label, since one physical edge
+    /// answers for all of them and clients try several before one sticks.
+    #[must_use]
+    pub fn with_strict_dc(mut self, strict_dc: bool) -> Self {
+        self.strict_dc = strict_dc;
         self
     }
 
@@ -52,13 +64,10 @@ impl ServerExchange {
         random: &mut dyn rtd_crypto::RandomSource,
     ) -> rtd_exchange::Result<ServerExchangeResult> {
         let key: &RsaPrivateKey = &self.key;
-        // Match the reference edge's `strict_dc_check: false`: accept every DC
-        // label, since one physical edge answers for all of them and clients try
-        // several before one sticks.
         let config = ServerConfig {
             dc: self.dc,
             key,
-            strict_dc: false,
+            strict_dc: self.strict_dc,
         };
         let mut stream = StreamRef(stream);
         let mut random = RandomRef(random);
