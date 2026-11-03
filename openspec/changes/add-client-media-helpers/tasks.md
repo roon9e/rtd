@@ -12,6 +12,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify file-id round-trips against `td` vectors (`fileid` tests)
-- [ ] 3.2 Verify thumbnail expansion and deeplink parsing
+- [x] 3.1 Verify file-id round-trips against `td` vectors (`fileid` tests)
+- [x] 3.2 Verify thumbnail expansion and deeplink parsing
 - [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

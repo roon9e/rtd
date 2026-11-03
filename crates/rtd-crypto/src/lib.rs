@@ -28,6 +28,7 @@
 
 pub mod bind;
 pub mod cbc;
+pub mod ctr;
 pub mod dh;
 pub mod encrypted_message;
 pub mod error;
@@ -46,6 +47,7 @@ mod testutil;
 
 pub use bind::{BIND_AUTH_KEY_INNER_TYPE_ID, BindAuthKeyInner, encrypt_bind_message};
 pub use cbc::{decrypt as cbc_decrypt, encrypt as cbc_encrypt};
+pub use ctr::xor as ctr_xor;
 pub use dh::{DH_PRIME_BITS, check_dh, check_dh_params, check_gp, check_prime, in_range};
 pub use encrypted_message::{
     DecryptedMessage, EncryptedMessage, MessageHeader, auth_key_id, decrypt, encrypt,
