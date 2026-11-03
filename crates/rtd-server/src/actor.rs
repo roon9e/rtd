@@ -57,7 +57,7 @@ use tokio::task::JoinHandle;
 
 use crate::core::{AdmittedCall, AuthKeyId, Core, SessionId};
 use crate::ingress::{ConnectionMeta, Ingress, IngressConfig, IngressError, TransportMode};
-use crate::session::{self, AuthKeyCache, SessionKey, SessionRegistry};
+use crate::session::{self, AuthKeyCache, CacheLimits, SessionKey, SessionRegistry};
 
 /// Default bound on the actor's inbound frame queue.
 const INBOUND_QUEUE: usize = 64;
@@ -399,6 +399,10 @@ pub struct ServerOptions {
     pub idle_timeout: Duration,
     /// The admission budgets applied to accepted connections.
     pub budget_limits: BudgetLimits,
+    /// Bounds for the authorization-key cache.
+    pub auth_key_cache: CacheLimits,
+    /// Bounds for the temporary-key cache.
+    pub temp_key_cache: CacheLimits,
 }
 
 impl std::fmt::Debug for ServerOptions {
@@ -408,6 +412,8 @@ impl std::fmt::Debug for ServerOptions {
             .field("layer", &self.layer)
             .field("idle_timeout", &self.idle_timeout)
             .field("budget_limits", &self.budget_limits)
+            .field("auth_key_cache", &self.auth_key_cache)
+            .field("temp_key_cache", &self.temp_key_cache)
             .finish_non_exhaustive()
     }
 }
@@ -440,7 +446,10 @@ impl Server {
             options.clock.clone(),
             options.idle_timeout,
         ));
-        let cache = Arc::new(AuthKeyCache::new());
+        let cache = Arc::new(AuthKeyCache::with_limits(
+            options.auth_key_cache,
+            options.clock.clone(),
+        ));
         let budgets = Arc::new(Budgets::new(options.budget_limits));
         Self {
             ingress,
@@ -1886,6 +1895,8 @@ mod tests {
             layer: Profile::new(CANONICAL_LAYER),
             idle_timeout: Duration::from_secs(300),
             budget_limits: limits,
+            auth_key_cache: CacheLimits::default(),
+            temp_key_cache: CacheLimits::default(),
         }
     }
 

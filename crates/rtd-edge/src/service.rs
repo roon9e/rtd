@@ -14,6 +14,7 @@ use rtd_server::actor::{BudgetLimits, Exchange, Server, ServerOptions};
 use rtd_server::core::{Core, LocalCore};
 use rtd_server::ingress::IngressConfig;
 use rtd_server::rpc::{DataCenter, ServerConfig};
+use rtd_server::session::CacheLimits;
 use rtd_tlprofile::Profile;
 use rtd_util::SystemClock;
 use tonic::transport::Endpoint;
@@ -47,6 +48,8 @@ pub async fn bind(config: EdgeConfig) -> Result<Server, EdgeError> {
         layer: Profile::new(config.layer),
         idle_timeout: IDLE_TIMEOUT,
         budget_limits: BudgetLimits::default(),
+        auth_key_cache: CacheLimits::new(config.auth_key_cache_max, config.auth_key_cache_ttl),
+        temp_key_cache: CacheLimits::new(config.temp_key_cache_max, config.temp_key_cache_ttl),
     };
     let ingress = ingress_config(&config);
     Server::bind(config.bind, ingress, core, options)
@@ -141,6 +144,10 @@ mod tests {
             core_endpoint: None,
             core_token: None,
             exchange_test_params: false,
+            auth_key_cache_max: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_MAX_ENTRIES,
+            auth_key_cache_ttl: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_TTL,
+            temp_key_cache_max: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
+            temp_key_cache_ttl: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_TTL,
         };
         let ingress = ingress_config(&config);
         // The secret and WebSocket settings are only observable through their
@@ -170,6 +177,10 @@ mod tests {
             core_endpoint: None,
             core_token: None,
             exchange_test_params: false,
+            auth_key_cache_max: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_MAX_ENTRIES,
+            auth_key_cache_ttl: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_TTL,
+            temp_key_cache_max: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
+            temp_key_cache_ttl: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_TTL,
         };
         assert!(matches!(
             config.load_rsa_key().expect_err("missing file"),

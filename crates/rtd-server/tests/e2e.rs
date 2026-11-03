@@ -98,6 +98,8 @@ fn make_options() -> ServerOptions {
         layer: Profile::new(CANONICAL_LAYER),
         idle_timeout: Duration::from_secs(300),
         budget_limits: BudgetLimits::default(),
+        auth_key_cache: rtd_server::session::CacheLimits::default(),
+        temp_key_cache: rtd_server::session::CacheLimits::default(),
     }
 }
 

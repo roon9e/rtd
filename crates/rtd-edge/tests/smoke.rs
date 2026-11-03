@@ -36,6 +36,8 @@ async fn binds_an_ephemeral_port_and_shuts_down() {
         layer: Profile::new(CANONICAL_LAYER),
         idle_timeout: Duration::from_secs(300),
         budget_limits: BudgetLimits::default(),
+        auth_key_cache: rtd_server::session::CacheLimits::default(),
+        temp_key_cache: rtd_server::session::CacheLimits::default(),
     };
     let server = Server::bind("127.0.0.1:0", IngressConfig::default(), core, options)
         .await
@@ -79,6 +81,10 @@ async fn binds_from_configuration_with_an_in_process_core() {
         core_endpoint: None,
         core_token: None,
         exchange_test_params: false,
+        auth_key_cache_max: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_MAX_ENTRIES,
+        auth_key_cache_ttl: rtd_server::session::DEFAULT_AUTH_KEY_CACHE_TTL,
+        temp_key_cache_max: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
+        temp_key_cache_ttl: rtd_server::session::DEFAULT_TEMP_KEY_CACHE_TTL,
     };
     let server = service::bind(config).await.expect("bind the edge");
     assert_ne!(server.local_addr().expect("local address").port(), 0);

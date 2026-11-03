@@ -7,8 +7,13 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use rsa::RsaPrivateKey;
+use rtd_server::session::{
+    DEFAULT_AUTH_KEY_CACHE_MAX_ENTRIES, DEFAULT_AUTH_KEY_CACHE_TTL,
+    DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES, DEFAULT_TEMP_KEY_CACHE_TTL,
+};
 use rtd_tlprofile::CANONICAL_LAYER;
 use rtd_transport::Secret;
 
@@ -47,6 +52,10 @@ OPTIONS:
                        [env: RTD_EDGE_CORE]
     --core-token <T>   Bearer token for the core CoreExecService [env: RTD_EDGE_CORE_TOKEN]
     --exchange-test-params  Use fixed test DH parameters [env: RTD_EDGE_EXCHANGE_TEST_PARAMS]
+    --auth-key-cache-max <N>   Max cached auth keys [env: RTD_EDGE_AUTH_KEY_CACHE_MAX]
+    --auth-key-cache-ttl <S>   Auth-key cache TTL seconds [env: RTD_EDGE_AUTH_KEY_CACHE_TTL]
+    --temp-key-cache-max <N>   Max cached temp keys [env: RTD_EDGE_TEMP_KEY_CACHE_MAX]
+    --temp-key-cache-ttl <S>   Temp-key cache TTL seconds [env: RTD_EDGE_TEMP_KEY_CACHE_TTL]
     -h, --help         Print this help
     -V, --version      Print the version";
 
@@ -73,6 +82,14 @@ pub struct EdgeConfig {
     pub core_token: Option<String>,
     /// Whether the key exchange uses the fixed test parameters.
     pub exchange_test_params: bool,
+    /// Maximum number of cached authorization keys.
+    pub auth_key_cache_max: usize,
+    /// Time-to-live of a cached authorization key.
+    pub auth_key_cache_ttl: Duration,
+    /// Maximum number of cached temporary keys.
+    pub temp_key_cache_max: usize,
+    /// Time-to-live of a cached temporary key.
+    pub temp_key_cache_ttl: Duration,
 }
 
 impl EdgeConfig {
@@ -99,6 +116,10 @@ impl EdgeConfig {
         let mut core = None;
         let mut core_token = None;
         let mut exchange_test_params = None;
+        let mut auth_key_cache_max = None;
+        let mut auth_key_cache_ttl = None;
+        let mut temp_key_cache_max = None;
+        let mut temp_key_cache_ttl = None;
 
         let mut index = 0;
         while index < args.len() {
@@ -128,6 +149,18 @@ impl EdgeConfig {
                         Some(value) => parse_bool(&value)?,
                         None => true,
                     });
+                }
+                "--auth-key-cache-max" => {
+                    auth_key_cache_max = Some(take(&args, &mut index, inline, &name)?);
+                }
+                "--auth-key-cache-ttl" => {
+                    auth_key_cache_ttl = Some(take(&args, &mut index, inline, &name)?);
+                }
+                "--temp-key-cache-max" => {
+                    temp_key_cache_max = Some(take(&args, &mut index, inline, &name)?);
+                }
+                "--temp-key-cache-ttl" => {
+                    temp_key_cache_ttl = Some(take(&args, &mut index, inline, &name)?);
                 }
                 other => {
                     return Err(EdgeError::Usage(format!("unknown argument {other:?}")));
@@ -187,6 +220,26 @@ impl EdgeConfig {
                 .transpose()?
                 .unwrap_or(false),
         };
+        let auth_key_cache_max = parse_usize(
+            auth_key_cache_max.or_else(|| env("RTD_EDGE_AUTH_KEY_CACHE_MAX")),
+            DEFAULT_AUTH_KEY_CACHE_MAX_ENTRIES,
+            "--auth-key-cache-max",
+        )?;
+        let auth_key_cache_ttl = parse_secs(
+            auth_key_cache_ttl.or_else(|| env("RTD_EDGE_AUTH_KEY_CACHE_TTL")),
+            DEFAULT_AUTH_KEY_CACHE_TTL,
+            "--auth-key-cache-ttl",
+        )?;
+        let temp_key_cache_max = parse_usize(
+            temp_key_cache_max.or_else(|| env("RTD_EDGE_TEMP_KEY_CACHE_MAX")),
+            DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
+            "--temp-key-cache-max",
+        )?;
+        let temp_key_cache_ttl = parse_secs(
+            temp_key_cache_ttl.or_else(|| env("RTD_EDGE_TEMP_KEY_CACHE_TTL")),
+            DEFAULT_TEMP_KEY_CACHE_TTL,
+            "--temp-key-cache-ttl",
+        )?;
 
         Ok(Self {
             bind,
@@ -199,6 +252,10 @@ impl EdgeConfig {
             core_endpoint,
             core_token,
             exchange_test_params,
+            auth_key_cache_max,
+            auth_key_cache_ttl,
+            temp_key_cache_max,
+            temp_key_cache_ttl,
         })
     }
 
@@ -216,6 +273,27 @@ impl EdgeConfig {
             })?;
         let key = rtd_crypto::parse_rsa_private_key(&pem).map_err(EdgeError::KeyParse)?;
         Ok(Arc::new(key))
+    }
+}
+
+/// Parses an optional numeric option, falling back to `default`.
+fn parse_usize(value: Option<String>, default: usize, flag: &str) -> Result<usize, EdgeError> {
+    match value {
+        Some(value) => value
+            .parse()
+            .map_err(|_| EdgeError::Usage(format!("invalid {flag} value {value:?}"))),
+        None => Ok(default),
+    }
+}
+
+/// Parses an optional seconds option into a [`Duration`], falling back to `default`.
+fn parse_secs(value: Option<String>, default: Duration, flag: &str) -> Result<Duration, EdgeError> {
+    match value {
+        Some(value) => value
+            .parse::<u64>()
+            .map(Duration::from_secs)
+            .map_err(|_| EdgeError::Usage(format!("invalid {flag} value {value:?}"))),
+        None => Ok(default),
     }
 }
 

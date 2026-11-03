@@ -25,7 +25,7 @@ use std::time::{Duration, SystemTime};
 
 use rtd_crypto::{AuthKey, Key};
 use rtd_error::Error as RtdError;
-use rtd_util::Clock;
+use rtd_util::{Clock, SystemClock};
 use tokio::sync::Mutex;
 
 use crate::core::{AuthKeyId, AuthKeyRecord, Core, SessionId};
@@ -172,38 +172,146 @@ impl SessionRegistry {
     }
 }
 
-/// A transient cache of authorization keys for the life of a connection.
+/// Default maximum number of cached authorization keys.
+pub const DEFAULT_AUTH_KEY_CACHE_MAX_ENTRIES: usize = 262_144;
+/// Default time-to-live for a cached authorization key.
+pub const DEFAULT_AUTH_KEY_CACHE_TTL: Duration = Duration::from_secs(30 * 60);
+/// Default maximum number of cached temporary keys.
+pub const DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES: usize = 262_144;
+/// Default time-to-live for a cached temporary key.
+pub const DEFAULT_TEMP_KEY_CACHE_TTL: Duration = Duration::from_secs(30 * 60);
+
+/// Limits for a bounded cache: a maximum entry count and a time-to-live.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CacheLimits {
+    /// The maximum number of entries kept before the least-recently-used is
+    /// evicted.
+    pub max_entries: usize,
+    /// The time-to-live of a cached entry.
+    pub ttl: Duration,
+}
+
+impl CacheLimits {
+    /// Creates limits from a maximum and a TTL.
+    #[must_use]
+    pub const fn new(max_entries: usize, ttl: Duration) -> Self {
+        Self { max_entries, ttl }
+    }
+}
+
+impl Default for CacheLimits {
+    fn default() -> Self {
+        Self::new(
+            DEFAULT_AUTH_KEY_CACHE_MAX_ENTRIES,
+            DEFAULT_AUTH_KEY_CACHE_TTL,
+        )
+    }
+}
+
+/// One cached authorization key with its insertion and last-use times.
+#[derive(Debug, Clone, Copy)]
+struct CachedKey {
+    key: AuthKey,
+    inserted_at: SystemTime,
+    last_used: SystemTime,
+}
+
+/// Returns whether an entry inserted at `inserted_at` has expired at `now`.
+fn expires(inserted_at: SystemTime, now: SystemTime, ttl: Duration) -> bool {
+    now.duration_since(inserted_at)
+        .map(|age| age >= ttl)
+        .unwrap_or(false)
+}
+
+/// A bounded, read-through cache of authorization keys.
 ///
 /// The cache is a read-through front for [`Core::get_auth_key`]; the core
-/// remains the source of truth (design D22).
+/// remains the source of truth (design D22). Entries expire after the configured
+/// TTL, and the least-recently-used entry is evicted once the maximum is
+/// reached. A key can be invalidated (on `auth_key_switch` or
+/// `destroy_auth_key`) with [`AuthKeyCache::remove`].
 pub struct AuthKeyCache {
-    keys: Mutex<HashMap<AuthKeyId, AuthKey>>,
+    clock: std::sync::Arc<dyn Clock + Send + Sync>,
+    limits: CacheLimits,
+    keys: Mutex<HashMap<AuthKeyId, CachedKey>>,
 }
 
 impl AuthKeyCache {
-    /// Creates an empty cache.
+    /// Creates a cache with the default limits.
     #[must_use]
     pub fn new() -> Self {
+        Self::with_limits(CacheLimits::default(), std::sync::Arc::new(SystemClock))
+    }
+
+    /// Creates a cache with explicit `limits`, driven by `clock`.
+    #[must_use]
+    pub fn with_limits(
+        limits: CacheLimits,
+        clock: std::sync::Arc<dyn Clock + Send + Sync>,
+    ) -> Self {
         Self {
+            clock,
+            limits,
             keys: Mutex::new(HashMap::new()),
         }
     }
 
-    /// Returns the cached key for `id`, if any.
+    /// Returns the cached key for `id`, if present and unexpired.
+    ///
+    /// An expired entry is removed and reported as a miss.
     pub async fn get(&self, id: AuthKeyId) -> Option<AuthKey> {
-        self.keys.lock().await.get(&id).copied()
+        let now = self.clock.now();
+        let mut keys = self.keys.lock().await;
+        let entry = *keys.get(&id)?;
+        if expires(entry.inserted_at, now, self.limits.ttl) {
+            keys.remove(&id);
+            return None;
+        }
+        if let Some(stored) = keys.get_mut(&id) {
+            stored.last_used = now;
+        }
+        Some(entry.key)
     }
 
-    /// Inserts `key`, returning its identifier.
+    /// Inserts `key`, evicting the least-recently-used entry when full.
     pub async fn insert(&self, key: AuthKey) -> AuthKeyId {
+        let now = self.clock.now();
         let id = AuthKeyId(key.id);
-        self.keys.lock().await.insert(id, key);
+        let mut keys = self.keys.lock().await;
+        keys.insert(
+            id,
+            CachedKey {
+                key,
+                inserted_at: now,
+                last_used: now,
+            },
+        );
+        while keys.len() > self.limits.max_entries {
+            let Some(oldest) = keys
+                .iter()
+                .min_by_key(|(_, entry)| entry.last_used)
+                .map(|(id, _)| *id)
+            else {
+                break;
+            };
+            keys.remove(&oldest);
+        }
         id
     }
 
     /// Removes and returns the cached key for `id`.
     pub async fn remove(&self, id: AuthKeyId) -> Option<AuthKey> {
-        self.keys.lock().await.remove(&id)
+        self.keys.lock().await.remove(&id).map(|entry| entry.key)
+    }
+
+    /// Evicts every entry older than the TTL, returning how many were removed.
+    pub async fn evict_expired(&self) -> usize {
+        let now = self.clock.now();
+        let ttl = self.limits.ttl;
+        let mut keys = self.keys.lock().await;
+        let before = keys.len();
+        keys.retain(|_, entry| !expires(entry.inserted_at, now, ttl));
+        before - keys.len()
     }
 
     /// Returns the number of cached keys.
@@ -218,6 +326,67 @@ impl AuthKeyCache {
 }
 
 impl Default for AuthKeyCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// A bounded cache of temporary (`bindTempAuthKey`) authorization keys.
+///
+/// It shares [`AuthKeyCache`]'s bounded, TTL-driven eviction but is a distinct
+/// type so temporary keys can be sized independently (see `temp_key_cache` in
+/// the edge configuration).
+pub struct TempKeyCache(AuthKeyCache);
+
+impl TempKeyCache {
+    /// Creates a cache with the default temporary-key limits.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::with_limits(
+            CacheLimits::new(
+                DEFAULT_TEMP_KEY_CACHE_MAX_ENTRIES,
+                DEFAULT_TEMP_KEY_CACHE_TTL,
+            ),
+            std::sync::Arc::new(SystemClock),
+        )
+    }
+
+    /// Creates a cache with explicit `limits`, driven by `clock`.
+    #[must_use]
+    pub fn with_limits(
+        limits: CacheLimits,
+        clock: std::sync::Arc<dyn Clock + Send + Sync>,
+    ) -> Self {
+        Self(AuthKeyCache::with_limits(limits, clock))
+    }
+
+    /// Returns the cached key for `id`, if present and unexpired.
+    pub async fn get(&self, id: AuthKeyId) -> Option<AuthKey> {
+        self.0.get(id).await
+    }
+
+    /// Inserts `key`, evicting the least-recently-used entry when full.
+    pub async fn insert(&self, key: AuthKey) -> AuthKeyId {
+        self.0.insert(key).await
+    }
+
+    /// Removes and returns the cached key for `id`.
+    pub async fn remove(&self, id: AuthKeyId) -> Option<AuthKey> {
+        self.0.remove(id).await
+    }
+
+    /// Returns the number of cached keys.
+    pub async fn len(&self) -> usize {
+        self.0.len().await
+    }
+
+    /// Reports whether the cache is empty.
+    pub async fn is_empty(&self) -> bool {
+        self.0.is_empty().await
+    }
+}
+
+impl Default for TempKeyCache {
     fn default() -> Self {
         Self::new()
     }
@@ -516,6 +685,58 @@ mod tests {
         let id = AuthKeyId(key.id);
         assert!(cache.get(id).await.is_none());
         assert_eq!(cache.insert(key).await, id);
+        assert_eq!(cache.get(id).await, Some(key));
+        assert_eq!(cache.remove(id).await, Some(key));
+        assert!(cache.is_empty().await);
+    }
+
+    #[tokio::test]
+    async fn cache_evicts_least_recently_used() {
+        let clock = std::sync::Arc::new(clock_at(BASE_SECS));
+        let cache = AuthKeyCache::with_limits(
+            CacheLimits::new(2, Duration::from_secs(3600)),
+            clock.clone(),
+        );
+        let a = key(1);
+        let b = key(2);
+        let c = key(3);
+        cache.insert(a).await;
+        clock.advance(Duration::from_secs(1));
+        cache.insert(b).await;
+        // Touch `a` so `b` becomes the least recently used.
+        clock.advance(Duration::from_secs(1));
+        assert!(cache.get(AuthKeyId(a.id)).await.is_some());
+        clock.advance(Duration::from_secs(1));
+        cache.insert(c).await;
+
+        assert_eq!(cache.len().await, 2);
+        assert!(cache.get(AuthKeyId(b.id)).await.is_none());
+        assert!(cache.get(AuthKeyId(a.id)).await.is_some());
+        assert!(cache.get(AuthKeyId(c.id)).await.is_some());
+    }
+
+    #[tokio::test]
+    async fn cache_expires_by_ttl() {
+        let clock = std::sync::Arc::new(clock_at(BASE_SECS));
+        let cache =
+            AuthKeyCache::with_limits(CacheLimits::new(10, Duration::from_secs(60)), clock.clone());
+        let a = key(4);
+        cache.insert(a).await;
+        clock.advance(Duration::from_secs(59));
+        assert!(cache.get(AuthKeyId(a.id)).await.is_some());
+        clock.advance(Duration::from_secs(2));
+        assert!(cache.get(AuthKeyId(a.id)).await.is_none());
+        assert!(cache.is_empty().await);
+        assert_eq!(cache.evict_expired().await, 0);
+    }
+
+    #[tokio::test]
+    async fn temp_key_cache_round_trips() {
+        let cache = TempKeyCache::new();
+        let key = key(6);
+        let id = AuthKeyId(key.id);
+        assert!(cache.is_empty().await);
+        cache.insert(key).await;
         assert_eq!(cache.get(id).await, Some(key));
         assert_eq!(cache.remove(id).await, Some(key));
         assert!(cache.is_empty().await);
