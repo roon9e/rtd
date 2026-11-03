@@ -2,7 +2,7 @@
 
 ## 1. JSON
 
-- [ ] 1.1 Add `tljson::encode`/`decode` with `@type` names and a dependency-free JSON value (`json.rs`)
+- [x] 1.1 Add a dependency-free `JsonValue` and constructor name lookup (`json.rs`)
 - [ ] 1.2 Add `InvokeJSON` (decode method -> invoke -> encode result/error)
 
 ## 2. Pretty
