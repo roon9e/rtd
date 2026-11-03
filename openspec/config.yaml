@@ -14,6 +14,13 @@ context: |
   server can be built on it. It is not a transliteration; it is a clean-room,
   wire-compatible reimplementation.
 
+  Scope decision (2026-11-03): **library-first**. The priority is a full `td`-parity
+  client library (all client features) in `rtd-client` and the sans-IO core. A
+  server-backed storage layer (PostgreSQL/Redis) and the full Rust server/edge are
+  OUT OF SCOPE for now; the existing `rtd-edge` binary and its container image are
+  kept for backwards compatibility until a future full Rust server replaces them.
+  Work on `add-server-storage` and the edge-infrastructure changes is deferred.
+
   Frozen core decisions (do not revisit without a new explicit decision record):
   - Scope now: server-facing protocol core (bin, proto/codec, crypto, exchange, mt,
     transport, mtproxy/obfuscated2, tgerr, tmap, clock, canonical tg model, multi-layer
