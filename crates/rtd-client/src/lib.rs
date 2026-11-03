@@ -10,12 +10,14 @@ pub mod auth;
 pub mod client;
 pub mod deeplink;
 pub mod error;
+pub mod md5;
 pub mod middleware;
 pub mod qr;
 pub mod session;
 pub mod storage;
 pub mod takeout;
 pub mod transport;
+pub mod uploader;
 pub mod ws;
 
 pub use async_client::AsyncClient;
@@ -32,4 +34,5 @@ pub use transport::{
     DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,
     Transport, WriteTransport, connect_tcp, dial_tcp,
 };
+pub use uploader::Uploader;
 pub use ws::{WebSocketIo, connect_websocket};
