@@ -5,6 +5,11 @@ This is a short orientation. The authoritative decisions live in
 [`openspec/specs/`](../openspec/specs/), and the foundation plan in the archived change
 [`openspec/changes/archive/2026-11-01-establish-rtd-foundation/`](../openspec/changes/archive/2026-11-01-establish-rtd-foundation/).
 
+> **Direction: library-first.** `rtd` is a Rust library targeting full `td` parity.
+> The `rtd-server`/`rtd-edge` runtime layer described below is **frozen** (kept for
+> the compatibility edge image; see [`openspec/changes/frozen/`](../openspec/changes/frozen/)).
+> New work targets the sans-IO core and the `rtd-client` library.
+
 ## Layering
 
 ```
