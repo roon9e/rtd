@@ -30,6 +30,7 @@ pub mod storage;
 pub mod takeout;
 pub mod thumbnail;
 pub mod transport;
+pub mod unpack;
 pub mod updates;
 pub mod uploader;
 pub mod ws;
@@ -67,6 +68,7 @@ pub use transport::{
     DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,
     Transport, WriteTransport, connect_tcp, dial_tcp,
 };
+pub use unpack::{messages, messages_from_updates, update_message};
 pub use updates::{
     ChannelDifference, Difference, PtsUpdate, PushResult, SequenceBox, fetch_channel_difference,
     fetch_difference, pts_update, qts_update, sort_by_pts,
