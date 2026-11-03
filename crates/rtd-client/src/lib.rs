@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod async_client;
+pub mod auth;
 pub mod client;
 pub mod error;
 pub mod middleware;
@@ -13,6 +14,7 @@ pub mod session;
 pub mod transport;
 
 pub use async_client::AsyncClient;
+pub use auth::{ConstantPassword, PasswordProvider};
 pub use client::{Client, InitParams};
 pub use error::{Error, Result};
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};

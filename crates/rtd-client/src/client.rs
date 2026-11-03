@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use rtd_bin::{Reader, Writer};
+use rtd_crypto::srp::{Input as SrpInput, hash as srp_hash};
 use rtd_crypto::{AuthKey, Key, SystemRandom};
 use rtd_exchange::{ClientConfig, Stream as ExchangeStream, client_exchange};
 use rtd_mt::{
@@ -14,12 +15,14 @@ use rtd_proto::{
     RPC_RESULT_TYPE_ID, RpcResult,
 };
 use rtd_tg::{
-    AuthAuthorization, AuthImportBotAuthorization, AuthSendCode, AuthSentCode, AuthSignIn,
-    CodeSettings, DecodeLimits, Decoder, HelpGetConfig, InitConnection, InvokeWithLayer, LAYER,
-    Method, Object, Update, Updates,
+    AccountGetPassword, AuthAuthorization, AuthCheckPassword, AuthImportBotAuthorization,
+    AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder, HelpGetConfig,
+    InitConnection, InputCheckPasswordSRP, InvokeWithLayer, LAYER, Method, Object, PasswordKdfAlgo,
+    Update, Updates,
 };
 use rtd_util::Clock;
 
+use crate::auth::PasswordProvider;
 use crate::error::{Error, Result};
 use crate::middleware::{Middleware, run_chain};
 use crate::session::{ClientSession, SessionData};
@@ -268,6 +271,71 @@ impl<T: Transport> Client<T> {
             Object::AuthAuthorization(authorization) => Ok(*authorization),
             other => Err(unexpected("auth.signIn", &other)),
         }
+    }
+
+    /// Completes two-factor sign-in for `password` (`account.getPassword` then
+    /// `auth.checkPassword`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server does not present an SRP challenge.
+    pub fn check_password(&mut self, password: &[u8]) -> Result<AuthAuthorization> {
+        let state = match self.invoke(Method::AccountGetPassword(Box::new(AccountGetPassword)))? {
+            Object::AccountPassword(state) => *state,
+            other => return Err(unexpected("account.getPassword", &other)),
+        };
+        let (Some(algo), Some(srp_b), Some(srp_id)) =
+            (state.current_algo, state.srp_b, state.srp_id)
+        else {
+            return Err(Error::Unexpected(
+                "account.getPassword did not return an SRP challenge".to_owned(),
+            ));
+        };
+        let input = match *algo {
+            PasswordKdfAlgo::PasswordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow {
+                salt1,
+                salt2,
+                g,
+                p,
+            } => SrpInput { salt1, salt2, g, p },
+            PasswordKdfAlgo::PasswordKdfAlgoUnknown => {
+                return Err(Error::Unexpected(
+                    "unsupported password KDF algorithm".to_owned(),
+                ));
+            }
+        };
+        let scalar = rtd_crypto::random_bytes(256);
+        let answer = srp_hash(password, &srp_b, &scalar, &input)?;
+        let query = Method::AuthCheckPassword(Box::new(AuthCheckPassword {
+            password: Box::new(InputCheckPasswordSRP::InputCheckPasswordSRP {
+                srp_id,
+                a: answer.a,
+                m1: answer.m1,
+            }),
+        }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.checkPassword", &other)),
+        }
+    }
+
+    /// Calls [`Client::check_password`] with the password from `provider`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] when `provider` has no password, and the
+    /// same errors as [`Client::check_password`].
+    pub fn check_password_with(
+        &mut self,
+        provider: &dyn PasswordProvider,
+    ) -> Result<AuthAuthorization> {
+        let Some(password) = provider.password() else {
+            return Err(Error::Unexpected(
+                "two-factor password is required but none was provided".to_owned(),
+            ));
+        };
+        self.check_password(&password)
     }
 
     /// Authorizes a bot with a token (`auth.importBotAuthorization`).

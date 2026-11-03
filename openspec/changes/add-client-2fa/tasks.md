@@ -2,8 +2,8 @@
 
 ## 1. Two-factor flow
 
-- [ ] 1.1 Add `PasswordProvider` (constant/environment) and typed errors (`client.rs` or `auth.rs`)
-- [ ] 1.2 Implement `check_password`: `account.getPassword` -> `srp::hash` -> `auth.checkPassword` (`client.rs`)
+- [x] 1.1 Add `PasswordProvider` (constant/environment) and typed errors (`client.rs` or `auth.rs`)
+- [x] 1.2 Implement `check_password`: `account.getPassword` -> `srp::hash` -> `auth.checkPassword` (`client.rs`)
 
 ## 2. Recovery
 
