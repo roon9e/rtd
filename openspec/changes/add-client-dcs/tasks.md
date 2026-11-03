@@ -3,7 +3,7 @@
 ## 1. Resolvers
 
 - [x] 1.1 Add `Resolver`/`Endpoint`/`Protocol` and default DC lists (`dcs/mod.rs`)
-- [ ] 1.2 Implement Plain and MTProxy resolvers; wire WebSocket resolver
+- [x] 1.2 Implement Plain and MTProxy resolvers; wire WebSocket resolver
 - [x] 1.3 Implement the DNS resolver (decode the encrypted config against vendored keys)
 
 ## 2. Migration

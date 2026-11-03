@@ -342,6 +342,63 @@ impl StaticResolver {
             DataCenter::new(3, "149.154.175.117:443"),
         ])
     }
+
+    /// Returns a copy with every endpoint using `protocol` and no secret.
+    #[must_use]
+    pub fn with_protocol(mut self, protocol: Protocol) -> Self {
+        for datacenter in &mut self.datacenters {
+            for endpoint in &mut datacenter.endpoints {
+                endpoint.protocol = protocol;
+                endpoint.secret = None;
+            }
+        }
+        self
+    }
+
+    /// Builds a resolver routing every listed datacenter through one MTProxy.
+    ///
+    /// The endpoint protocol is derived from the secret's first byte: `0xee`
+    /// selects FakeTLS, anything else Obfuscated2.
+    #[must_use]
+    pub fn mtproxy(
+        datacenters: impl IntoIterator<Item = i32>,
+        address: impl Into<String>,
+        secret: Vec<u8>,
+    ) -> Self {
+        let protocol = if secret.first() == Some(&0xee) {
+            Protocol::FakeTls
+        } else {
+            Protocol::Obfuscated2
+        };
+        let address = address.into();
+        Self::new(
+            datacenters
+                .into_iter()
+                .map(|id| DataCenter {
+                    id,
+                    endpoints: vec![Endpoint::with_secret(
+                        address.clone(),
+                        protocol,
+                        secret.clone(),
+                    )],
+                })
+                .collect(),
+        )
+    }
+
+    /// Builds a WebSocket resolver from a per-datacenter domain list.
+    #[must_use]
+    pub fn websocket(domains: impl IntoIterator<Item = (i32, String)>) -> Self {
+        Self::new(
+            domains
+                .into_iter()
+                .map(|(id, address)| DataCenter {
+                    id,
+                    endpoints: vec![Endpoint::new(address, Protocol::WebSocket)],
+                })
+                .collect(),
+        )
+    }
 }
 
 impl Resolver for StaticResolver {
@@ -420,5 +477,27 @@ mod tests {
         let mut broken = dns_txt();
         broken[0] = format!("#{}", &broken[0][1..]);
         assert!(parse_dns_config(&broken).is_err());
+    }
+
+    #[test]
+    fn constructs_plain_mtproxy_and_websocket_resolvers() {
+        let plain = StaticResolver::production().with_protocol(Protocol::Plain);
+        assert_eq!(
+            plain.resolve(1).unwrap().endpoints[0].protocol,
+            Protocol::Plain
+        );
+        assert!(plain.resolve(1).unwrap().endpoints[0].secret.is_none());
+
+        let proxy = StaticResolver::mtproxy([1, 2], "proxy.example:443", vec![0xee, 0, 0, 0]);
+        let endpoint = &proxy.resolve(2).unwrap().endpoints[0];
+        assert_eq!(endpoint.address, "proxy.example:443");
+        assert_eq!(endpoint.protocol, Protocol::FakeTls);
+        assert_eq!(endpoint.secret.as_deref(), Some([0xee, 0, 0, 0].as_slice()));
+
+        let websocket = StaticResolver::websocket([(2, "wss://example/apiws".to_owned())]);
+        assert_eq!(
+            websocket.resolve(2).unwrap().endpoints[0].protocol,
+            Protocol::WebSocket
+        );
     }
 }
