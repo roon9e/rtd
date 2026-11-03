@@ -13,6 +13,7 @@ pub mod middleware;
 pub mod qr;
 pub mod session;
 pub mod storage;
+pub mod takeout;
 pub mod transport;
 pub mod ws;
 
@@ -24,6 +25,7 @@ pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
 pub use qr::{LoginToken, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, MemoryStorage, Storage};
+pub use takeout::TakeoutConfig;
 pub use transport::{
     DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp, dial_tcp,
 };

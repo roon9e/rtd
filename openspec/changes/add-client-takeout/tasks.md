@@ -2,8 +2,8 @@
 
 ## 1. Session
 
-- [ ] 1.1 Add `Takeout::run` initializing/finishing the session around a closure (`takeout.rs`)
-- [ ] 1.2 Add the wrapping `TakeoutInvoker` (`invokeWithTakeout`) and a `Config`
+- [x] 1.1 Add `Takeout::run` initializing/finishing the session around a closure (`takeout.rs`)
+- [x] 1.2 Add the wrapping `TakeoutInvoker` (`invokeWithTakeout`) and a `Config`
 
 ## 2. Verification
 
