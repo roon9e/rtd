@@ -53,7 +53,7 @@ pub use pagination::{
     BlockedIter, DialogsIter, HistoryIter, ParticipantsIter, PhotosIter, fetch_dialogs,
     fetch_history, fetch_participants,
 };
-pub use peers::{PeerManager, ResolvedPeer};
+pub use peers::{PeerKind, PeerManager, ResolvedPeer};
 pub use pool::Pool;
 pub use qr::{LoginToken, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};

@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use rtd_tg::{Chat, ContactsResolveUsername, InputPeer, Method, Object, Peer};
+use rtd_tg::{Chat, ContactsResolveUsername, InputPeer, Method, Object, Peer, Updates, User};
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -60,10 +60,32 @@ impl ResolvedPeer {
     }
 }
 
-/// A cache of resolved peers keyed by username.
+/// The kind of a cached peer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PeerKind {
+    /// A user.
+    User,
+    /// A legacy chat.
+    Chat,
+    /// A channel or supergroup.
+    Channel,
+}
+
+impl PeerKind {
+    fn tag(self) -> u8 {
+        match self {
+            Self::User => 0,
+            Self::Chat => 1,
+            Self::Channel => 2,
+        }
+    }
+}
+
+/// A cache of resolved peers keyed by username and by `(kind, id)`.
 #[derive(Debug, Default)]
 pub struct PeerManager {
     cache: Mutex<HashMap<String, ResolvedPeer>>,
+    entities: Mutex<HashMap<(u8, i64), ResolvedPeer>>,
 }
 
 impl PeerManager {
@@ -81,6 +103,85 @@ impl PeerManager {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(username)
             .copied()
+    }
+
+    /// Returns a previously cached entity by kind and id.
+    #[must_use]
+    pub fn get_by_id(&self, kind: PeerKind, id: i64) -> Option<ResolvedPeer> {
+        self.entities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&(kind.tag(), id))
+            .copied()
+    }
+
+    /// Caches users and chats carried by an update envelope.
+    ///
+    /// Bare short updates carry no entities, so they are ignored.
+    pub fn apply_updates(&self, updates: &Updates) {
+        let (users, chats) = match updates {
+            Updates::Updates { users, chats, .. }
+            | Updates::UpdatesCombined { users, chats, .. } => (users, chats),
+            _ => return,
+        };
+        self.cache_entities(users, chats);
+    }
+
+    /// Caches users and chats by kind and id (and username, when present).
+    pub fn cache_entities(&self, users: &[User], chats: &[Chat]) {
+        let mut entities = self
+            .entities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut by_name = self
+            .cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for user in users {
+            if let User::User {
+                id,
+                access_hash,
+                username,
+                ..
+            } = user
+                && let Some(access_hash) = access_hash
+            {
+                let peer = ResolvedPeer::User {
+                    user_id: *id,
+                    access_hash: *access_hash,
+                };
+                entities.insert((PeerKind::User.tag(), *id), peer);
+                if let Some(name) = username {
+                    by_name.insert(name.to_lowercase(), peer);
+                }
+            }
+        }
+        for chat in chats {
+            match chat {
+                Chat::Channel {
+                    id,
+                    access_hash: Some(access_hash),
+                    username,
+                    ..
+                } => {
+                    let peer = ResolvedPeer::Channel {
+                        channel_id: *id,
+                        access_hash: *access_hash,
+                    };
+                    entities.insert((PeerKind::Channel.tag(), *id), peer);
+                    if let Some(name) = username {
+                        by_name.insert(name.to_lowercase(), peer);
+                    }
+                }
+                Chat::Chat { id, .. } => {
+                    entities.insert(
+                        (PeerKind::Chat.tag(), *id),
+                        ResolvedPeer::Chat { chat_id: *id },
+                    );
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Resolves `username`, caching and returning the result.
