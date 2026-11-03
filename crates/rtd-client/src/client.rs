@@ -16,8 +16,8 @@ use rtd_proto::{
     RPC_RESULT_TYPE_ID, RpcResult,
 };
 use rtd_tg::{
-    AccountGetPassword, AuthAcceptLoginToken, AuthAuthorization, AuthCheckPassword,
-    AuthCheckRecoveryPassword, AuthExportLoginToken, AuthImportBotAuthorization,
+    AccountGetPassword, AuthAcceptLoginToken, AuthAuthorization, AuthBindTempAuthKey,
+    AuthCheckPassword, AuthCheckRecoveryPassword, AuthExportLoginToken, AuthImportBotAuthorization,
     AuthImportLoginToken, AuthLoginToken, AuthPasswordRecovery, AuthRecoverPassword,
     AuthRequestPasswordRecovery, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings,
     DecodeLimits, Decoder, HelpGetConfig, InitConnection, InputCheckPasswordSRP, InvokeWithLayer,
@@ -400,6 +400,46 @@ impl<T: Transport> Client<T> {
         match self.invoke(query)? {
             Object::Bool(_) => Ok(()),
             other => Err(unexpected("auth.acceptLoginToken", &other)),
+        }
+    }
+
+    /// Binds a temporary authorization key to the permanent key
+    /// (`auth.bindTempAuthKey`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server does not answer `Bool`.
+    pub fn bind_temp_key(
+        &mut self,
+        perm_key: &AuthKey,
+        temp_key: &AuthKey,
+        expires_at: i32,
+    ) -> Result<()> {
+        let mut nonce_bytes = [0u8; 8];
+        nonce_bytes.copy_from_slice(&rtd_crypto::random_bytes(8));
+        let nonce = i64::from_le_bytes(nonce_bytes);
+        let temp_id = i64::from_le_bytes(temp_key.id);
+        let perm_id = i64::from_le_bytes(perm_key.id);
+        let inner = rtd_crypto::BindAuthKeyInner {
+            nonce,
+            temp_auth_key_id: temp_id,
+            perm_auth_key_id: perm_id,
+            temp_session_id: self.session.session_id(),
+            expires_at,
+        };
+        let msg_id = self.session.allocate_content().msg_id;
+        let encrypted =
+            rtd_crypto::encrypt_bind_message(&mut self.random, perm_key, msg_id, &inner)?;
+        let query = Method::AuthBindTempAuthKey(Box::new(AuthBindTempAuthKey {
+            perm_auth_key_id: perm_id,
+            nonce,
+            expires_at,
+            encrypted_message: encrypted,
+        }));
+        match self.invoke(query)? {
+            Object::Bool(_) => Ok(()),
+            other => Err(unexpected("auth.bindTempAuthKey", &other)),
         }
     }
 
