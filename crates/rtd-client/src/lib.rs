@@ -41,7 +41,7 @@ pub use client::{Client, InitParams};
 pub use dcs::{DataCenter, Endpoint, Protocol, Resolver, StaticResolver};
 pub use deeplink::{Deeplink, DeeplinkError};
 pub use downloader::Downloader;
-pub use entity::parse_html;
+pub use entity::{parse_html, parse_markdown};
 pub use error::{Error, Result};
 pub use fileid::{FileId, Type as FileType};
 pub use json::{JsonValue, describe, type_name};
@@ -68,5 +68,5 @@ pub use updates::{
     Difference, PtsUpdate, PushResult, SequenceBox, fetch_difference, pts_update, qts_update,
     sort_by_pts,
 };
-pub use uploader::Uploader;
+pub use uploader::{NoProgress, Progress, Uploader};
 pub use ws::{WebSocketIo, connect_websocket};

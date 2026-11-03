@@ -21,6 +21,20 @@ const DEFAULT_PART: usize = 512 * 1024;
 /// Minimum part size (the TL 4 KiB alignment).
 const MIN_PART: usize = 4096;
 
+/// Reports upload progress.
+pub trait Progress: Send {
+    /// Reports `uploaded` of `total` bytes.
+    fn progress(&self, uploaded: usize, total: usize);
+}
+
+/// A [`Progress`] that does nothing.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct NoProgress;
+
+impl Progress for NoProgress {
+    fn progress(&self, _uploaded: usize, _total: usize) {}
+}
+
 /// An uploader with a configurable part size.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Uploader {
@@ -65,11 +79,28 @@ impl Uploader {
         name: &str,
         data: &[u8],
     ) -> Result<InputFile> {
+        self.upload_with_progress(client, name, data, &NoProgress)
+    }
+
+    /// Uploads `data`, reporting progress after each part.
+    ///
+    /// # Errors
+    ///
+    /// See [`Uploader::upload`].
+    pub fn upload_with_progress<T: Transport>(
+        &self,
+        client: &mut Client<T>,
+        name: &str,
+        data: &[u8],
+        progress: &dyn Progress,
+    ) -> Result<InputFile> {
         let file_id = random_id();
         let part_size = self.part_size(data.len());
         let chunks: Vec<&[u8]> = data.chunks(part_size).collect();
         let parts = i32::try_from(chunks.len())
             .map_err(|_| Error::Unexpected("file has more parts than fit in an i32".to_owned()))?;
+        let total = data.len();
+        let mut uploaded = 0usize;
 
         if data.len() <= SMALL_MAX {
             for (index, chunk) in chunks.iter().enumerate() {
@@ -81,6 +112,8 @@ impl Uploader {
                     bytes: chunk.to_vec(),
                 }));
                 expect_bool(client.invoke(query)?)?;
+                uploaded += chunk.len();
+                progress.progress(uploaded, total);
             }
             Ok(InputFile::InputFile {
                 id: file_id,
@@ -99,6 +132,8 @@ impl Uploader {
                     bytes: chunk.to_vec(),
                 }));
                 expect_bool(client.invoke(query)?)?;
+                uploaded += chunk.len();
+                progress.progress(uploaded, total);
             }
             Ok(InputFile::InputFileBig {
                 id: file_id,

@@ -54,6 +54,18 @@ impl RequestBuilder {
         }
     }
 
+    /// Creates a builder from Markdown text, parsing its entities.
+    #[must_use]
+    pub fn markdown(peer: InputPeer, markdown: &str) -> Self {
+        let (text, entities) = crate::entity::parse_markdown(markdown);
+        let builder = Self::new(peer, text);
+        if entities.is_empty() {
+            builder
+        } else {
+            builder.entities(entities)
+        }
+    }
+
     /// Sends without a notification sound.
     #[must_use]
     pub fn silent(mut self) -> Self {

@@ -77,6 +77,122 @@ pub fn parse_html(html: &str) -> (String, Vec<MessageEntity>) {
     (text, entities)
 }
 
+/// A markdown entity currently open.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Mark {
+    Bold,
+    Italic,
+    Strike,
+    Spoiler,
+    Code,
+}
+
+impl Mark {
+    fn build(&self, offset: i32, length: i32) -> MessageEntity {
+        match self {
+            Self::Bold => MessageEntity::MessageEntityBold { offset, length },
+            Self::Italic => MessageEntity::MessageEntityItalic { offset, length },
+            Self::Strike => MessageEntity::MessageEntityStrike { offset, length },
+            Self::Spoiler => MessageEntity::MessageEntitySpoiler { offset, length },
+            Self::Code => MessageEntity::MessageEntityCode { offset, length },
+        }
+    }
+}
+
+/// Parses a Markdown subset into plain text and its entities.
+///
+/// Supports `**bold**`, `__italic__`, `~~strike~~`, `||spoiler||`, `` `code` ``
+/// and `[text](url)` links.
+#[must_use]
+pub fn parse_markdown(markdown: &str) -> (String, Vec<MessageEntity>) {
+    let mut text = String::new();
+    let mut entities = Vec::new();
+    let mut stack: Vec<(Mark, i32)> = Vec::new();
+    let mut offset: i32 = 0;
+    let bytes = markdown.as_bytes();
+    let mut index = 0usize;
+
+    // Pushes one character, advancing the UTF-16 offset.
+    fn push(text: &mut String, offset: &mut i32, ch: char) {
+        text.push(ch);
+        *offset += ch.len_utf16() as i32;
+    }
+
+    while index < bytes.len() {
+        // Backslash escapes the next character.
+        if bytes[index] == b'\\' && index + 1 < bytes.len() {
+            let ch = markdown[index + 1..].chars().next().expect("boundary");
+            push(&mut text, &mut offset, ch);
+            index += 1 + ch.len_utf8();
+            continue;
+        }
+
+        if let Some((mark, width)) = delimiter(&bytes[index..]) {
+            if matches!(stack.last(), Some((open, _)) if open == &mark) {
+                let (open, start) = stack.pop().expect("non-empty");
+                entities.push(open.build(start, offset - start));
+            } else {
+                stack.push((mark, offset));
+            }
+            index += width;
+            continue;
+        }
+
+        if bytes[index] == b'['
+            && let Some((label, url, consumed)) = parse_link(&markdown[index..])
+        {
+            let start = offset;
+            for ch in label.chars() {
+                push(&mut text, &mut offset, ch);
+            }
+            entities.push(MessageEntity::MessageEntityTextUrl {
+                offset: start,
+                length: offset - start,
+                url,
+            });
+            index += consumed;
+            continue;
+        }
+
+        let ch = markdown[index..].chars().next().expect("boundary");
+        push(&mut text, &mut offset, ch);
+        index += ch.len_utf8();
+    }
+
+    while let Some((mark, start)) = stack.pop() {
+        entities.push(mark.build(start, offset - start));
+    }
+    (text, entities)
+}
+
+/// Matches an opening/closing delimiter at the start of `bytes`.
+fn delimiter(bytes: &[u8]) -> Option<(Mark, usize)> {
+    if bytes.starts_with(b"**") {
+        Some((Mark::Bold, 2))
+    } else if bytes.starts_with(b"__") {
+        Some((Mark::Italic, 2))
+    } else if bytes.starts_with(b"~~") {
+        Some((Mark::Strike, 2))
+    } else if bytes.starts_with(b"||") {
+        Some((Mark::Spoiler, 2))
+    } else if bytes.first() == Some(&b'`') {
+        Some((Mark::Code, 1))
+    } else {
+        None
+    }
+}
+
+/// Parses a `[label](url)` link, returning the label, url and consumed bytes.
+fn parse_link(input: &str) -> Option<(String, String, usize)> {
+    let close = input.find(']')?;
+    let label = input[1..close].to_owned();
+    let after = &input[close + 1..];
+    let open = after.strip_prefix('(')?;
+    let end = open.find(')')?;
+    let url = open[..end].to_owned();
+    Some((label, url, close + 1 + 1 + end + 1))
+}
+
 /// Handles one tag (without the angle brackets).
 fn handle_tag(
     tag: &str,
@@ -210,6 +326,22 @@ mod tests {
                 url: "https://x".to_owned(),
             }]
         );
+    }
+
+    #[test]
+    fn parses_markdown() {
+        use super::parse_markdown;
+        let (text, entities) = parse_markdown("**bold** and [link](https://x)");
+        assert_eq!(text, "bold and link");
+        assert!(entities.contains(&MessageEntity::MessageEntityBold {
+            offset: 0,
+            length: 4,
+        }));
+        assert!(entities.contains(&MessageEntity::MessageEntityTextUrl {
+            offset: 9,
+            length: 4,
+            url: "https://x".to_owned(),
+        }));
     }
 
     #[test]
