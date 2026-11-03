@@ -2,7 +2,7 @@
 
 ## 1. Pool
 
-- [ ] 1.1 Add per-DC `Pool` with acquire/release, free list and `MaxOpenConnections` (`pool.rs`)
+- [x] 1.1 Add a bounded `Pool` with acquire/release, idle reuse and a capacity cap (`pool.rs`)
 - [ ] 1.2 Add `SessionOptions` (DC, auth key, salt, PFS-aware key selection)
 
 ## 2. Routing
