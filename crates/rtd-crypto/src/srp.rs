@@ -1,8 +1,9 @@
 //! SRP 2FA password hashing and proof computation.
 //!
-//! Implements the client side of the Secure Remote Password protocol used by
+//! Implements both sides of the Secure Remote Password protocol used by
 //! Telegram's two-factor authentication, as described at
-//! <https://core.telegram.org/api/srp>.
+//! <https://core.telegram.org/api/srp>: the client proof ([`hash`]) and the
+//! server verifier and challenge ([`verifier`], [`challenge`], [`verify`]).
 //!
 //! The main hashing function is `H = SHA256`. The salted variant is
 //! `SH(data, salt) = H(salt ++ data ++ salt)`.
@@ -186,10 +187,142 @@ fn pad256(bytes: &[u8]) -> [u8; 256] {
     out
 }
 
+/// Constant-time equality for two byte slices.
+fn ct_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
+/// The server's SRP challenge: the secret scalar `b` and the public value `B`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Challenge {
+    /// The secret scalar `b` (kept by the server, never sent).
+    pub secret: Vec<u8>,
+    /// The public value `B = (k*v + g^b) mod p`, padded to 256 bytes.
+    pub public: Vec<u8>,
+}
+
+/// Computes the server verifier `v = g^x mod p` for `password` and the salts.
+///
+/// This is the value a server stores per account and uses to build a
+/// [`challenge`]; it uses the same derivation as the client proof, so a client
+/// running [`hash`] against the challenge succeeds.
+///
+/// # Errors
+///
+/// Returns [`Error::Srp`] or [`Error::DhParams`] if the parameters are invalid,
+/// or [`Error::IntegerTooLarge`] if `v` exceeds 256 bytes.
+pub fn verifier(password: &[u8], salt1: &[u8], salt2: &[u8], input: &Input) -> Result<Vec<u8>> {
+    let p = BigUint::from_bytes_be(&input.p);
+    let g = generator(input.g)?;
+    check_dh(input.g as u32, &p)?;
+    let x = BigUint::from_bytes_be(&secondary(password, salt1, salt2));
+    let v = g.modpow(&x, &p);
+    Ok(pad256_from_big(&v)?.to_vec())
+}
+
+/// Builds a server challenge for verifier `v`, drawing the secret `b` from
+/// `random`.
+///
+/// # Errors
+///
+/// Returns [`Error::Srp`] or [`Error::DhParams`] if the parameters are invalid,
+/// or [`Error::IntegerTooLarge`] if `B` exceeds 256 bytes.
+pub fn challenge(v: &[u8], input: &Input, random: &mut impl RandomSource) -> Result<Challenge> {
+    let p = BigUint::from_bytes_be(&input.p);
+    let g = generator(input.g)?;
+    check_dh(input.g as u32, &p)?;
+    let g_bytes = pad256_from_big(&g)?;
+    let k = BigUint::from_bytes_be(&sha256(&[&input.p, &g_bytes]));
+    let v_int = BigUint::from_bytes_be(v);
+
+    let mut b_bytes = vec![0u8; 256];
+    random.fill(&mut b_bytes);
+    let b = BigUint::from_bytes_be(&b_bytes);
+
+    let b_public = (&k * &v_int + g.modpow(&b, &p)) % &p;
+    if b_public == BigUint::from(0u32) {
+        return Err(Error::Srp {
+            reason: "challenge B is zero",
+        });
+    }
+    Ok(Challenge {
+        secret: b_bytes,
+        public: pad256_from_big(&b_public)?.to_vec(),
+    })
+}
+
+/// Verifies the client proof `M1` against verifier `v` and the challenge
+/// secret `secret`, returning `Some(M2)` on success and `None` on a wrong
+/// password or invalid input.
+///
+/// # Errors
+///
+/// Returns [`Error::Srp`] or [`Error::DhParams`] if the parameters are invalid,
+/// or [`Error::IntegerTooLarge`] if an intermediate value exceeds 256 bytes.
+pub fn verify(
+    v: &[u8],
+    secret: &[u8],
+    client_a: &[u8],
+    client_m1: &[u8],
+    input: &Input,
+) -> Result<Option<Vec<u8>>> {
+    let p = BigUint::from_bytes_be(&input.p);
+    let g = generator(input.g)?;
+    check_dh(input.g as u32, &p)?;
+    let g_bytes = pad256_from_big(&g)?;
+    let k = BigUint::from_bytes_be(&sha256(&[&input.p, &g_bytes]));
+
+    let a_int = BigUint::from_bytes_be(client_a);
+    if a_int == BigUint::from(0u32) || a_int >= p {
+        return Ok(None);
+    }
+
+    let v_int = BigUint::from_bytes_be(v);
+    let b = BigUint::from_bytes_be(secret);
+    let b_public = (&k * &v_int + g.modpow(&b, &p)) % &p;
+
+    let a_padded = pad256(client_a);
+    let b_padded = pad256_from_big(&b_public)?;
+    let u = BigUint::from_bytes_be(&sha256(&[&a_padded, &b_padded]));
+
+    let s = (a_int * v_int.modpow(&u, &p)).modpow(&b, &p);
+    let s_padded = pad256_from_big(&s)?;
+    let k_a = sha256(&[&s_padded]);
+
+    let h_p = sha256(&[&input.p]);
+    let h_g = sha256(&[&g_bytes]);
+    let mut xor_hp_hg = [0u8; 32];
+    for i in 0..32 {
+        xor_hp_hg[i] = h_p[i] ^ h_g[i];
+    }
+    let hint_salt1 = sha256(&[&input.salt1]);
+    let hint_salt2 = sha256(&[&input.salt2]);
+    let expected_m1 = sha256(&[
+        &xor_hp_hg,
+        &hint_salt1,
+        &hint_salt2,
+        &a_padded,
+        &b_padded,
+        &k_a,
+    ]);
+    if !ct_eq(&expected_m1, client_m1) {
+        return Ok(None);
+    }
+    let m2 = sha256(&[&a_padded, client_m1, &k_a]);
+    Ok(Some(m2.to_vec()))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Answer, Input, hash, new_hash_with_random};
-    use crate::testutil::ZeroRandom;
+    use super::{Answer, Input, challenge, hash, new_hash_with_random, verifier, verify};
+    use crate::testutil::{RepeatRandom, ZeroRandom};
 
     fn hex_vec(hex: &str) -> Vec<u8> {
         hex::decode(hex).expect("valid hex")
@@ -299,5 +432,39 @@ mod tests {
         let mut expected_salt = input.salt1.clone();
         expected_salt.extend_from_slice(&[0u8; 32]);
         assert_eq!(salt, expected_salt);
+    }
+
+    #[test]
+    fn server_verifies_the_client_proof() {
+        let (password, _srp_b, input) = test_args();
+        let v = verifier(&password, &input.salt1, &input.salt2, &input).unwrap();
+        let mut rng = RepeatRandom { byte: 7 };
+        let challenge = challenge(&v, &input, &mut rng).unwrap();
+
+        let answer = hash(&password, &challenge.public, &set_byte(1), &input).unwrap();
+        let m2 = verify(&v, &challenge.secret, &answer.a, &answer.m1, &input).unwrap();
+        assert!(m2.is_some());
+    }
+
+    #[test]
+    fn server_rejects_a_wrong_password() {
+        let (password, _srp_b, input) = test_args();
+        let v = verifier(&password, &input.salt1, &input.salt2, &input).unwrap();
+        let mut rng = RepeatRandom { byte: 7 };
+        let challenge = challenge(&v, &input, &mut rng).unwrap();
+        let answer = hash(&password, &challenge.public, &set_byte(1), &input).unwrap();
+
+        let wrong = verifier(b"not-the-password", &input.salt1, &input.salt2, &input).unwrap();
+        let result = verify(&wrong, &challenge.secret, &answer.a, &answer.m1, &input).unwrap();
+        assert!(result.is_none());
+
+        // A tampered client proof is rejected too.
+        let mut tampered = answer.m1.clone();
+        tampered[0] ^= 0xff;
+        assert!(
+            verify(&v, &challenge.secret, &answer.a, &tampered, &input)
+                .unwrap()
+                .is_none()
+        );
     }
 }

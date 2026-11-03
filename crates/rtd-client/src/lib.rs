@@ -6,13 +6,57 @@
 #![warn(missing_docs)]
 
 pub mod async_client;
+pub mod auth;
+pub mod calls;
 pub mod client;
+pub mod dcs;
+pub mod deeplink;
+pub mod downloader;
 pub mod error;
+pub mod fileid;
+pub mod json;
+pub mod keepalive;
+pub mod md5;
+pub mod message;
+pub mod middleware;
+pub mod pagination;
+pub mod peers;
+pub mod pool;
+pub mod qr;
 pub mod session;
+pub mod storage;
+pub mod takeout;
+pub mod thumbnail;
 pub mod transport;
+pub mod updates;
+pub mod uploader;
+pub mod ws;
 
 pub use async_client::AsyncClient;
+pub use auth::{ConstantPassword, PasswordProvider};
+pub use calls::{CallControl, CallError, CallState};
 pub use client::{Client, InitParams};
+pub use dcs::{DataCenter, Endpoint, Protocol, Resolver, StaticResolver};
+pub use deeplink::{Deeplink, DeeplinkError};
+pub use downloader::Downloader;
 pub use error::{Error, Result};
-pub use session::{ClientSession, SessionData};
-pub use transport::{DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp};
+pub use fileid::{FileId, Type as FileType};
+pub use json::{JsonValue, describe, type_name};
+pub use keepalive::Keepalive;
+pub use message::RequestBuilder;
+pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
+pub use pagination::HistoryIter;
+pub use peers::{PeerManager, ResolvedPeer};
+pub use pool::Pool;
+pub use qr::{LoginToken, login_url};
+pub use session::{ClientSession, SaltStore, SessionData};
+pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};
+pub use takeout::TakeoutConfig;
+pub use thumbnail::{ThumbnailError, expand as expand_thumbnail};
+pub use transport::{
+    DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,
+    Transport, WriteTransport, connect_tcp, dial_tcp,
+};
+pub use updates::{PushResult, SequenceBox};
+pub use uploader::Uploader;
+pub use ws::{WebSocketIo, connect_websocket};

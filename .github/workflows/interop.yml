@@ -1,0 +1,45 @@
+name: Interop
+
+# Manual-only external-peer and cross-check jobs. These are intentionally not
+# part of the push/PR CI: building the official MTProto engine's test server is
+# heavy, and the Go vectors job needs a pinned toolchain. Run them on demand
+# (`gh workflow run Interop`) or before a release.
+on:
+  workflow_dispatch:
+
+jobs:
+  # Build the official Rust MTProto engine's test server and run the rtd peer
+  # gates against it over a real socket. The engine is GPL-2.0 and is never
+  # linked or vendored; it is built in a separate checkout and run as a peer.
+  external-peer:
+    name: external peer
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the official MTProto engine test server
+        run: |
+          git clone --depth 1 https://github.com/TelegramMessenger/mtproto-engine "$RUNNER_TEMP/engine"
+          cargo build --release -p mtproto-testserver --manifest-path "$RUNNER_TEMP/engine/Cargo.toml"
+      - name: Run the exchange and client peer gates
+        env:
+          RTD_PEER_TESTSERVER: ${{ runner.temp }}/engine/target/release/mtproto-testserver
+        run: |
+          cargo test -p rtd-exchange --test peer_gate
+          cargo test -p rtd-client --test peer_gate
+
+  # Regenerate the Go cross-check vectors and fail on diff.
+  vectors:
+    name: vectors freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Regenerate the Go cross-check vectors
+        working-directory: interop/vectors
+        run: go run . > ../vectors.json
+      - run: git diff --exit-code

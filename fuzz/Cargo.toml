@@ -1,0 +1,30 @@
+[package]
+name = "rtd-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Standalone: this crate is intentionally not a member of the root workspace.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rtd-proto = { path = "../crates/rtd-proto" }
+rtd-tlprofile = { path = "../crates/rtd-tlprofile" }
+
+[[bin]]
+name = "decode_message"
+path = "fuzz_targets/decode_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "admit_tl"
+path = "fuzz_targets/admit_tl.rs"
+test = false
+doc = false
+bench = false

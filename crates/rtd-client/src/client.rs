@@ -3,23 +3,30 @@
 use std::sync::Arc;
 
 use rtd_bin::{Reader, Writer};
+use rtd_crypto::srp::{Input as SrpInput, hash as srp_hash};
 use rtd_crypto::{AuthKey, Key, SystemRandom};
 use rtd_exchange::{ClientConfig, Stream as ExchangeStream, client_exchange};
 use rtd_mt::{
-    BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder, MsgsAck,
-    Object as ServiceObject, RpcError,
+    BadMsgNotification, DecodeLimits as ServiceDecodeLimits, Decoder as ServiceDecoder,
+    Method as ServiceMethod, MsgsAck, Object as ServiceObject, Ping, Pong, RpcError,
 };
 use rtd_proto::{
     GZIP_TYPE_ID, Gzip, MESSAGE_CONTAINER_TYPE_ID, MessageContainer, MessageSeq,
     RPC_RESULT_TYPE_ID, RpcResult,
 };
 use rtd_tg::{
-    AuthAuthorization, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder,
-    HelpGetConfig, InitConnection, InvokeWithLayer, LAYER, Method, Object, Update, Updates,
+    AccountGetPassword, AuthAcceptLoginToken, AuthAuthorization, AuthCheckPassword,
+    AuthExportLoginToken, AuthImportBotAuthorization, AuthImportLoginToken, AuthLoginToken,
+    AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder, HelpGetConfig,
+    InitConnection, InputCheckPasswordSRP, InvokeWithLayer, LAYER, Method, Object, PasswordKdfAlgo,
+    Update, Updates,
 };
 use rtd_util::Clock;
 
+use crate::auth::PasswordProvider;
 use crate::error::{Error, Result};
+use crate::middleware::{Middleware, run_chain};
+use crate::qr::LoginToken;
 use crate::session::{ClientSession, SessionData};
 use crate::transport::Transport;
 
@@ -60,6 +67,8 @@ pub struct Client<T: Transport> {
     handler: Option<Box<dyn FnMut(Updates) + Send>>,
     /// The layer every call is wrapped in.
     layer: i32,
+    /// Invoker middleware applied to every call, outermost first.
+    middlewares: Vec<Box<dyn Middleware + Send>>,
 }
 
 /// One inbound message, reduced to what the caller cares about.
@@ -116,7 +125,16 @@ impl<T: Transport> Client<T> {
             initialized: false,
             handler: None,
             layer: LAYER,
+            middlewares: Vec::new(),
         }
+    }
+
+    /// Appends a middleware to the invocation chain.
+    ///
+    /// Middlewares run outermost-first in the order they are added.
+    pub fn with_middleware(mut self, middleware: impl Middleware + 'static) -> Self {
+        self.middlewares.push(Box::new(middleware));
+        self
     }
 
     /// Sets the layer every call is wrapped in (`invokeWithLayer`).
@@ -197,8 +215,14 @@ impl<T: Transport> Client<T> {
     ///
     /// Returns a transport, crypto, decode or RPC error.
     pub fn invoke(&mut self, query: Method) -> Result<Object> {
-        let body = self.wrap_layer(query);
-        self.call(body)
+        // Move the chain out so the inner closure can borrow `self` mutably.
+        let middlewares = core::mem::take(&mut self.middlewares);
+        let result = run_chain(&middlewares, query, &mut |method| {
+            let body = self.wrap_layer(method);
+            self.call(body)
+        });
+        self.middlewares = middlewares;
+        result
     }
 
     /// Sends a login code to `phone_number` (`auth.sendCode`).
@@ -251,6 +275,154 @@ impl<T: Transport> Client<T> {
         }
     }
 
+    /// Completes two-factor sign-in for `password` (`account.getPassword` then
+    /// `auth.checkPassword`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server does not present an SRP challenge.
+    pub fn check_password(&mut self, password: &[u8]) -> Result<AuthAuthorization> {
+        let state = match self.invoke(Method::AccountGetPassword(Box::new(AccountGetPassword)))? {
+            Object::AccountPassword(state) => *state,
+            other => return Err(unexpected("account.getPassword", &other)),
+        };
+        let (Some(algo), Some(srp_b), Some(srp_id)) =
+            (state.current_algo, state.srp_b, state.srp_id)
+        else {
+            return Err(Error::Unexpected(
+                "account.getPassword did not return an SRP challenge".to_owned(),
+            ));
+        };
+        let input = match *algo {
+            PasswordKdfAlgo::PasswordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow {
+                salt1,
+                salt2,
+                g,
+                p,
+            } => SrpInput { salt1, salt2, g, p },
+            PasswordKdfAlgo::PasswordKdfAlgoUnknown => {
+                return Err(Error::Unexpected(
+                    "unsupported password KDF algorithm".to_owned(),
+                ));
+            }
+        };
+        let scalar = rtd_crypto::random_bytes(256);
+        let answer = srp_hash(password, &srp_b, &scalar, &input)?;
+        let query = Method::AuthCheckPassword(Box::new(AuthCheckPassword {
+            password: Box::new(InputCheckPasswordSRP::InputCheckPasswordSRP {
+                srp_id,
+                a: answer.a,
+                m1: answer.m1,
+            }),
+        }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.checkPassword", &other)),
+        }
+    }
+
+    /// Calls [`Client::check_password`] with the password from `provider`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] when `provider` has no password, and the
+    /// same errors as [`Client::check_password`].
+    pub fn check_password_with(
+        &mut self,
+        provider: &dyn PasswordProvider,
+    ) -> Result<AuthAuthorization> {
+        let Some(password) = provider.password() else {
+            return Err(Error::Unexpected(
+                "two-factor password is required but none was provided".to_owned(),
+            ));
+        };
+        self.check_password(&password)
+    }
+
+    /// Exports a QR login token (`auth.exportLoginToken`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a token state other than a fresh token.
+    pub fn export_login_token(
+        &mut self,
+        api_id: i32,
+        api_hash: &str,
+        except_ids: Vec<i64>,
+    ) -> Result<LoginToken> {
+        let query = Method::AuthExportLoginToken(Box::new(AuthExportLoginToken {
+            api_id,
+            api_hash: api_hash.to_owned(),
+            except_ids,
+        }));
+        match self.invoke(query)? {
+            Object::AuthLoginToken(token) => match *token {
+                AuthLoginToken::LoginToken { expires, token } => {
+                    Ok(LoginToken::new(expires, token))
+                }
+                other => Err(unexpected_token("auth.exportLoginToken", &other)),
+            },
+            other => Err(unexpected("auth.exportLoginToken", &other)),
+        }
+    }
+
+    /// Imports an accepted QR login token (`auth.importLoginToken`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the token is not yet a successful authorization.
+    pub fn import_login_token(&mut self, token: Vec<u8>) -> Result<AuthAuthorization> {
+        let query = Method::AuthImportLoginToken(Box::new(AuthImportLoginToken { token }));
+        match self.invoke(query)? {
+            Object::AuthLoginToken(token) => match *token {
+                AuthLoginToken::LoginTokenSuccess { authorization } => Ok(*authorization),
+                other => Err(unexpected_token("auth.importLoginToken", &other)),
+            },
+            other => Err(unexpected("auth.importLoginToken", &other)),
+        }
+    }
+
+    /// Accepts a scanned QR login token (`auth.acceptLoginToken`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server does not answer `Bool`.
+    pub fn accept_login_token(&mut self, token: Vec<u8>) -> Result<()> {
+        let query = Method::AuthAcceptLoginToken(Box::new(AuthAcceptLoginToken { token }));
+        match self.invoke(query)? {
+            Object::Bool(_) => Ok(()),
+            other => Err(unexpected("auth.acceptLoginToken", &other)),
+        }
+    }
+
+    /// Authorizes a bot with a token (`auth.importBotAuthorization`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a different constructor.
+    pub fn bot_sign_in(
+        &mut self,
+        token: &str,
+        api_id: i32,
+        api_hash: &str,
+    ) -> Result<AuthAuthorization> {
+        let query = Method::AuthImportBotAuthorization(Box::new(AuthImportBotAuthorization {
+            flags: 0,
+            api_id,
+            api_hash: api_hash.to_owned(),
+            bot_auth_token: token.to_owned(),
+        }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.importBotAuthorization", &other)),
+        }
+    }
+
     fn wrap_layer(&self, query: Method) -> Vec<u8> {
         let mut writer = Writer::new();
         Method::InvokeWithLayer(Box::new(InvokeWithLayer {
@@ -259,6 +431,75 @@ impl<T: Transport> Client<T> {
         }))
         .encode(&mut writer);
         writer.into_vec()
+    }
+
+    /// Reads and processes one inbound frame without a pending call.
+    ///
+    /// Returns any update the frame carried, so a caller can drain unsolicited
+    /// updates between calls by looping until it returns `Ok(None)` (or would
+    /// block). Results for no pending request are discarded.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto or decode error.
+    pub fn poll(&mut self) -> Result<Option<Updates>> {
+        let frame = self.transport.recv_frame()?;
+        let decrypted = self.session.decode(&frame)?;
+        self.flush_acks()?;
+        let id = Reader::new(&decrypted.body)
+            .peek_id()
+            .map_err(|error| Error::Decode(error.to_string()))?;
+        let is_result = matches!(
+            id,
+            RPC_RESULT_TYPE_ID
+                | MESSAGE_CONTAINER_TYPE_ID
+                | GZIP_TYPE_ID
+                | BAD_SERVER_SALT_ID
+                | BAD_MSG_NOTIFICATION_ID
+        );
+        if !is_result && let Some(updates) = Self::decode_update(&decrypted.body) {
+            return Ok(Some(updates));
+        }
+        let _ = self.handle_body(0, &decrypted.body)?;
+        Ok(None)
+    }
+
+    /// Sends a service `ping` and returns once the matching `pong` arrives.
+    ///
+    /// This is the primitive a keepalive loop drives; it does not schedule
+    /// timers itself.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto or decode error, or [`Error::NoResult`] when
+    /// no `pong` arrives within the bounded read window.
+    pub fn ping(&mut self, ping_id: i64) -> Result<()> {
+        let mut writer = Writer::new();
+        ServiceMethod::Ping(Box::new(Ping { ping_id })).encode(&mut writer);
+        let body = writer.into_vec();
+        let message = self.session.allocate_service();
+        self.send(message, &body)?;
+
+        for _ in 0..MAX_ROUNDS {
+            let frame = self.transport.recv_frame()?;
+            let decrypted = self.session.decode(&frame)?;
+            self.flush_acks()?;
+            if Reader::new(&decrypted.body).peek_id().ok() == Some(Pong::TYPE_ID) {
+                let mut decoder =
+                    ServiceDecoder::new(&decrypted.body, ServiceDecodeLimits::default());
+                if let Ok(ServiceObject::Pong(pong)) = ServiceObject::decode(&mut decoder)
+                    && pong.ping_id == ping_id
+                {
+                    return Ok(());
+                }
+                continue;
+            }
+            // Process unrelated frames (results, containers, updates) as usual.
+            let _ = self.handle_body(0, &decrypted.body)?;
+        }
+        Err(Error::NoResult {
+            message_id: ping_id,
+        })
     }
 
     fn send(&mut self, message: MessageSeq, body: &[u8]) -> Result<()> {
@@ -359,23 +600,29 @@ impl<T: Transport> Client<T> {
         if self.handler.is_none() {
             return false;
         }
-        let mut decoder = Decoder::new(body, DecodeLimits::default());
-        let updates = if let Ok(updates) = Updates::decode(&mut decoder) {
-            updates
-        } else {
-            let mut decoder = Decoder::new(body, DecodeLimits::default());
-            match Update::decode(&mut decoder) {
-                Ok(update) => Updates::UpdateShort {
-                    update: Box::new(update),
-                    date: 0,
-                },
-                Err(_) => return false,
-            }
+        let Some(updates) = Self::decode_update(body) else {
+            return false;
         };
         if let Some(handler) = self.handler.as_mut() {
             handler(updates);
         }
         true
+    }
+
+    /// Decodes a body as updates, wrapping a bare update in `UpdateShort`.
+    fn decode_update(body: &[u8]) -> Option<Updates> {
+        let mut decoder = Decoder::new(body, DecodeLimits::default());
+        if let Ok(updates) = Updates::decode(&mut decoder) {
+            return Some(updates);
+        }
+        let mut decoder = Decoder::new(body, DecodeLimits::default());
+        match Update::decode(&mut decoder) {
+            Ok(update) => Some(Updates::UpdateShort {
+                update: Box::new(update),
+                date: 0,
+            }),
+            Err(_) => None,
+        }
     }
 
     fn ungzip(&self, payload: &[u8]) -> Result<Vec<u8>> {
@@ -404,6 +651,14 @@ impl<T: Transport> Client<T> {
             _ => Err(Error::Decode("unrecognised RPC result".to_owned())),
         }
     }
+}
+
+/// An error for a login-token call that answered with an unexpected token state.
+fn unexpected_token(what: &str, token: &AuthLoginToken) -> Error {
+    Error::Unexpected(format!(
+        "{what} returned unexpected login-token state {:#010x}",
+        token.type_id()
+    ))
 }
 
 /// An error for a method that answered with a constructor the wrapper expects

@@ -72,6 +72,106 @@ impl ServerRng for TestServerRng {
     }
 }
 
+/// A [`ServerRng`] that draws a fresh composite `pq` per handshake.
+///
+/// The Diffie-Hellman group is Telegram's well-known 2048-bit prime (the same
+/// one a real server uses); only `pq` — and the private exponent `a` — are
+/// fresh, which is what the protocol requires. Use this in production; keep
+/// [`TestServerRng`] for deterministic tests.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SystemServerRng;
+
+impl ServerRng for SystemServerRng {
+    fn pq(&mut self, random: &mut impl RandomSource) -> Result<BigUint> {
+        // Two distinct 31-bit primes multiply to a ~62-bit semiprime, which the
+        // client factors with Pollard's rho.
+        loop {
+            let p = generate_prime(random, 31);
+            let q = generate_prime(random, 31);
+            if p != q {
+                return Ok(p * q);
+            }
+        }
+    }
+
+    fn dh_prime(&mut self) -> Result<BigUint> {
+        TestServerRng.dh_prime()
+    }
+
+    fn ga(
+        &mut self,
+        g: u32,
+        p: &BigUint,
+        random: &mut impl RandomSource,
+    ) -> Result<(BigUint, BigUint)> {
+        TestServerRng.ga(g, p, random)
+    }
+}
+
+/// Generates a random prime with exactly `bits` bits (top bit set, odd).
+fn generate_prime(random: &mut impl RandomSource, bits: usize) -> BigUint {
+    let byte_len = bits.div_ceil(8);
+    let excess = byte_len * 8 - bits;
+    let mut bytes = vec![0u8; byte_len];
+    loop {
+        random.fill(&mut bytes);
+        if excess > 0 {
+            bytes[0] &= 0xff >> excess;
+        }
+        bytes[0] |= 1 << (7 - excess);
+        let last = bytes.len() - 1;
+        bytes[last] |= 1;
+        let candidate = BigUint::from_bytes_be(&bytes);
+        if is_probable_prime(&candidate) {
+            return candidate;
+        }
+    }
+}
+
+/// A deterministic Miller-Rabin test, sufficient for the small primes generated
+/// here (the fixed bases are a proven set for values below 2^64).
+fn is_probable_prime(n: &BigUint) -> bool {
+    let two = BigUint::from(2u32);
+    if n < &two {
+        return false;
+    }
+    for small in [2u32, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37] {
+        let modulus = BigUint::from(small);
+        if n % &modulus == BigUint::from(0u32) {
+            return n == &modulus;
+        }
+    }
+
+    let one = BigUint::from(1u32);
+    let n_minus_one = n - &one;
+    let mut d = n_minus_one.clone();
+    let mut r = 0u32;
+    while &d % &two == BigUint::from(0u32) {
+        d >>= 1;
+        r += 1;
+    }
+
+    for base in [2u32, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37] {
+        let a = BigUint::from(base);
+        let mut x = a.modpow(&d, n);
+        if x == one || x == n_minus_one {
+            continue;
+        }
+        let mut composite = true;
+        for _ in 1..r {
+            x = x.modpow(&two, n);
+            if x == n_minus_one {
+                composite = false;
+                break;
+            }
+        }
+        if composite {
+            return false;
+        }
+    }
+    true
+}
+
 /// The 2048-bit Diffie-Hellman prime used by Telegram test servers.
 const DH_PRIME_HEX: &str = "\
 C71CAEB9C6B1C9048E6C522F70F13F73980D40238E3E21C14934D037563D930F\
@@ -101,4 +201,33 @@ fn from_hex(hex: &str) -> BigUint {
         bytes.push((high << 4) | low);
     }
     BigUint::from_bytes_be(&bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use num_bigint::BigUint;
+    use rtd_util::DeterministicRandom;
+
+    use super::{ServerRng, SystemServerRng, TestServerRng, is_probable_prime};
+
+    #[test]
+    fn system_rng_generates_a_factorable_semiprime() {
+        let mut rng = SystemServerRng;
+        let mut random = DeterministicRandom::new(1);
+        let pq = rng.pq(&mut random).unwrap();
+        assert!(pq > BigUint::from(1u32));
+
+        let (p, q) = rtd_crypto::decompose_pq(&pq, &mut random);
+        assert!(p > BigUint::from(1u32));
+        assert!(q > BigUint::from(1u32));
+        assert_eq!(&p * &q, pq);
+        assert!(is_probable_prime(&p));
+        assert!(is_probable_prime(&q));
+    }
+
+    #[test]
+    fn system_rng_uses_the_known_prime() {
+        let mut rng = SystemServerRng;
+        assert_eq!(rng.dh_prime().unwrap(), TestServerRng.dh_prime().unwrap());
+    }
 }

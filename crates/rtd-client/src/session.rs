@@ -87,6 +87,82 @@ impl SessionData {
     }
 }
 
+/// A server salt with the window in which it is valid.
+///
+/// Mirrors MTProto's `future_salt`: `valid_since` is when the salt becomes
+/// usable and `valid_until` when it expires (`0` means "no expiry").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FutureSalt {
+    valid_since: i64,
+    valid_until: i64,
+    salt: i64,
+}
+
+/// A clock-driven store of server salts, refreshed by `get_future_salts`.
+///
+/// The active salt is the one whose validity window contains the supplied time
+/// and which became valid most recently; entries whose window has passed are
+/// dropped. Selection is a pure function of the injected time, so it is
+/// deterministic in tests.
+#[derive(Debug, Clone)]
+pub struct SaltStore {
+    active: i64,
+    future: Vec<FutureSalt>,
+}
+
+impl SaltStore {
+    /// Creates a store whose active salt is `salt` with no expiry.
+    #[must_use]
+    pub fn new(salt: i64) -> Self {
+        Self {
+            active: salt,
+            future: Vec::new(),
+        }
+    }
+
+    /// Returns the active salt.
+    #[must_use]
+    pub fn active(&self) -> i64 {
+        self.active
+    }
+
+    /// Records a future salt with its validity window.
+    pub fn insert(&mut self, valid_since: i64, valid_until: i64, salt: i64) {
+        self.future.push(FutureSalt {
+            valid_since,
+            valid_until,
+            salt,
+        });
+    }
+
+    /// Advances the active salt to the newest one valid at `now`, pruning
+    /// expired entries. Returns whether the active salt changed.
+    pub fn advance(&mut self, now: i64) -> bool {
+        // Drop salts that can never be selected again.
+        self.future
+            .retain(|entry| entry.valid_until == 0 || entry.valid_until > now);
+        let candidate = self
+            .future
+            .iter()
+            .filter(|entry| entry.valid_since <= now)
+            .max_by_key(|entry| entry.valid_since)
+            .map(|entry| entry.salt);
+        match candidate {
+            Some(salt) if salt != self.active => {
+                self.active = salt;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Resets the active salt, discarding any future salts.
+    pub fn reset(&mut self, salt: i64) {
+        self.active = salt;
+        self.future.clear();
+    }
+}
+
 /// The client's encrypted MTProto session: message allocation, encryption and
 /// inbound validation on top of the sans-IO [`Session`].
 ///
@@ -96,6 +172,8 @@ impl SessionData {
 pub struct ClientSession {
     session: Session,
     auth_key: AuthKey,
+    /// Server salts, refreshed by `get_future_salts`.
+    salts: SaltStore,
     /// Server content-message ids awaiting acknowledgement.
     inbound_acks: Vec<i64>,
 }
@@ -114,6 +192,7 @@ impl ClientSession {
         Self {
             session,
             auth_key,
+            salts: SaltStore::new(salt),
             inbound_acks: Vec::new(),
         }
     }
@@ -147,15 +226,33 @@ impl ClientSession {
         self.session.session_id()
     }
 
-    /// Returns the current server salt.
+    /// Returns the active server salt.
     #[must_use]
     pub fn salt(&self) -> i64 {
-        self.session.salt()
+        self.salts.active()
     }
 
-    /// Adopts a new server salt.
+    /// Adopts a new server salt, discarding any future salts.
     pub fn set_salt(&mut self, salt: i64) {
+        self.salts.reset(salt);
         self.session.set_salt(salt);
+    }
+
+    /// Records a future salt from a `future_salts` reply.
+    pub fn insert_future_salt(&mut self, valid_since: i64, valid_until: i64, salt: i64) {
+        self.salts.insert(valid_since, valid_until, salt);
+    }
+
+    /// Advances the active salt to the newest one valid at `now`.
+    ///
+    /// Returns whether the active salt changed; the caller then uses
+    /// [`ClientSession::salt`] for subsequent messages.
+    pub fn advance_salts(&mut self, now: i64) -> bool {
+        let changed = self.salts.advance(now);
+        if changed {
+            self.session.set_salt(self.salts.active());
+        }
+        changed
     }
 
     /// Allocates a content message (odd sequence number).
@@ -260,5 +357,40 @@ mod tests {
         wrong_version[4] = 0xff;
         assert!(SessionData::decode(&wrong_version).is_err());
         assert!(SessionData::decode(&[]).is_err());
+    }
+
+    #[test]
+    fn future_salts_advance_by_clock() {
+        let mut session = session();
+        assert_eq!(session.salt(), -99);
+
+        session.insert_future_salt(100, 200, 111);
+        session.insert_future_salt(150, 300, 222);
+
+        // Before any window opens, the active salt is unchanged.
+        assert!(!session.advance_salts(50));
+        assert_eq!(session.salt(), -99);
+
+        // The first salt becomes valid.
+        assert!(session.advance_salts(120));
+        assert_eq!(session.salt(), 111);
+
+        // The newest valid salt wins.
+        assert!(session.advance_salts(160));
+        assert_eq!(session.salt(), 222);
+
+        // Expired salts never replace the active one.
+        assert!(!session.advance_salts(400));
+        assert_eq!(session.salt(), 222);
+    }
+
+    #[test]
+    fn set_salt_discards_future_salts() {
+        let mut session = session();
+        session.insert_future_salt(1, 2, 5);
+        session.set_salt(7);
+        assert_eq!(session.salt(), 7);
+        assert!(!session.advance_salts(10));
+        assert_eq!(session.salt(), 7);
     }
 }

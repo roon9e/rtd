@@ -15,6 +15,6 @@ mod util;
 
 pub use client::{ClientConfig, ClientExchangeResult, client_exchange};
 pub use error::{Error, Result};
-pub use rng::{ServerRng, TestServerRng};
+pub use rng::{ServerRng, SystemServerRng, TestServerRng};
 pub use server::{ServerConfig, ServerExchangeResult, server_exchange};
 pub use stream::Stream;
