@@ -48,7 +48,8 @@ pub use json::{JsonValue, describe, type_name};
 pub use keepalive::Keepalive;
 pub use markup::{InlineButton, inline_keyboard};
 pub use message::{
-    RequestBuilder, build_send_media, delete_messages, forward_messages, send_document, send_photo,
+    RequestBuilder, build_send_media, delete_messages, edit_message, edit_message_html,
+    edit_message_with, forward_messages, send_document, send_photo,
 };
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{

@@ -5,7 +5,8 @@
 
 use rtd_tg::{
     DocumentAttribute, InputFile, InputMedia, InputPeer, MessageEntity, MessagesDeleteMessages,
-    MessagesForwardMessages, MessagesSendMedia, MessagesSendMessage, Method, Object, ReplyMarkup,
+    MessagesEditMessage, MessagesForwardMessages, MessagesSendMedia, MessagesSendMessage, Method,
+    Object, ReplyMarkup,
 };
 
 use crate::client::Client;
@@ -243,6 +244,66 @@ pub fn send_document<T: Transport>(
         ttl_seconds: None,
     };
     client.invoke(build_send_media(peer, media, caption))
+}
+
+/// Edits message `id` in `peer` to the given `text` and entities.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn edit_message_with<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    id: i32,
+    text: String,
+    entities: Option<Vec<MessageEntity>>,
+) -> Result<Object> {
+    let query = Method::MessagesEditMessage(Box::new(MessagesEditMessage {
+        flags: 0,
+        no_webpage: false,
+        invert_media: false,
+        peer: Box::new(peer),
+        id,
+        message: Some(text),
+        media: None,
+        reply_markup: None,
+        entities,
+        schedule_date: None,
+        schedule_repeat_period: None,
+        quick_reply_shortcut_id: None,
+        rich_message: None,
+    }));
+    client.invoke(query)
+}
+
+/// Edits message `id` in `peer` to plain `text`.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn edit_message<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    id: i32,
+    text: &str,
+) -> Result<Object> {
+    edit_message_with(client, peer, id, text.to_owned(), None)
+}
+
+/// Edits message `id` in `peer` to HTML `text`, parsing its entities.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn edit_message_html<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    id: i32,
+    html: &str,
+) -> Result<Object> {
+    let (text, entities) = crate::entity::parse_html(html);
+    let entities = (!entities.is_empty()).then_some(entities);
+    edit_message_with(client, peer, id, text, entities)
 }
 
 /// Forwards messages `ids` from `from` to `to`.
