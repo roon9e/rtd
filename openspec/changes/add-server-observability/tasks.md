@@ -2,7 +2,7 @@
 
 ## 1. Metrics
 
-- [ ] 1.1 Add a metrics registry with counters/histograms (`rtd-server/src/metrics.rs`)
+- [x] 1.1 Add a metrics registry with counters/histograms (`rtd-server/src/metrics.rs`)
 - [ ] 1.2 Instrument connection, handshake, admission, dispatch and error paths
 
 ## 2. Exposition and identity

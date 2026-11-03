@@ -57,6 +57,7 @@ use tokio::task::JoinHandle;
 
 use crate::core::{AdmittedCall, AuthKeyId, Core, SessionId};
 use crate::ingress::{ConnectionMeta, Ingress, IngressConfig, IngressError, TransportMode};
+use crate::metrics::{self, Metrics};
 use crate::session::{self, AuthKeyCache, CacheLimits, SessionKey, SessionRegistry};
 
 /// Default bound on the actor's inbound frame queue.
@@ -436,6 +437,7 @@ pub struct Server {
     budgets: Arc<Budgets>,
     registry: Arc<SessionRegistry>,
     cache: Arc<AuthKeyCache>,
+    metrics: Arc<Metrics>,
 }
 
 impl Server {
@@ -458,7 +460,14 @@ impl Server {
             budgets,
             registry,
             cache,
+            metrics: Arc::new(Metrics::new()),
         }
+    }
+
+    /// Returns the shared metrics registry.
+    #[must_use]
+    pub fn metrics(&self) -> &Arc<Metrics> {
+        &self.metrics
     }
 
     /// Binds a listener on `addr` and creates a server.
@@ -513,15 +522,23 @@ impl Server {
     /// Returns [`IngressError`] when accepting or transport detection fails.
     pub async fn accept(&self) -> Result<Option<JoinHandle<()>>, IngressError> {
         let connection = self.ingress.accept().await?;
+        self.metrics.increment(metrics::CONNECTIONS_ACCEPTED);
         let source = SourceKey::from_meta(connection.meta());
         let admission = match self.budgets.admit(source) {
             Ok(admission) => admission,
-            Err(_) => return Ok(None),
+            Err(_) => {
+                self.metrics.increment(metrics::CONNECTIONS_SHED);
+                return Ok(None);
+            }
         };
         let handshake = match self.budgets.begin_handshake() {
             Ok(handshake) => handshake,
-            Err(_) => return Ok(None),
+            Err(_) => {
+                self.metrics.increment(metrics::CONNECTIONS_SHED);
+                return Ok(None);
+            }
         };
+        self.metrics.increment(metrics::HANDSHAKES_STARTED);
         let context = ConnContext {
             core: self.core.clone(),
             options: self.options.clone(),

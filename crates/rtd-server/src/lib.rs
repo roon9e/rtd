@@ -14,8 +14,10 @@
 pub mod actor;
 pub mod core;
 pub mod ingress;
+pub mod metrics;
 pub mod ratelimit;
 pub mod rpc;
 pub mod session;
 
+pub use metrics::Metrics;
 pub use ratelimit::{ClassLimit, MethodClass, RateLimitConfig, RateLimiter};
