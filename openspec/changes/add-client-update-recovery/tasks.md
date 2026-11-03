@@ -3,7 +3,7 @@
 ## 1. Sequence engines
 
 - [x] 1.1 Add a generic `SequenceBox` with gap buffer and gap timeout (`updates/mod.rs`)
-- [ ] 1.2 Add `Manager` implementing the update handler and wiring the boxes (`updates/mod.rs`)
+- [x] 1.2 Add `Manager` implementing the update handler and wiring the boxes (`updates/mod.rs`)
 
 ## 2. Recovery
 
@@ -12,7 +12,7 @@
 
 ## 3. State and callbacks
 
-- [ ] 3.1 Add `StateStorage` (in-memory default) and the too-long/load-failed callbacks
+- [x] 3.1 Add `StateStorage` (in-memory default) and the too-long/load-failed callbacks
 
 ## 4. Verification
 

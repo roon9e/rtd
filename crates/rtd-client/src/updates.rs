@@ -399,6 +399,265 @@ impl<T> SequenceBox<T> {
     }
 }
 
+/// A `pts` box that advances across multi-count updates.
+///
+/// Updates are keyed by their ending `pts`; an update is applicable once its
+/// covered range `(pts - pts_count, pts]` begins at or before the current
+/// position, so a single update may advance the position by more than one.
+#[derive(Debug, Clone)]
+struct PtsBox {
+    current: i32,
+    buffer: BTreeMap<i32, (i32, Update)>,
+    first_gap_ms: Option<u64>,
+}
+
+/// The result of pushing an update into a [`PtsBox`].
+enum PtsOutcome {
+    /// A duplicate or already-applied update.
+    Duplicate,
+    /// Buffered ahead of a gap.
+    Buffered,
+    /// One or more contiguous updates to apply.
+    Applied(Vec<Update>),
+}
+
+impl PtsBox {
+    fn new(current: i32) -> Self {
+        Self {
+            current,
+            buffer: BTreeMap::new(),
+            first_gap_ms: None,
+        }
+    }
+
+    fn push(
+        &mut self,
+        pts: i32,
+        pts_count: i32,
+        update: Update,
+        now_ms: u64,
+        timeout_ms: u64,
+    ) -> PtsOutcome {
+        let _ = timeout_ms;
+        if pts <= self.current {
+            return PtsOutcome::Duplicate;
+        }
+        self.buffer.insert(pts, (pts_count, update));
+        if pts - pts_count > self.current && self.first_gap_ms.is_none() {
+            self.first_gap_ms = Some(now_ms);
+        }
+
+        let mut applied = Vec::new();
+        loop {
+            let key = self
+                .buffer
+                .iter()
+                .find(|(end, (count, _))| **end - *count <= self.current)
+                .map(|(end, _)| *end);
+            let Some(key) = key else { break };
+            if let Some((_, update)) = self.buffer.remove(&key) {
+                if key > self.current {
+                    self.current = key;
+                }
+                applied.push(update);
+            }
+        }
+        if self.buffer.is_empty() {
+            self.first_gap_ms = None;
+        }
+
+        if applied.is_empty() {
+            PtsOutcome::Buffered
+        } else {
+            PtsOutcome::Applied(applied)
+        }
+    }
+
+    fn reset(&mut self, current: i32) {
+        self.current = current;
+        self.buffer.retain(|end, _| *end > current);
+        self.first_gap_ms = None;
+    }
+
+    fn gap_due(&self, now_ms: u64, timeout_ms: u64) -> bool {
+        !self.buffer.is_empty()
+            && self
+                .first_gap_ms
+                .map(|start| now_ms.saturating_sub(start) >= timeout_ms)
+                .unwrap_or(false)
+    }
+}
+
+/// Callbacks the [`Manager`] invokes on recovery events.
+#[derive(Default)]
+pub struct Callbacks {
+    /// Called when the server's history is too long to recover incrementally.
+    pub on_too_long: Option<Box<dyn FnMut() + Send>>,
+    /// Called when stored update state could not be loaded.
+    pub on_load_failed: Option<Box<dyn FnMut() + Send>>,
+}
+
+/// What the [`Manager`] asks the caller to do after an update.
+#[derive(Debug)]
+pub enum Action {
+    /// Apply these updates, in order.
+    Apply(Vec<Update>),
+    /// The update was buffered ahead of a gap.
+    Buffered,
+    /// The update was a duplicate or already applied.
+    Ignored,
+    /// A common gap has persisted: request `updates.getDifference`.
+    NeedDifference,
+    /// A channel gap has persisted: request `updates.getChannelDifference`.
+    NeedChannelDifference {
+        /// The channel with the gap.
+        channel_id: i64,
+        /// The channel `pts` to recover from.
+        pts: i32,
+    },
+}
+
+/// Wires the common, per-channel and state boxes together.
+///
+/// The manager is transport-agnostic: the caller feeds updates in and reacts to
+/// the returned [`Action`], fetching differences when asked.
+pub struct Manager {
+    state: State,
+    gap_timeout_ms: u64,
+    common: PtsBox,
+    channels: BTreeMap<i64, PtsBox>,
+    storage: Option<Box<dyn StateStorage>>,
+    callbacks: Callbacks,
+}
+
+impl Manager {
+    /// Creates a manager positioned at `state`, with a gap timeout in
+    /// milliseconds.
+    #[must_use]
+    pub fn new(state: State, gap_timeout_ms: u64) -> Self {
+        Self {
+            state,
+            gap_timeout_ms,
+            common: PtsBox::new(state.pts),
+            channels: BTreeMap::new(),
+            storage: None,
+            callbacks: Callbacks::default(),
+        }
+    }
+
+    /// Attaches a state storage, loading any stored cursor immediately.
+    #[must_use]
+    pub fn with_storage(mut self, storage: Box<dyn StateStorage>) -> Self {
+        if let Some(state) = storage.load() {
+            self.state = state;
+            self.common.reset(state.pts);
+        } else if let Some(callback) = &mut self.callbacks.on_load_failed {
+            callback();
+        }
+        self.storage = Some(storage);
+        self
+    }
+
+    /// Returns mutable access to the callbacks.
+    pub fn callbacks(&mut self) -> &mut Callbacks {
+        &mut self.callbacks
+    }
+
+    /// Returns the current cursor.
+    #[must_use]
+    pub fn state(&self) -> State {
+        self.state
+    }
+
+    /// Feeds an update into the manager.
+    pub fn push(&mut self, update: Update, now_ms: u64) -> Action {
+        let Some(pts) = pts_update(&update) else {
+            return Action::Apply(vec![update]);
+        };
+        let outcome = match pts.channel_id {
+            Some(channel_id) => {
+                let current = self
+                    .channels
+                    .get(&channel_id)
+                    .map_or(self.state.pts, |box_| box_.current);
+                let box_ = self
+                    .channels
+                    .entry(channel_id)
+                    .or_insert_with(|| PtsBox::new(current));
+                box_.push(pts.pts, pts.pts_count, update, now_ms, self.gap_timeout_ms)
+            }
+            None => self
+                .common
+                .push(pts.pts, pts.pts_count, update, now_ms, self.gap_timeout_ms),
+        };
+        match outcome {
+            PtsOutcome::Duplicate => Action::Ignored,
+            PtsOutcome::Buffered => Action::Buffered,
+            PtsOutcome::Applied(updates) => {
+                if pts.channel_id.is_none() {
+                    self.state.pts = self.common.current;
+                    self.persist();
+                }
+                Action::Apply(updates)
+            }
+        }
+    }
+
+    /// Reports a due gap, if any, without draining new updates.
+    #[must_use]
+    pub fn poll(&self, now_ms: u64) -> Option<Action> {
+        if self.common.gap_due(now_ms, self.gap_timeout_ms) {
+            return Some(Action::NeedDifference);
+        }
+        for (channel_id, box_) in &self.channels {
+            if box_.gap_due(now_ms, self.gap_timeout_ms) {
+                return Some(Action::NeedChannelDifference {
+                    channel_id: *channel_id,
+                    pts: box_.current,
+                });
+            }
+        }
+        None
+    }
+
+    /// Applies a recovered common difference, resetting the common box.
+    pub fn apply_difference(&mut self, difference: Difference) -> Vec<Update> {
+        if difference.too_long
+            && let Some(callback) = &mut self.callbacks.on_too_long
+        {
+            callback();
+        }
+        let (pts, qts, date) = difference.state;
+        self.state.pts = pts;
+        self.state.qts = qts;
+        self.state.date = date;
+        self.common.reset(pts);
+        self.persist();
+        difference.updates
+    }
+
+    /// Applies a recovered channel difference, resetting that channel's box.
+    pub fn apply_channel_difference(
+        &mut self,
+        channel_id: i64,
+        difference: ChannelDifference,
+    ) -> Vec<Update> {
+        let box_ = self
+            .channels
+            .entry(channel_id)
+            .or_insert_with(|| PtsBox::new(0));
+        box_.reset(difference.pts);
+        difference.updates
+    }
+
+    /// Persists the current cursor to the attached storage, if any.
+    fn persist(&self) {
+        if let Some(storage) = &self.storage {
+            storage.store(&self.state);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{PushResult, SequenceBox};
@@ -464,5 +723,77 @@ mod tests {
         // A reset clears the gap.
         sequence.reset(4);
         assert!(!sequence.gap_due(1100));
+    }
+
+    #[test]
+    fn manager_orders_updates_and_recovers_gaps() {
+        use rtd_tg::Update;
+
+        use super::{Action, Difference, Manager, State};
+
+        let make = |pts| Update::UpdateDeleteMessages {
+            messages: vec![pts],
+            pts,
+            pts_count: 1,
+        };
+        let mut manager = Manager::new(State::default(), 1000);
+        assert!(matches!(manager.push(make(2), 0), Action::Buffered));
+        match manager.push(make(1), 0) {
+            Action::Apply(updates) => assert_eq!(updates.len(), 2),
+            other => panic!("expected apply, got {other:?}"),
+        }
+        assert_eq!(manager.state().pts, 2);
+        assert!(matches!(manager.push(make(1), 0), Action::Ignored));
+
+        assert!(matches!(manager.push(make(5), 100), Action::Buffered));
+        assert!(manager.poll(500).is_none());
+        assert!(matches!(manager.poll(1100), Some(Action::NeedDifference)));
+
+        let difference = Difference {
+            updates: vec![make(5)],
+            state: (5, 0, 0),
+            ..Difference::default()
+        };
+        assert_eq!(manager.apply_difference(difference).len(), 1);
+        assert_eq!(manager.state().pts, 5);
+        assert!(manager.poll(2000).is_none());
+    }
+
+    #[test]
+    fn manager_tracks_channel_gaps_and_storage() {
+        use rtd_tg::Update;
+
+        use super::{Action, ChannelDifference, Manager, MemoryStateStorage, State, StateStorage};
+
+        let storage = MemoryStateStorage::new();
+        storage.store(&State {
+            pts: 10,
+            ..State::default()
+        });
+        let mut manager = Manager::new(State::default(), 1000).with_storage(Box::new(storage));
+        // The stored cursor is loaded.
+        assert_eq!(manager.state().pts, 10);
+
+        let update = Update::UpdateDeleteChannelMessages {
+            channel_id: 7,
+            messages: vec![1],
+            pts: 15,
+            pts_count: 1,
+        };
+        assert!(matches!(manager.push(update, 0), Action::Buffered));
+        match manager.poll(1100) {
+            Some(Action::NeedChannelDifference { channel_id, pts }) => {
+                assert_eq!(channel_id, 7);
+                assert_eq!(pts, 10);
+            }
+            other => panic!("expected channel difference, got {other:?}"),
+        }
+        let difference = ChannelDifference {
+            updates: vec![],
+            pts: 15,
+            ..ChannelDifference::default()
+        };
+        assert!(manager.apply_channel_difference(7, difference).is_empty());
+        assert!(manager.poll(2000).is_none());
     }
 }
