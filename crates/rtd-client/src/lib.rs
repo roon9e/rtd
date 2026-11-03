@@ -7,6 +7,7 @@
 
 pub mod async_client;
 pub mod auth;
+pub mod calls;
 pub mod client;
 pub mod dcs;
 pub mod deeplink;
@@ -30,6 +31,7 @@ pub mod ws;
 
 pub use async_client::AsyncClient;
 pub use auth::{ConstantPassword, PasswordProvider};
+pub use calls::{CallControl, CallError, CallState};
 pub use client::{Client, InitParams};
 pub use dcs::{DataCenter, Endpoint, Protocol, Resolver, StaticResolver};
 pub use deeplink::{Deeplink, DeeplinkError};
