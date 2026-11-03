@@ -44,7 +44,10 @@ pub use calls::{
     fetch_dh_config, g_a_hash, request_call,
 };
 pub use client::{Client, InitParams};
-pub use dcs::{DataCenter, Endpoint, Protocol, Resolver, StaticResolver, migrate_target};
+pub use dcs::{
+    DataCenter, DnsConfig, DnsError, Endpoint, Protocol, Resolver, StaticResolver, migrate_target,
+    parse_dns_config,
+};
 pub use deeplink::{Deeplink, DeeplinkError};
 pub use downloader::Downloader;
 pub use entity::{parse_html, parse_markdown};
@@ -60,11 +63,11 @@ pub use message::{
 };
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{
-    BlockedIter, DialogsIter, HistoryIter, ParticipantsIter, PhotosIter, fetch_dialogs,
-    fetch_history, fetch_participants,
+    BlockedIter, DialogsIter, Hasher, HistoryIter, ParticipantsIter, PhotosIter, Query, fetch_all,
+    fetch_dialogs, fetch_history, fetch_participants, for_each,
 };
 pub use peers::{PeerKind, PeerManager, ResolvedPeer};
-pub use pool::Pool;
+pub use pool::{Pool, SelectedKey, SessionOptions};
 pub use qr::{LoginToken, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};

@@ -14,7 +14,7 @@ use core::cmp::Ordering;
 
 use ::rsa::BigUint;
 use ::rsa::RsaPrivateKey;
-use ::rsa::RsaPublicKey;
+pub use ::rsa::RsaPublicKey;
 use ::rsa::pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey};
 use ::rsa::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use ::rsa::traits::{PrivateKeyParts, PublicKeyParts};
@@ -169,6 +169,20 @@ pub fn rsa_fingerprint(key: &RsaPublicKey) -> i64 {
     i64::from_le_bytes(fingerprint)
 }
 
+/// Applies the raw RSA public-key operation `value^e mod n` to `input`.
+///
+/// Unlike [`rsa_pad`] this performs no padding: it is the primitive Telegram's
+/// DNS resolver uses to unwrap the encrypted simple config, where the 256-byte
+/// input is treated directly as a big-endian integer.
+#[must_use]
+pub fn rsa_public_transform(key: &RsaPublicKey, input: &[u8]) -> [u8; RSA_LEN] {
+    let value = BigUint::from_bytes_be(input);
+    let result = value.modpow(key.e(), key.n());
+    let mut out = [0u8; RSA_LEN];
+    fill_bytes_be(&result, &mut out);
+    out
+}
+
 /// Parses one PEM-encoded RSA public key in either PKCS#1 or PKIX form.
 ///
 /// # Errors
@@ -299,6 +313,19 @@ t6N/byY9Nw9p21Og3AoXSL2q/2IJ1WRUhebgAdGVMlV1fkuOQoEzR7EdpqtQD9Cs
         assert_eq!(
             rsa_pad(&data, &key, &mut ZeroRandom).unwrap_err(),
             Error::RsaDataTooLong { len: 145 }
+        );
+    }
+
+    #[test]
+    fn public_transform_is_identity_on_one() {
+        let key = parse_rsa_public_key(TEST_PUBLIC_KEY).unwrap();
+        let out = super::rsa_public_transform(&key, &[1]);
+        let mut expected = [0u8; super::RSA_LEN];
+        expected[super::RSA_LEN - 1] = 1;
+        assert_eq!(out, expected);
+        assert_eq!(
+            super::rsa_public_transform(&key, &[0]),
+            [0u8; super::RSA_LEN]
         );
     }
 

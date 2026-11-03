@@ -3,7 +3,7 @@
 ## 1. Pool
 
 - [x] 1.1 Add a bounded `Pool` with acquire/release, idle reuse and a capacity cap (`pool.rs`)
-- [ ] 1.2 Add `SessionOptions` (DC, auth key, salt, PFS-aware key selection)
+- [x] 1.2 Add `SessionOptions` (DC, auth key, salt, PFS-aware key selection)
 
 ## 2. Routing
 

@@ -2,8 +2,8 @@
 
 ## 1. Framework
 
-- [ ] 1.1 Add `Query<T>` iterator trait and `ForEach`/`Fetch` drivers (`query/mod.rs`)
-- [ ] 1.2 Add a request hasher for cached queries
+- [x] 1.1 Add `Query<T>` iterator trait and `ForEach`/`Fetch` drivers (`query/mod.rs`)
+- [x] 1.2 Add a request hasher for cached queries
 
 ## 2. Queries
 

@@ -27,6 +27,7 @@
 //! system CSPRNG (see [`rand`]).
 
 pub mod bind;
+pub mod cbc;
 pub mod dh;
 pub mod encrypted_message;
 pub mod error;
@@ -44,6 +45,7 @@ pub mod temp_keys;
 mod testutil;
 
 pub use bind::{BIND_AUTH_KEY_INNER_TYPE_ID, BindAuthKeyInner, encrypt_bind_message};
+pub use cbc::{decrypt as cbc_decrypt, encrypt as cbc_encrypt};
 pub use dh::{DH_PRIME_BITS, check_dh, check_dh_params, check_gp, check_prime, in_range};
 pub use encrypted_message::{
     DecryptedMessage, EncryptedMessage, MessageHeader, auth_key_id, decrypt, encrypt,
@@ -57,7 +59,7 @@ pub use pq::decompose_pq;
 pub use rand::{RandomSource, SystemRandom, fill_random, random_bytes};
 pub use rsa::{
     decode_rsa_pad, parse_rsa_private_key, parse_rsa_public_key, parse_rsa_public_keys,
-    rsa_fingerprint, rsa_pad,
+    rsa_fingerprint, rsa_pad, rsa_public_transform,
 };
 pub use srp::{
     Answer, Challenge, Input, challenge, hash as srp_hash, new_hash, new_hash_with_random,

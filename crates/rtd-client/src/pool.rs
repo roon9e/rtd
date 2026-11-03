@@ -7,7 +7,105 @@
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use rtd_crypto::Key;
+
 use crate::error::{Error, Result};
+
+/// Options describing how to establish (or resume) a session for a datacenter.
+///
+/// A caller selects the authorization key with [`SessionOptions::select_key`]:
+/// when PFS is requested and a temporary (bound) key is available it is
+/// preferred, otherwise the permanent key is used.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionOptions {
+    /// The target datacenter.
+    pub dc: i32,
+    /// The permanent authorization key, if known.
+    pub auth_key: Option<[u8; Key::LEN]>,
+    /// The temporary (PFS) authorization key, if bound.
+    pub temp_auth_key: Option<[u8; Key::LEN]>,
+    /// The initial server salt.
+    pub salt: i64,
+    /// The session id to reuse, if any.
+    pub session_id: Option<i64>,
+    /// Whether to prefer the temporary key when present.
+    pub pfs: bool,
+}
+
+impl SessionOptions {
+    /// Creates options for `dc` with no stored keys.
+    #[must_use]
+    pub fn new(dc: i32) -> Self {
+        Self {
+            dc,
+            auth_key: None,
+            temp_auth_key: None,
+            salt: 0,
+            session_id: None,
+            pfs: false,
+        }
+    }
+
+    /// Sets the permanent authorization key.
+    #[must_use]
+    pub fn with_auth_key(mut self, key: [u8; Key::LEN]) -> Self {
+        self.auth_key = Some(key);
+        self
+    }
+
+    /// Sets the temporary (PFS) authorization key.
+    #[must_use]
+    pub fn with_temp_auth_key(mut self, key: [u8; Key::LEN]) -> Self {
+        self.temp_auth_key = Some(key);
+        self
+    }
+
+    /// Enables or disables PFS key preference.
+    #[must_use]
+    pub fn with_pfs(mut self, pfs: bool) -> Self {
+        self.pfs = pfs;
+        self
+    }
+
+    /// Selects the authorization key to use for this session.
+    #[must_use]
+    pub fn select_key(&self) -> Option<SelectedKey<'_>> {
+        if self.pfs
+            && let Some(key) = &self.temp_auth_key
+        {
+            return Some(SelectedKey::Temporary(key));
+        }
+        if let Some(key) = &self.auth_key {
+            return Some(SelectedKey::Permanent(key));
+        }
+        self.temp_auth_key.as_ref().map(SelectedKey::Temporary)
+    }
+}
+
+/// The authorization key [`SessionOptions::select_key`] chose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectedKey<'a> {
+    /// The permanent authorization key.
+    Permanent(&'a [u8; Key::LEN]),
+    /// The temporary (PFS) authorization key.
+    Temporary(&'a [u8; Key::LEN]),
+}
+
+impl SelectedKey<'_> {
+    /// Returns the raw key bytes.
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8; Key::LEN] {
+        match self {
+            Self::Permanent(key) | Self::Temporary(key) => key,
+        }
+    }
+
+    /// Returns whether this is the temporary (PFS) key.
+    #[must_use]
+    pub fn is_temporary(&self) -> bool {
+        matches!(self, Self::Temporary(_))
+    }
+}
 
 /// A bounded pool of connections produced by a factory.
 pub struct Pool<C> {
@@ -110,5 +208,30 @@ mod tests {
         });
         assert!(pool.acquire().is_err());
         assert_eq!(pool.in_use(), 0);
+    }
+
+    #[test]
+    fn session_options_select_pfs_key() {
+        use super::{SelectedKey, SessionOptions};
+
+        let permanent = [1u8; rtd_crypto::Key::LEN];
+        let temporary = [2u8; rtd_crypto::Key::LEN];
+
+        let options = SessionOptions::new(2)
+            .with_auth_key(permanent)
+            .with_temp_auth_key(temporary);
+        assert!(options.select_key().is_some());
+        assert!(!options.select_key().unwrap().is_temporary());
+        assert_eq!(options.select_key().unwrap().as_bytes(), &permanent);
+
+        let pfs = options.clone().with_pfs(true);
+        assert!(pfs.select_key().unwrap().is_temporary());
+        assert!(matches!(pfs.select_key(), Some(SelectedKey::Temporary(_))));
+
+        // Without a permanent key the temporary key is used regardless of PFS.
+        let only_temp = SessionOptions::new(2).with_temp_auth_key(temporary);
+        assert!(only_temp.select_key().unwrap().is_temporary());
+        // With no key at all, nothing is selected.
+        assert!(SessionOptions::new(2).select_key().is_none());
     }
 }

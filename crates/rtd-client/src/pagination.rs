@@ -479,6 +479,340 @@ impl Default for BlockedIter {
     }
 }
 
+/// A paginated query driven one request at a time.
+///
+/// The driver functions [`fetch_all`] and [`for_each`] own the request/response
+/// loop; implementors only describe the next request and how to parse its
+/// response. This keeps page iteration independent of any particular transport,
+/// so the drivers are testable without a live client.
+pub trait Query {
+    /// The item a page yields.
+    type Item;
+
+    /// Returns the next method to invoke, or `None` when exhausted.
+    fn request(&mut self) -> Option<Method>;
+
+    /// Consumes the response to the last request, returning the next page.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] for an unexpected constructor.
+    fn accept(&mut self, object: Object) -> Result<Option<Vec<Self::Item>>>;
+}
+
+/// Drains `query` into one vector, invoking each request through `invoke`.
+///
+/// # Errors
+///
+/// Returns the invoker's error or the query's parse error.
+pub fn fetch_all<Q: Query>(
+    invoke: &mut dyn FnMut(Method) -> Result<Object>,
+    mut query: Q,
+) -> Result<Vec<Q::Item>> {
+    let mut all = Vec::new();
+    while let Some(method) = query.request() {
+        let response = invoke(method)?;
+        if let Some(page) = query.accept(response)? {
+            all.extend(page);
+        }
+    }
+    Ok(all)
+}
+
+/// Visits every item of `query` in order.
+///
+/// # Errors
+///
+/// Returns the invoker's error, the query's parse error or the visitor's error.
+pub fn for_each<Q: Query>(
+    invoke: &mut dyn FnMut(Method) -> Result<Object>,
+    mut query: Q,
+    mut visit: impl FnMut(Q::Item) -> Result<()>,
+) -> Result<()> {
+    while let Some(method) = query.request() {
+        let response = invoke(method)?;
+        if let Some(page) = query.accept(response)? {
+            for item in page {
+                visit(item)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The Telegram pagination hash.
+///
+/// See <https://core.telegram.org/api/offsets#hash-generation>.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Hasher {
+    state: u32,
+}
+
+impl Hasher {
+    /// Creates a hasher in its initial state.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Resets the hasher to its initial state.
+    pub fn reset(&mut self) {
+        self.state = 0;
+    }
+
+    /// Folds a 32-bit value into the hash.
+    pub fn update(&mut self, value: u32) {
+        self.state = self.state.wrapping_mul(20261).wrapping_add(value);
+    }
+
+    /// Folds a 64-bit value (high half then low half) into the hash.
+    pub fn update64(&mut self, value: u64) {
+        self.update((value >> 32) as u32);
+        self.update((value & 0xffff_ffff) as u32);
+    }
+
+    /// Returns the final non-negative hash.
+    #[must_use]
+    pub fn sum(&self) -> i64 {
+        i64::from(self.state & 0x7fff_ffff)
+    }
+}
+
+impl Query for HistoryIter {
+    type Item = Message;
+
+    fn request(&mut self) -> Option<Method> {
+        if self.done || self.remaining <= 0 {
+            return None;
+        }
+        let limit = self.batch.min(self.remaining);
+        Some(Method::MessagesGetHistory(Box::new(MessagesGetHistory {
+            peer: Box::new(self.peer.clone()),
+            offset_id: self.offset_id,
+            offset_date: 0,
+            add_offset: 0,
+            limit,
+            max_id: 0,
+            min_id: 0,
+            hash: 0,
+        })))
+    }
+
+    fn accept(&mut self, object: Object) -> Result<Option<Vec<Message>>> {
+        let limit = self.batch.min(self.remaining);
+        let messages = match object {
+            Object::MessagesMessages(page) => extract_messages(*page),
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "messages.getHistory returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        };
+        if messages.is_empty() {
+            self.done = true;
+            return Ok(None);
+        }
+        if let Some(last) = messages.last() {
+            self.offset_id = message_id(last);
+        }
+        self.remaining -= messages.len() as i32;
+        if messages.len() < limit as usize {
+            self.done = true;
+        }
+        Ok(Some(messages))
+    }
+}
+
+impl Query for DialogsIter {
+    type Item = Dialog;
+
+    fn request(&mut self) -> Option<Method> {
+        if self.done || self.remaining <= 0 {
+            return None;
+        }
+        let limit = self.batch.min(self.remaining);
+        Some(Method::MessagesGetDialogs(Box::new(MessagesGetDialogs {
+            flags: 0,
+            exclude_pinned: false,
+            folder_id: None,
+            offset_date: self.offset_date,
+            offset_id: self.offset_id,
+            offset_peer: Box::new(self.offset_peer.clone()),
+            limit,
+            hash: 0,
+        })))
+    }
+
+    fn accept(&mut self, object: Object) -> Result<Option<Vec<Dialog>>> {
+        let limit = self.batch.min(self.remaining);
+        let (dialogs, users, chats) = match object {
+            Object::MessagesDialogs(page) => extract_dialogs(*page),
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "messages.getDialogs returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        };
+        if dialogs.is_empty() {
+            self.done = true;
+            return Ok(None);
+        }
+        match dialogs.last() {
+            Some(Dialog::Dialog {
+                peer, top_message, ..
+            }) => {
+                self.offset_id = *top_message;
+                self.offset_date = 0;
+                self.offset_peer =
+                    input_peer(peer, &users, &chats).unwrap_or(InputPeer::InputPeerEmpty);
+            }
+            _ => self.done = true,
+        }
+        self.remaining -= dialogs.len() as i32;
+        if dialogs.len() < limit as usize {
+            self.done = true;
+        }
+        Ok(Some(dialogs))
+    }
+}
+
+impl Query for ParticipantsIter {
+    type Item = ChannelParticipant;
+
+    fn request(&mut self) -> Option<Method> {
+        if self.done || self.remaining <= 0 {
+            return None;
+        }
+        let limit = self.batch.min(self.remaining);
+        Some(Method::ChannelsGetParticipants(Box::new(
+            ChannelsGetParticipants {
+                channel: Box::new(self.channel.clone()),
+                filter: Box::new(ChannelParticipantsFilter::ChannelParticipantsRecent),
+                offset: self.offset,
+                limit,
+                hash: 0,
+            },
+        )))
+    }
+
+    fn accept(&mut self, object: Object) -> Result<Option<Vec<ChannelParticipant>>> {
+        let limit = self.batch.min(self.remaining);
+        let participants = match object {
+            Object::ChannelsChannelParticipants(page) => match *page {
+                ChannelsChannelParticipants::ChannelParticipants { participants, .. } => {
+                    participants
+                }
+                ChannelsChannelParticipants::ChannelParticipantsNotModified => Vec::new(),
+            },
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "channels.getParticipants returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        };
+        if participants.is_empty() {
+            self.done = true;
+            return Ok(None);
+        }
+        self.offset += participants.len() as i32;
+        self.remaining -= participants.len() as i32;
+        if participants.len() < limit as usize {
+            self.done = true;
+        }
+        Ok(Some(participants))
+    }
+}
+
+impl Query for PhotosIter {
+    type Item = Photo;
+
+    fn request(&mut self) -> Option<Method> {
+        if self.done || self.remaining <= 0 {
+            return None;
+        }
+        let limit = self.batch.min(self.remaining);
+        Some(Method::PhotosGetUserPhotos(Box::new(PhotosGetUserPhotos {
+            user_id: Box::new(self.user.clone()),
+            offset: self.offset,
+            max_id: 0,
+            limit,
+        })))
+    }
+
+    fn accept(&mut self, object: Object) -> Result<Option<Vec<Photo>>> {
+        let limit = self.batch.min(self.remaining);
+        let photos = match object {
+            Object::PhotosPhotos(page) => match *page {
+                PhotosPhotos::Photos { photos, .. } | PhotosPhotos::PhotosSlice { photos, .. } => {
+                    photos
+                }
+            },
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "photos.getUserPhotos returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        };
+        if photos.is_empty() {
+            self.done = true;
+            return Ok(None);
+        }
+        self.offset += photos.len() as i32;
+        self.remaining -= photos.len() as i32;
+        if photos.len() < limit as usize {
+            self.done = true;
+        }
+        Ok(Some(photos))
+    }
+}
+
+impl Query for BlockedIter {
+    type Item = PeerBlocked;
+
+    fn request(&mut self) -> Option<Method> {
+        if self.done || self.remaining <= 0 {
+            return None;
+        }
+        let limit = self.batch.min(self.remaining);
+        Some(Method::ContactsGetBlocked(Box::new(ContactsGetBlocked {
+            flags: 0,
+            my_stories_from: false,
+            offset: self.offset,
+            limit,
+        })))
+    }
+
+    fn accept(&mut self, object: Object) -> Result<Option<Vec<PeerBlocked>>> {
+        let limit = self.batch.min(self.remaining);
+        let blocked = match object {
+            Object::ContactsBlocked(page) => match *page {
+                ContactsBlocked::Blocked { blocked, .. }
+                | ContactsBlocked::BlockedSlice { blocked, .. } => blocked,
+            },
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "contacts.getBlocked returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        };
+        if blocked.is_empty() {
+            self.done = true;
+            return Ok(None);
+        }
+        self.offset += blocked.len() as i32;
+        self.remaining -= blocked.len() as i32;
+        if blocked.len() < limit as usize {
+            self.done = true;
+        }
+        Ok(Some(blocked))
+    }
+}
+
 /// Extracts dialogs, users and chats from a page.
 fn extract_dialogs(page: MessagesDialogs) -> (Vec<Dialog>, Vec<User>, Vec<Chat>) {
     match page {
@@ -555,5 +889,77 @@ mod tests {
         let dialogs = super::DialogsIter::new().with_limit(5);
         assert_eq!(dialogs.offset_id, 0);
         assert_eq!(dialogs.remaining, 5);
+    }
+
+    /// A fixed set of pages, ignoring the response.
+    struct Pages {
+        pages: Vec<Vec<u32>>,
+        index: usize,
+    }
+
+    impl super::Query for Pages {
+        type Item = u32;
+
+        fn request(&mut self) -> Option<rtd_tg::Method> {
+            if self.index >= self.pages.len() {
+                None
+            } else {
+                Some(rtd_tg::Method::HelpGetConfig(Box::new(
+                    rtd_tg::HelpGetConfig,
+                )))
+            }
+        }
+
+        fn accept(&mut self, _object: rtd_tg::Object) -> crate::error::Result<Option<Vec<u32>>> {
+            let page = self.pages[self.index].clone();
+            self.index += 1;
+            Ok(Some(page))
+        }
+    }
+
+    #[test]
+    fn drivers_drain_pages_in_order() {
+        let query = Pages {
+            pages: vec![vec![1, 2], vec![3]],
+            index: 0,
+        };
+        let mut calls = 0;
+        let mut invoke = |_method: rtd_tg::Method| {
+            calls += 1;
+            Ok(rtd_tg::Object::Bool(Box::new(rtd_tg::Bool::BoolTrue)))
+        };
+        let all = super::fetch_all(&mut invoke, query).unwrap();
+        assert_eq!(all, vec![1, 2, 3]);
+        assert_eq!(calls, 2);
+
+        let query = Pages {
+            pages: vec![vec![4], vec![5, 6]],
+            index: 0,
+        };
+        let mut seen = Vec::new();
+        super::for_each(
+            &mut |_method| Ok(rtd_tg::Object::Bool(Box::new(rtd_tg::Bool::BoolTrue))),
+            query,
+            |item| {
+                seen.push(item);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(seen, vec![4, 5, 6]);
+    }
+
+    #[test]
+    fn hasher_folds_values() {
+        let mut hasher = super::Hasher::new();
+        assert_eq!(hasher.sum(), 0);
+        hasher.update(1);
+        assert_eq!(hasher.sum(), 1);
+        hasher.update(2);
+        assert_eq!(hasher.sum(), 20263);
+        hasher.reset();
+        assert_eq!(hasher.sum(), 0);
+        hasher.update64(0x0000_0001_0000_0002);
+        assert_eq!(hasher.sum(), 20263);
     }
 }
