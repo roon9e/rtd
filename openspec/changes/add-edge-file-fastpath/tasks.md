@@ -2,7 +2,7 @@
 
 ## 1. Service
 
-- [ ] 1.1 Add a `FileService` trait and a gRPC client with bearer token (`rtd-edge/src/file.rs`)
+- [x] 1.1 Add a `FileService` trait and a `MemoryFileService` (`rtd-edge/src/file.rs`)
 - [ ] 1.2 Add `file_data` config (resolver/targets/token/timeout) (`rtd-edge/src/config.rs`)
 
 ## 2. Routing

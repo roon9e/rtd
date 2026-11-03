@@ -2,7 +2,7 @@
 
 ## 1. Traits
 
-- [ ] 1.1 Define `AuthKeyStore`/`LayerEvidenceStore`/`DeliveryStore` async traits and move the in-memory impls out of `LocalCore` (`rtd-server/src/store.rs`)
+- [x] 1.1 Define `AuthKeyStore`/`LayerEvidenceStore` traits and a `MemoryStore` (`rtd-server/src/store.rs`)
 
 ## 2. Backends
 

@@ -72,8 +72,8 @@ impl FileService for MemoryFileService {
         let data = files
             .get(&request.location)
             .ok_or_else(|| FileError("unknown file location".to_owned()))?;
-        let start = usize::try_from(request.offset)
-            .map_err(|_| FileError("negative offset".to_owned()))?;
+        let start =
+            usize::try_from(request.offset).map_err(|_| FileError("negative offset".to_owned()))?;
         if start > data.len() {
             return Err(FileError("offset past end of file".to_owned()));
         }
@@ -106,7 +106,10 @@ mod tests {
         );
         // A limit past the end is clamped.
         assert_eq!(
-            service.get_file(&request(b"file-1", 95, 100)).unwrap().len(),
+            service
+                .get_file(&request(b"file-1", 95, 100))
+                .unwrap()
+                .len(),
             5
         );
     }

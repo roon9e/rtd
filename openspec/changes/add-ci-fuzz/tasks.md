@@ -2,7 +2,7 @@
 
 ## 1. Targets
 
-- [ ] 1.1 Add `cargo-fuzz` targets for message/container/gzip/TL-admission/exchange/RSA decode (`fuzz/fuzz_targets/`)
+- [x] 1.1 Add `cargo-fuzz` targets for message/container/gzip and TL admission (`fuzz/fuzz_targets/`)
 - [ ] 1.2 Cap allocations in the decompression paths so bombs are caught
 
 ## 2. Seeds
