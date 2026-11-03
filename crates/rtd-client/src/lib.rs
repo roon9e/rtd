@@ -65,8 +65,8 @@ pub use transport::{
     Transport, WriteTransport, connect_tcp, dial_tcp,
 };
 pub use updates::{
-    Difference, PtsUpdate, PushResult, SequenceBox, fetch_difference, pts_update, qts_update,
-    sort_by_pts,
+    ChannelDifference, Difference, PtsUpdate, PushResult, SequenceBox, fetch_channel_difference,
+    fetch_difference, pts_update, qts_update, sort_by_pts,
 };
 pub use uploader::{NoProgress, Progress, Uploader};
 pub use ws::{WebSocketIo, connect_websocket};

@@ -7,7 +7,10 @@
 
 use std::collections::BTreeMap;
 
-use rtd_tg::{Message, Method, Object, Update, UpdatesDifference, UpdatesGetDifference};
+use rtd_tg::{
+    ChannelMessagesFilter, InputChannel, Message, Method, Object, Update, UpdatesChannelDifference,
+    UpdatesDifference, UpdatesGetChannelDifference, UpdatesGetDifference,
+};
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -161,6 +164,82 @@ pub fn fetch_difference<T: Transport>(
             other => {
                 return Err(Error::Unexpected(format!(
                     "updates.getDifference returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        }
+    }
+    sort_by_pts(&mut difference.updates);
+    Ok(difference)
+}
+
+/// The recovered difference for one channel.
+#[derive(Debug, Clone, Default)]
+pub struct ChannelDifference {
+    /// The recovered updates, sorted for application.
+    pub updates: Vec<Update>,
+    /// The messages referenced by the updates.
+    pub messages: Vec<Message>,
+    /// The channel `pts` to advance to.
+    pub pts: i32,
+    /// Whether the server's history was too long to recover incrementally.
+    pub too_long: bool,
+}
+
+/// Fetches `updates.getChannelDifference` until the server reports final.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+/// when the server answers with an unexpected constructor.
+pub fn fetch_channel_difference<T: Transport>(
+    client: &mut Client<T>,
+    channel: InputChannel,
+    pts: i32,
+) -> Result<ChannelDifference> {
+    let mut difference = ChannelDifference {
+        pts,
+        ..ChannelDifference::default()
+    };
+    loop {
+        let query = Method::UpdatesGetChannelDifference(Box::new(UpdatesGetChannelDifference {
+            flags: 0,
+            force: false,
+            channel: Box::new(channel.clone()),
+            filter: Box::new(ChannelMessagesFilter::ChannelMessagesFilterEmpty),
+            pts: difference.pts,
+            limit: 100,
+        }));
+        match client.invoke(query)? {
+            Object::UpdatesChannelDifference(page) => match *page {
+                UpdatesChannelDifference::ChannelDifference {
+                    final_,
+                    pts,
+                    new_messages,
+                    other_updates,
+                    ..
+                } => {
+                    difference.messages.extend(new_messages);
+                    difference.updates.extend(other_updates);
+                    difference.pts = pts;
+                    if final_ {
+                        break;
+                    }
+                }
+                UpdatesChannelDifference::ChannelDifferenceEmpty { final_, pts, .. } => {
+                    difference.pts = pts;
+                    if final_ {
+                        break;
+                    }
+                }
+                UpdatesChannelDifference::ChannelDifferenceTooLong { .. } => {
+                    difference.too_long = true;
+                    break;
+                }
+            },
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "updates.getChannelDifference returned unexpected constructor {:#010x}",
                     other.type_id()
                 )));
             }
