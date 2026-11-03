@@ -59,6 +59,9 @@ pub use transport::{
     DuplexReader, DuplexStream, DuplexWriter, Framed, ReadTransport, ReadWrite, TcpTransport,
     Transport, WriteTransport, connect_tcp, dial_tcp,
 };
-pub use updates::{PtsUpdate, PushResult, SequenceBox, pts_update, qts_update, sort_by_pts};
+pub use updates::{
+    Difference, PtsUpdate, PushResult, SequenceBox, fetch_difference, pts_update, qts_update,
+    sort_by_pts,
+};
 pub use uploader::Uploader;
 pub use ws::{WebSocketIo, connect_websocket};

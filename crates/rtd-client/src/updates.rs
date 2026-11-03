@@ -7,7 +7,11 @@
 
 use std::collections::BTreeMap;
 
-use rtd_tg::Update;
+use rtd_tg::{Message, Method, Object, Update, UpdatesDifference, UpdatesGetDifference};
+
+use crate::client::Client;
+use crate::error::{Error, Result};
+use crate::transport::Transport;
 
 /// A `pts`-carrying update's position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,6 +80,94 @@ fn sort_key(update: &Update) -> (u8, i64, i32) {
 /// Sorts updates in the order the server expects them applied (stable).
 pub fn sort_by_pts(updates: &mut [Update]) {
     updates.sort_by_key(sort_key);
+}
+
+/// The recovered difference between the local state and the server.
+#[derive(Debug, Clone, Default)]
+pub struct Difference {
+    /// The recovered updates, sorted for application.
+    pub updates: Vec<Update>,
+    /// The messages referenced by the updates.
+    pub messages: Vec<Message>,
+    /// The `(pts, qts, date)` to advance to.
+    pub state: (i32, i32, i32),
+    /// Whether the server's history was too long to recover incrementally.
+    pub too_long: bool,
+}
+
+/// Fetches `updates.getDifference`, draining `DifferenceSlice` pages.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+/// when the server answers with an unexpected constructor.
+pub fn fetch_difference<T: Transport>(
+    client: &mut Client<T>,
+    pts: i32,
+    qts: i32,
+    date: i32,
+) -> Result<Difference> {
+    let mut difference = Difference {
+        state: (pts, qts, date),
+        ..Difference::default()
+    };
+    loop {
+        let query = Method::UpdatesGetDifference(Box::new(UpdatesGetDifference {
+            flags: 0,
+            pts: difference.state.0,
+            pts_limit: None,
+            pts_total_limit: None,
+            date: difference.state.2,
+            qts: difference.state.1,
+            qts_limit: None,
+        }));
+        match client.invoke(query)? {
+            Object::UpdatesDifference(page) => match *page {
+                UpdatesDifference::Difference {
+                    new_messages,
+                    other_updates,
+                    state,
+                    ..
+                } => {
+                    difference.messages.extend(new_messages);
+                    difference.updates.extend(other_updates);
+                    difference.state = (state.pts, state.qts, state.date);
+                    break;
+                }
+                UpdatesDifference::DifferenceSlice {
+                    new_messages,
+                    other_updates,
+                    intermediate_state,
+                    ..
+                } => {
+                    difference.messages.extend(new_messages);
+                    difference.updates.extend(other_updates);
+                    difference.state = (
+                        intermediate_state.pts,
+                        intermediate_state.qts,
+                        intermediate_state.date,
+                    );
+                }
+                UpdatesDifference::DifferenceEmpty { date, .. } => {
+                    difference.state.2 = date;
+                    break;
+                }
+                UpdatesDifference::DifferenceTooLong { pts } => {
+                    difference.state.0 = pts;
+                    difference.too_long = true;
+                    break;
+                }
+            },
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "updates.getDifference returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        }
+    }
+    sort_by_pts(&mut difference.updates);
+    Ok(difference)
 }
 
 /// The result of pushing an update into a [`SequenceBox`].
