@@ -17,10 +17,11 @@ use rtd_proto::{
 };
 use rtd_tg::{
     AccountGetPassword, AuthAcceptLoginToken, AuthAuthorization, AuthCheckPassword,
-    AuthExportLoginToken, AuthImportBotAuthorization, AuthImportLoginToken, AuthLoginToken,
-    AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings, DecodeLimits, Decoder, HelpGetConfig,
-    InitConnection, InputCheckPasswordSRP, InvokeWithLayer, LAYER, Method, Object, PasswordKdfAlgo,
-    Update, Updates,
+    AuthCheckRecoveryPassword, AuthExportLoginToken, AuthImportBotAuthorization,
+    AuthImportLoginToken, AuthLoginToken, AuthPasswordRecovery, AuthRecoverPassword,
+    AuthRequestPasswordRecovery, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings,
+    DecodeLimits, Decoder, HelpGetConfig, InitConnection, InputCheckPasswordSRP, InvokeWithLayer,
+    LAYER, Method, Object, PasswordKdfAlgo, Update, Updates,
 };
 use rtd_util::Clock;
 
@@ -399,6 +400,54 @@ impl<T: Transport> Client<T> {
         match self.invoke(query)? {
             Object::Bool(_) => Ok(()),
             other => Err(unexpected("auth.acceptLoginToken", &other)),
+        }
+    }
+
+    /// Requests a password recovery code (`auth.requestPasswordRecovery`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a different constructor.
+    pub fn request_password_recovery(&mut self) -> Result<AuthPasswordRecovery> {
+        let query = Method::AuthRequestPasswordRecovery(Box::new(AuthRequestPasswordRecovery));
+        match self.invoke(query)? {
+            Object::AuthPasswordRecovery(recovery) => Ok(*recovery),
+            other => Err(unexpected("auth.requestPasswordRecovery", &other)),
+        }
+    }
+
+    /// Checks a recovery code (`auth.checkRecoveryPassword`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server does not answer `Bool`.
+    pub fn check_recovery_password(&mut self, code: &str) -> Result<()> {
+        let query = Method::AuthCheckRecoveryPassword(Box::new(AuthCheckRecoveryPassword {
+            code: code.to_owned(),
+        }));
+        match self.invoke(query)? {
+            Object::Bool(_) => Ok(()),
+            other => Err(unexpected("auth.checkRecoveryPassword", &other)),
+        }
+    }
+
+    /// Recovers the password with a code (`auth.recoverPassword`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a different constructor.
+    pub fn recover_password(&mut self, code: &str) -> Result<AuthAuthorization> {
+        let query = Method::AuthRecoverPassword(Box::new(AuthRecoverPassword {
+            flags: 0,
+            code: code.to_owned(),
+            new_settings: None,
+        }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.recoverPassword", &other)),
         }
     }
 

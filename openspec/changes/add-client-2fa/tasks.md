@@ -7,7 +7,7 @@
 
 ## 2. Recovery
 
-- [ ] 2.1 Add `RequestPasswordRecovery`/`CheckRecoveryPassword`/`RecoverPassword` wrappers
+- [x] 2.1 Add `request_password_recovery`/`check_recovery_password`/`recover_password` wrappers
 
 ## 3. Verification
 
