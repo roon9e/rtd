@@ -11,6 +11,7 @@ pub mod client;
 pub mod error;
 pub mod middleware;
 pub mod session;
+pub mod storage;
 pub mod transport;
 
 pub use async_client::AsyncClient;
@@ -19,6 +20,7 @@ pub use client::{Client, InitParams};
 pub use error::{Error, Result};
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay};
 pub use session::{ClientSession, SaltStore, SessionData};
+pub use storage::{FileStorage, MemoryStorage, Storage};
 pub use transport::{
     DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp, dial_tcp,
 };
