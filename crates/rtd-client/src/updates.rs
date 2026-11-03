@@ -7,6 +7,77 @@
 
 use std::collections::BTreeMap;
 
+use rtd_tg::Update;
+
+/// A `pts`-carrying update's position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PtsUpdate {
+    /// The channel the update belongs to, when stated explicitly.
+    pub channel_id: Option<i64>,
+    /// The new `pts`.
+    pub pts: i32,
+    /// How many `pts` this update advances.
+    pub pts_count: i32,
+}
+
+/// Returns the `pts` position of an update, if it carries one.
+#[must_use]
+pub fn pts_update(update: &Update) -> Option<PtsUpdate> {
+    match update {
+        Update::UpdateNewMessage { pts, pts_count, .. }
+        | Update::UpdateEditMessage { pts, pts_count, .. }
+        | Update::UpdateDeleteMessages { pts, pts_count, .. }
+        | Update::UpdateNewChannelMessage { pts, pts_count, .. }
+        | Update::UpdateEditChannelMessage { pts, pts_count, .. } => Some(PtsUpdate {
+            channel_id: None,
+            pts: *pts,
+            pts_count: *pts_count,
+        }),
+        Update::UpdateDeleteChannelMessages {
+            channel_id,
+            pts,
+            pts_count,
+            ..
+        } => Some(PtsUpdate {
+            channel_id: Some(*channel_id),
+            pts: *pts,
+            pts_count: *pts_count,
+        }),
+        _ => None,
+    }
+}
+
+/// Returns the `qts` position of an update, if it carries one.
+#[must_use]
+pub fn qts_update(update: &Update) -> Option<i32> {
+    match update {
+        Update::UpdateNewEncryptedMessage { qts, .. } => Some(*qts),
+        _ => None,
+    }
+}
+
+/// A sort key placing updates in application order.
+///
+/// Non-`pts` updates sort first (order preserved), then common `pts`, then
+/// common `qts`, then per-channel `pts` (by channel id, then `pts`).
+fn sort_key(update: &Update) -> (u8, i64, i32) {
+    if let Some(pts) = pts_update(update) {
+        return match pts.channel_id {
+            Some(channel) => (3, channel, pts.pts - pts.pts_count),
+            None => (1, 0, pts.pts - pts.pts_count),
+        };
+    }
+    if let Some(qts) = qts_update(update) {
+        return (2, 0, qts);
+    }
+    (0, 0, 0)
+}
+
+/// Sorts updates in the order the server expects them applied (stable).
+pub fn sort_by_pts(updates: &mut [Update]) {
+    updates.sort_by_key(sort_key);
+}
+
 /// The result of pushing an update into a [`SequenceBox`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PushResult<T> {
@@ -115,6 +186,25 @@ mod tests {
         assert_eq!(sequence.buffered(), 0);
         // A duplicate is ignored.
         assert_eq!(sequence.push(1, "a", 0), PushResult::Duplicate);
+    }
+
+    #[test]
+    fn extracts_pts_and_sorts() {
+        use rtd_tg::Update;
+
+        let message = Update::UpdateDeleteMessages {
+            messages: vec![1],
+            pts: 5,
+            pts_count: 1,
+        };
+        let other = Update::UpdatePtsChanged;
+        let pts = super::pts_update(&message).expect("pts");
+        assert_eq!((pts.pts, pts.pts_count), (5, 1));
+        assert!(super::pts_update(&other).is_none());
+
+        let mut list = vec![message, other];
+        super::sort_by_pts(&mut list);
+        assert!(matches!(list[0], Update::UpdatePtsChanged));
     }
 
     #[test]
