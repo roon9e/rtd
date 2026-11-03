@@ -4,6 +4,8 @@
 //! parts into one buffer. CDN redirection is reported as unsupported (a
 //! follow-up), matching the current single-DC runtime.
 
+use std::io::Write;
+
 use rtd_tg::{InputFileLocation, Method, Object, UploadFile, UploadGetFile};
 
 use crate::client::Client;
@@ -96,6 +98,64 @@ impl Downloader {
             }
         }
         Ok(out)
+    }
+}
+
+impl Downloader {
+    /// Downloads `size` bytes of `location`, streaming each part into `writer`.
+    ///
+    /// Returns the number of bytes written.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode, RPC or I/O error.
+    pub fn download_to<T: Transport>(
+        &self,
+        client: &mut Client<T>,
+        location: InputFileLocation,
+        size: usize,
+        mut writer: impl Write,
+    ) -> Result<usize> {
+        let mut written = 0usize;
+        let mut offset: i64 = 0;
+        while written < size {
+            let remaining = size - written;
+            let limit = i32::try_from(remaining.min(self.part_size).max(1))
+                .map_err(|_| Error::Unexpected("download part too large".to_owned()))?;
+            let query = Method::UploadGetFile(Box::new(UploadGetFile {
+                flags: 0,
+                precise: false,
+                cdn_supported: false,
+                location: Box::new(location.clone()),
+                offset,
+                limit,
+            }));
+            match client.invoke(query)? {
+                Object::UploadFile(file) => match *file {
+                    UploadFile::File { bytes, .. } => {
+                        if bytes.is_empty() {
+                            break;
+                        }
+                        writer.write_all(&bytes)?;
+                        offset += bytes.len() as i64;
+                        written += bytes.len();
+                    }
+                    UploadFile::FileCdnRedirect { .. } => {
+                        return Err(Error::Unexpected(
+                            "upload.getFile returned a CDN redirect, which is not supported"
+                                .to_owned(),
+                        ));
+                    }
+                },
+                other => {
+                    return Err(Error::Unexpected(format!(
+                        "upload.getFile returned unexpected constructor {:#010x}",
+                        other.type_id()
+                    )));
+                }
+            }
+        }
+        Ok(written)
     }
 }
 
