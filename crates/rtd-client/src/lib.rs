@@ -72,8 +72,8 @@ pub use transport::{
 };
 pub use unpack::{messages, messages_from_updates, update_message};
 pub use updates::{
-    ChannelDifference, Difference, PtsUpdate, PushResult, SequenceBox, fetch_channel_difference,
-    fetch_difference, pts_update, qts_update, sort_by_pts,
+    ChannelDifference, Difference, MemoryStateStorage, PtsUpdate, PushResult, SequenceBox, State,
+    StateStorage, fetch_channel_difference, fetch_difference, pts_update, qts_update, sort_by_pts,
 };
-pub use uploader::{NoProgress, Progress, Uploader};
+pub use uploader::{NoProgress, Progress, Source, Uploader};
 pub use ws::{WebSocketIo, connect_websocket};

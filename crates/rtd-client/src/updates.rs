@@ -16,6 +16,66 @@ use crate::client::Client;
 use crate::error::{Error, Result};
 use crate::transport::Transport;
 
+/// The persisted update cursor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct State {
+    /// The `pts` cursor.
+    pub pts: i32,
+    /// The `qts` cursor.
+    pub qts: i32,
+    /// The `date` cursor.
+    pub date: i32,
+    /// The `seq` cursor.
+    pub seq: i32,
+}
+
+/// Persists the update cursor between sessions.
+pub trait StateStorage: Send + Sync {
+    /// Loads the stored state, if any.
+    fn load(&self) -> Option<State>;
+    /// Stores `state`.
+    fn store(&self, state: &State);
+    /// Clears the stored state.
+    fn clear(&self);
+}
+
+/// An in-memory [`StateStorage`].
+#[derive(Debug, Default)]
+pub struct MemoryStateStorage {
+    state: std::sync::Mutex<Option<State>>,
+}
+
+impl MemoryStateStorage {
+    /// Creates an empty storage.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl StateStorage for MemoryStateStorage {
+    fn load(&self) -> Option<State> {
+        *self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn store(&self, state: &State) {
+        *self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(*state);
+    }
+
+    fn clear(&self) {
+        *self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+}
+
 /// A `pts`-carrying update's position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PtsUpdate {
@@ -357,6 +417,22 @@ mod tests {
         assert_eq!(sequence.buffered(), 0);
         // A duplicate is ignored.
         assert_eq!(sequence.push(1, "a", 0), PushResult::Duplicate);
+    }
+
+    #[test]
+    fn state_storage_round_trips() {
+        use super::{MemoryStateStorage, State, StateStorage};
+        let storage = MemoryStateStorage::new();
+        assert!(storage.load().is_none());
+        storage.store(&State {
+            pts: 5,
+            qts: 1,
+            date: 3,
+            seq: 2,
+        });
+        assert_eq!(storage.load().map(|s| s.pts), Some(5));
+        storage.clear();
+        assert!(storage.load().is_none());
     }
 
     #[test]

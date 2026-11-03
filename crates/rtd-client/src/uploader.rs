@@ -21,6 +21,35 @@ const DEFAULT_PART: usize = 512 * 1024;
 /// Minimum part size (the TL 4 KiB alignment).
 const MIN_PART: usize = 4096;
 
+/// A source of bytes to upload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Source {
+    /// An in-memory buffer.
+    Bytes(Vec<u8>),
+}
+
+impl Source {
+    /// Creates a byte source.
+    #[must_use]
+    pub fn bytes(data: impl Into<Vec<u8>>) -> Self {
+        Self::Bytes(data.into())
+    }
+
+    /// Returns the source bytes.
+    #[must_use]
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Bytes(data) => data,
+        }
+    }
+}
+
+impl From<Vec<u8>> for Source {
+    fn from(data: Vec<u8>) -> Self {
+        Self::Bytes(data)
+    }
+}
+
 /// Reports upload progress.
 pub trait Progress: Send {
     /// Reports `uploaded` of `total` bytes.
