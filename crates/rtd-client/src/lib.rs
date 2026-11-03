@@ -13,6 +13,7 @@ pub mod middleware;
 pub mod session;
 pub mod storage;
 pub mod transport;
+pub mod ws;
 
 pub use async_client::AsyncClient;
 pub use auth::{ConstantPassword, PasswordProvider};
@@ -24,3 +25,4 @@ pub use storage::{FileStorage, MemoryStorage, Storage};
 pub use transport::{
     DuplexStream, Framed, ReadWrite, TcpTransport, Transport, connect_tcp, dial_tcp,
 };
+pub use ws::{WebSocketIo, connect_websocket};

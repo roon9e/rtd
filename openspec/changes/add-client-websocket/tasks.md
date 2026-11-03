@@ -2,8 +2,8 @@
 
 ## 1. Transport
 
-- [ ] 1.1 Add a WebSocket byte-stream adapter implementing `Read + Write` (`transport.rs` or a `ws.rs` module)
-- [ ] 1.2 Add a `ws://`/`wss://` dialer using the intermediate codec
+- [x] 1.1 Add a WebSocket byte-stream adapter implementing `Read + Write` (`transport.rs` or a `ws.rs` module)
+- [x] 1.2 Add a `ws://`/`wss://` dialer using the intermediate codec
 
 ## 2. Verification
 
