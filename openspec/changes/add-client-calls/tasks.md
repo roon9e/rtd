@@ -3,7 +3,7 @@
 ## 1. Signalling
 
 - [x] 1.1 Add the AES-IGE signaling control channel and `CallState` (`calls.rs`)
-- [ ] 1.2 Add 1:1 call place/answer (DH exchange), reflector/STUN parsing and `phone.*` dispatch
+- [x] 1.2 Add call place/answer/confirm RPCs and the DH core (`calls.rs`; reflector/STUN parsing and `phone.*` dispatch remain)
 
 ## 2. Media
 

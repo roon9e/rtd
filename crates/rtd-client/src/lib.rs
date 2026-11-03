@@ -38,7 +38,10 @@ pub mod ws;
 
 pub use async_client::AsyncClient;
 pub use auth::{ConstantPassword, PasswordProvider};
-pub use calls::{CallControl, CallError, CallState, DhConfig, fetch_dh_config, g_a_hash};
+pub use calls::{
+    CallControl, CallError, CallState, DhConfig, accept_call, confirm_call, default_protocol,
+    fetch_dh_config, g_a_hash, request_call,
+};
 pub use client::{Client, InitParams};
 pub use dcs::{DataCenter, Endpoint, Protocol, Resolver, StaticResolver, migrate_target};
 pub use deeplink::{Deeplink, DeeplinkError};

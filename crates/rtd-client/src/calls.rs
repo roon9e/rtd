@@ -160,6 +160,94 @@ pub fn fetch_dh_config<T: Transport>(
     }
 }
 
+/// The default call protocol parameters (tgcalls v2 layers).
+#[must_use]
+pub fn default_protocol() -> rtd_tg::PhoneCallProtocol {
+    rtd_tg::PhoneCallProtocol {
+        flags: 0,
+        udp_p2p: true,
+        udp_reflector: true,
+        min_layer: 92,
+        max_layer: 92,
+        library_versions: vec!["2.7.7".to_owned()],
+    }
+}
+
+/// Places a call to `user` (`phone.requestCall`), committing to `g_a_hash`.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+/// when the server answers with a different constructor.
+pub fn request_call<T: Transport>(
+    client: &mut Client<T>,
+    user: rtd_tg::InputUser,
+    random_id: i32,
+    g_a_hash: Vec<u8>,
+    video: bool,
+) -> crate::error::Result<rtd_tg::PhonePhoneCall> {
+    let query = Method::PhoneRequestCall(Box::new(rtd_tg::PhoneRequestCall {
+        flags: if video { 1 } else { 0 },
+        video,
+        user_id: Box::new(user),
+        random_id,
+        g_a_hash,
+        protocol: Box::new(default_protocol()),
+    }));
+    expect_phone_call(client.invoke(query)?, "phone.requestCall")
+}
+
+/// Accepts an incoming call (`phone.acceptCall`) with `g_b`.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+/// when the server answers with a different constructor.
+pub fn accept_call<T: Transport>(
+    client: &mut Client<T>,
+    peer: rtd_tg::InputPhoneCall,
+    g_b: Vec<u8>,
+) -> crate::error::Result<rtd_tg::PhonePhoneCall> {
+    let query = Method::PhoneAcceptCall(Box::new(rtd_tg::PhoneAcceptCall {
+        peer: Box::new(peer),
+        g_b,
+        protocol: Box::new(default_protocol()),
+    }));
+    expect_phone_call(client.invoke(query)?, "phone.acceptCall")
+}
+
+/// Confirms the shared key of a call (`phone.confirmCall`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+/// when the server answers with a different constructor.
+pub fn confirm_call<T: Transport>(
+    client: &mut Client<T>,
+    peer: rtd_tg::InputPhoneCall,
+    g_a: Vec<u8>,
+    key_fingerprint: i64,
+) -> crate::error::Result<rtd_tg::PhonePhoneCall> {
+    let query = Method::PhoneConfirmCall(Box::new(rtd_tg::PhoneConfirmCall {
+        peer: Box::new(peer),
+        g_a,
+        key_fingerprint,
+        protocol: Box::new(default_protocol()),
+    }));
+    expect_phone_call(client.invoke(query)?, "phone.confirmCall")
+}
+
+/// Requires a `phone.phoneCall` result.
+fn expect_phone_call(object: Object, what: &str) -> crate::error::Result<rtd_tg::PhonePhoneCall> {
+    match object {
+        Object::PhonePhoneCall(call) => Ok(*call),
+        other => Err(Error::Unexpected(format!(
+            "{what} returned unexpected constructor {:#010x}",
+            other.type_id()
+        ))),
+    }
+}
+
 /// Left-pads the big-endian bytes of `value` to [`KEY_SIZE`].
 fn pad(value: &BigUint) -> Vec<u8> {
     let bytes = value.to_bytes_be();
