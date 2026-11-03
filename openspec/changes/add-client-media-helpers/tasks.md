@@ -2,12 +2,12 @@
 
 ## 1. File ids
 
-- [ ] 1.1 Add `FileID`/`Type` encode/decode with RLE (`fileid.rs`)
+- [x] 1.1 Add `FileId`/`Type` encode/decode with RLE (`fileid.rs`; photo-size sources pending)
 - [ ] 1.2 Add `FromDocument`/`FromPhoto` and `AsInputFileLocation`/`AsInputWebFileLocation`
 
 ## 2. Thumbnail and deeplink
 
-- [ ] 2.1 Add `thumbnail::expand` and SVG handling
+- [x] 2.1 Add `thumbnail::expand` (header derived from the reference; SVG pending)
 - [x] 2.2 Add `deeplink::parse` with `Resolve`/`Join` and domain validation
 
 ## 3. Verification
