@@ -2,7 +2,7 @@
 
 ## 1. Projection
 
-- [ ] 1.1 Add a pts projection delivering updates in order to subscribers (`rtd-edge/src/updates.rs`)
+- [x] 1.1 Add a pts projection with per-client/per-channel watermarks (`rtd-edge/src/projection.rs`)
 - [ ] 1.2 Add per-channel delivery watermarks with resume on reconnect
 
 ## 2. Encoding

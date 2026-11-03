@@ -2,8 +2,8 @@
 
 ## 1. Loader
 
-- [ ] 1.1 Add a YAML loader with `TELESRV_*` expansion mapping onto `EdgeConfig` (`rtd-edge/src/config.rs`)
-- [ ] 1.2 Accept `--config edge.yaml` and keep the existing flags as overrides
+- [x] 1.1 Add a YAML loader with `${ENV}` expansion mapping onto edge flags (`rtd-edge/src/config_file.rs`)
+- [x] 1.2 Accept `--config edge.yaml` and keep the existing flags as overrides
 
 ## 2. Overlay
 

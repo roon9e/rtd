@@ -37,6 +37,36 @@ async fn run() -> Result<(), EdgeError> {
         println!("rtd-edge {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
+    let args = apply_config(args)?;
     let config = EdgeConfig::parse(args, |name| std::env::var(name).ok())?;
     service::run(config).await
+}
+
+/// Expands a `--config <path>` file into flags prepended to `args`.
+///
+/// Explicit command-line flags therefore override the file. The `--config`
+/// option itself is removed before the remaining arguments are parsed.
+fn apply_config(args: Vec<String>) -> Result<Vec<String>, EdgeError> {
+    let mut filtered = Vec::new();
+    let mut config_path = None;
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
+        if arg == "--config" {
+            config_path = iter.next();
+        } else if let Some(value) = arg.strip_prefix("--config=") {
+            config_path = Some(value.to_owned());
+        } else {
+            filtered.push(arg);
+        }
+    }
+    let Some(path) = config_path else {
+        return Ok(filtered);
+    };
+    let text = std::fs::read_to_string(&path)
+        .map_err(|source| EdgeError::Usage(format!("cannot read config {path}: {source}")))?;
+    let mut extra = rtd_edge::config_file::to_args(&rtd_edge::config_file::parse(&text), &|name| {
+        std::env::var(name).ok()
+    });
+    extra.extend(filtered);
+    Ok(extra)
 }

@@ -19,16 +19,22 @@
 #![warn(missing_docs)]
 
 pub mod config;
+pub mod config_file;
+pub mod delivery;
 pub mod error;
 pub mod exchange;
 pub mod grpc;
 pub mod identity;
 pub mod location;
+pub mod projection;
 pub mod service;
 
 pub use config::EdgeConfig;
+pub use config_file::{parse as parse_config, to_args as config_to_args};
+pub use delivery::{Delivery, Envelope, LocalDelivery};
 pub use error::EdgeError;
 pub use exchange::ServerExchange;
 pub use grpc::GrpcCore;
 pub use identity::{BuildInfo, build_info};
 pub use location::{EdgeLocation, Location, LocationProvider, LocationRegistry, StaticProvider};
+pub use projection::{Projection, Watermark};

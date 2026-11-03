@@ -58,6 +58,7 @@ OPTIONS:
     --advertise-port <P>  Public port advertised in help.getConfig [env: RTD_EDGE_ADVERTISE_PORT]
     --strict-dc        Require clients to match this DC label [env: RTD_EDGE_STRICT_DC]
     --instance-id <ID> Instance identity for logs [env: RTD_EDGE_INSTANCE_ID]
+    --config <PATH>    Load a YAML config (explicit flags override it)
     --exchange-test-params  Use fixed test DH parameters [env: RTD_EDGE_EXCHANGE_TEST_PARAMS]
     --auth-key-cache-max <N>   Max cached auth keys [env: RTD_EDGE_AUTH_KEY_CACHE_MAX]
     --auth-key-cache-ttl <S>   Auth-key cache TTL seconds [env: RTD_EDGE_AUTH_KEY_CACHE_TTL]

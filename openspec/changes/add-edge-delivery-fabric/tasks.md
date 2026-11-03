@@ -2,7 +2,7 @@
 
 ## 1. Delivery service
 
-- [ ] 1.1 Add a `Delivery` trait + gRPC egress client with bearer token (`rtd-edge/src/delivery.rs`)
+- [x] 1.1 Add a `Delivery` trait + in-memory `LocalDelivery` with retention/replay (`rtd-edge/src/delivery.rs`)
 - [ ] 1.2 Add `egress.delivery` config (resolver/targets/token/timeout)
 
 ## 2. Executor
