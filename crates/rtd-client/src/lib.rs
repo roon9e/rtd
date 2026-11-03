@@ -38,7 +38,7 @@ pub use async_client::AsyncClient;
 pub use auth::{ConstantPassword, PasswordProvider};
 pub use calls::{CallControl, CallError, CallState};
 pub use client::{Client, InitParams};
-pub use dcs::{DataCenter, Endpoint, Protocol, Resolver, StaticResolver};
+pub use dcs::{DataCenter, Endpoint, Protocol, Resolver, StaticResolver, migrate_target};
 pub use deeplink::{Deeplink, DeeplinkError};
 pub use downloader::Downloader;
 pub use entity::{parse_html, parse_markdown};

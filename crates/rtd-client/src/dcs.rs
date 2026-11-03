@@ -57,6 +57,25 @@ impl DataCenter {
     }
 }
 
+/// The migrate error kinds that carry a target datacenter in their argument.
+const MIGRATE_KINDS: [&str; 5] = [
+    "PHONE_MIGRATE",
+    "NETWORK_MIGRATE",
+    "USER_MIGRATE",
+    "FILE_MIGRATE",
+    "STATS_MIGRATE",
+];
+
+/// Returns the datacenter a `*_MIGRATE_<dc>` error points to, if any.
+#[must_use]
+pub fn migrate_target(error: &rtd_error::Error) -> Option<i32> {
+    if MIGRATE_KINDS.contains(&error.kind()) {
+        i32::try_from(error.argument()).ok()
+    } else {
+        None
+    }
+}
+
 /// Resolves a datacenter identifier to its endpoints.
 pub trait Resolver {
     /// Returns the datacenter for `id`, if known.
@@ -115,6 +134,23 @@ impl Resolver for StaticResolver {
 #[cfg(test)]
 mod tests {
     use super::{Protocol, Resolver, StaticResolver};
+
+    #[test]
+    fn parses_migrate_errors() {
+        use super::migrate_target;
+        assert_eq!(
+            migrate_target(&rtd_error::Error::new(303, "FILE_MIGRATE_2")),
+            Some(2)
+        );
+        assert_eq!(
+            migrate_target(&rtd_error::Error::new(400, "PHONE_MIGRATE_5")),
+            Some(5)
+        );
+        assert_eq!(
+            migrate_target(&rtd_error::Error::new(400, "FLOOD_WAIT_3")),
+            None
+        );
+    }
 
     #[test]
     fn production_list_resolves() {
