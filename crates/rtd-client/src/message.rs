@@ -110,6 +110,13 @@ impl RequestBuilder {
         self
     }
 
+    /// Attaches an inline keyboard built from rows of buttons.
+    #[must_use]
+    pub fn inline_keyboard(mut self, rows: Vec<Vec<crate::markup::InlineButton>>) -> Self {
+        self.reply_markup = Some(Box::new(crate::markup::inline_keyboard(rows)));
+        self
+    }
+
     /// Builds the `messages.sendMessage` method.
     #[must_use]
     pub fn build(self) -> Method {
