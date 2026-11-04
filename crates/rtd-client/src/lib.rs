@@ -10,6 +10,7 @@ pub mod auth;
 pub mod calls;
 pub mod cdn;
 pub mod client;
+pub mod constant;
 pub mod dcs;
 pub mod deeplink;
 pub mod downloader;
@@ -53,6 +54,7 @@ pub use cdn::{
     CdnRedirect, CdnState, HashCache, HashWindow, VerifiedWindows, decrypt_in_place, verify_window,
 };
 pub use client::{Client, InitParams};
+pub use constant::TdlibPeerId;
 pub use dcs::{
     DataCenter, DnsConfig, DnsError, Endpoint, Migration, Protocol, Resolver, StaticResolver,
     migrate_plan, migrate_target, parse_dns_config,
