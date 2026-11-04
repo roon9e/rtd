@@ -11,6 +11,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify a file downloads intact with verification enabled (`downloader` tests)
+- [x] 3.1 Verify a file downloads intact with verification enabled (`downloader` tests)
 - [ ] 3.2 Verify a CDN redirect is followed and hashes are checked
 - [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
