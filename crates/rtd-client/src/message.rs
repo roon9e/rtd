@@ -4,10 +4,10 @@
 //! text and options; [`send`] invokes it through a client.
 
 use rtd_tg::{
-    DocumentAttribute, InputFile, InputGeoPoint, InputMedia, InputPeer, InputSingleMedia,
-    MessageEntity, MessagesDeleteMessages, MessagesEditMessage, MessagesForwardMessages,
-    MessagesSendMedia, MessagesSendMessage, MessagesSendMultiMedia, Method, Object, Poll,
-    PollAnswer, ReplyMarkup, TextWithEntities,
+    DocumentAttribute, InputFile, InputGame, InputGeoPoint, InputMedia, InputPeer,
+    InputSingleMedia, InputUser, MessageEntity, MessagesDeleteMessages, MessagesEditMessage,
+    MessagesForwardMessages, MessagesSendMedia, MessagesSendMessage, MessagesSendMultiMedia,
+    Method, Object, Poll, PollAnswer, ReplyMarkup, TextWithEntities,
 };
 
 use crate::client::Client;
@@ -475,6 +475,273 @@ pub fn send_poll<T: Transport>(
     client.invoke(build_send_media(peer, media, caption))
 }
 
+/// Parameters for [`audio_media`] and [`send_audio`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AudioSpec {
+    /// The audio MIME type.
+    pub mime_type: String,
+    /// The duration in seconds.
+    pub duration: i32,
+    /// The track title.
+    pub title: Option<String>,
+    /// The performer.
+    pub performer: Option<String>,
+}
+
+/// Parameters for [`video_media`] and [`send_video`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct VideoSpec {
+    /// The video MIME type.
+    pub mime_type: String,
+    /// The frame width in pixels.
+    pub width: i32,
+    /// The frame height in pixels.
+    pub height: i32,
+    /// The duration in seconds.
+    pub duration: i32,
+    /// Whether the video supports streaming.
+    pub supports_streaming: bool,
+    /// Whether this is a round video message.
+    pub round_message: bool,
+    /// Whether the video has no sound.
+    pub nosound: bool,
+}
+
+/// Parameters for [`venue_media`] and [`send_venue`].
+#[derive(Debug, Clone)]
+pub struct VenueSpec {
+    /// The venue location.
+    pub geo_point: InputGeoPoint,
+    /// The venue name.
+    pub title: String,
+    /// The street address.
+    pub address: String,
+    /// The provider name.
+    pub provider: String,
+    /// The provider's venue id.
+    pub venue_id: String,
+    /// The venue type.
+    pub venue_type: String,
+}
+
+/// Builds an uploaded audio media value.
+#[must_use]
+pub fn audio_media(file: InputFile, spec: AudioSpec) -> InputMedia {
+    document_media(
+        file,
+        &spec.mime_type,
+        vec![DocumentAttribute::DocumentAttributeAudio {
+            flags: 0,
+            voice: false,
+            duration: spec.duration,
+            title: spec.title,
+            performer: spec.performer,
+            waveform: None,
+        }],
+    )
+}
+
+/// Builds an uploaded video media value.
+#[must_use]
+pub fn video_media(file: InputFile, spec: VideoSpec) -> InputMedia {
+    document_media(
+        file,
+        &spec.mime_type,
+        vec![DocumentAttribute::DocumentAttributeVideo {
+            flags: 0,
+            round_message: spec.round_message,
+            supports_streaming: spec.supports_streaming,
+            nosound: spec.nosound,
+            duration: f64::from(spec.duration),
+            w: spec.width,
+            h: spec.height,
+            preload_prefix_size: None,
+            video_start_ts: None,
+            video_codec: None,
+        }],
+    )
+}
+
+/// Builds an uploaded animation (GIF) media value.
+#[must_use]
+pub fn gif_media(file: InputFile, mime_type: &str, width: i32, height: i32) -> InputMedia {
+    document_media(
+        file,
+        mime_type,
+        vec![
+            DocumentAttribute::DocumentAttributeAnimated,
+            DocumentAttribute::DocumentAttributeImageSize {
+                w: width,
+                h: height,
+            },
+        ],
+    )
+}
+
+/// Builds a dice media value.
+#[must_use]
+pub fn dice_media(emoticon: &str) -> InputMedia {
+    InputMedia::InputMediaDice {
+        emoticon: emoticon.to_owned(),
+    }
+}
+
+/// Builds a venue media value.
+#[must_use]
+pub fn venue_media(spec: VenueSpec) -> InputMedia {
+    InputMedia::InputMediaVenue {
+        geo_point: Box::new(spec.geo_point),
+        title: spec.title,
+        address: spec.address,
+        provider: spec.provider,
+        venue_id: spec.venue_id,
+        venue_type: spec.venue_type,
+    }
+}
+
+/// Builds a game media value from a game short name.
+#[must_use]
+pub fn game_media(bot_id: InputUser, short_name: &str) -> InputMedia {
+    InputMedia::InputMediaGame {
+        id: Box::new(InputGame::InputGameShortName {
+            bot_id: Box::new(bot_id),
+            short_name: short_name.to_owned(),
+        }),
+    }
+}
+
+/// Builds a web-page preview media value.
+#[must_use]
+pub fn webpage_media(
+    url: &str,
+    force_large_media: bool,
+    force_small_media: bool,
+    optional: bool,
+) -> InputMedia {
+    InputMedia::InputMediaWebPage {
+        flags: 0,
+        force_large_media,
+        force_small_media,
+        optional,
+        url: url.to_owned(),
+    }
+}
+
+/// Sends an uploaded audio file with `caption` (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_audio<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    file: InputFile,
+    spec: AudioSpec,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, audio_media(file, spec), caption))
+}
+
+/// Sends an uploaded video with `caption` (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_video<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    file: InputFile,
+    spec: VideoSpec,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, video_media(file, spec), caption))
+}
+
+/// Sends an uploaded animation (GIF) with `caption` (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_gif<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    file: InputFile,
+    mime_type: &str,
+    width: i32,
+    height: i32,
+) -> Result<Object> {
+    client.invoke(build_send_media(
+        peer,
+        gif_media(file, mime_type, width, height),
+        caption,
+    ))
+}
+
+/// Sends a dice with `emoticon` (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_dice<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    emoticon: &str,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, dice_media(emoticon), ""))
+}
+
+/// Sends a venue with `caption` (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_venue<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    spec: VenueSpec,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, venue_media(spec), caption))
+}
+
+/// Sends a game with `caption` (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_game<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    bot_id: InputUser,
+    short_name: &str,
+) -> Result<Object> {
+    client.invoke(build_send_media(
+        peer,
+        game_media(bot_id, short_name),
+        caption,
+    ))
+}
+
+/// Sends a web-page preview (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_webpage<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    url: &str,
+    force_large_media: bool,
+    force_small_media: bool,
+    optional: bool,
+) -> Result<Object> {
+    let media = webpage_media(url, force_large_media, force_small_media, optional);
+    client.invoke(build_send_media(peer, media, caption))
+}
+
 /// Edits message `id` in `peer` to the given `text` and entities.
 ///
 /// # Errors
@@ -701,5 +968,72 @@ mod tests {
             }
             _ => panic!("expected messages.sendMultiMedia"),
         }
+    }
+
+    #[test]
+    fn builds_staged_media() {
+        use rtd_tg::{InputFile, InputGeoPoint, InputMedia};
+
+        let file = InputFile::InputFile {
+            id: 1,
+            parts: 1,
+            name: "x".to_owned(),
+            md5_checksum: String::new(),
+        };
+        assert!(matches!(
+            super::audio_media(
+                file.clone(),
+                super::AudioSpec {
+                    mime_type: "audio/mpeg".to_owned(),
+                    duration: 3,
+                    title: Some("t".to_owned()),
+                    performer: None,
+                }
+            ),
+            InputMedia::InputMediaUploadedDocument { .. }
+        ));
+        assert!(matches!(
+            super::video_media(
+                file.clone(),
+                super::VideoSpec {
+                    mime_type: "video/mp4".to_owned(),
+                    width: 16,
+                    height: 16,
+                    duration: 1,
+                    supports_streaming: true,
+                    round_message: false,
+                    nosound: false,
+                }
+            ),
+            InputMedia::InputMediaUploadedDocument { .. }
+        ));
+        assert!(matches!(
+            super::gif_media(file, "image/gif", 8, 8),
+            InputMedia::InputMediaUploadedDocument { .. }
+        ));
+        assert!(matches!(
+            super::dice_media("\u{1F3B2}"),
+            InputMedia::InputMediaDice { .. }
+        ));
+        assert!(matches!(
+            super::venue_media(super::VenueSpec {
+                geo_point: InputGeoPoint::InputGeoPoint {
+                    flags: 0,
+                    lat: 1.0,
+                    long: 2.0,
+                    accuracy_radius: None,
+                },
+                title: "t".to_owned(),
+                address: "a".to_owned(),
+                provider: "p".to_owned(),
+                venue_id: "1".to_owned(),
+                venue_type: "x".to_owned(),
+            }),
+            InputMedia::InputMediaVenue { .. }
+        ));
+        assert!(matches!(
+            super::webpage_media("https://x", true, false, false),
+            InputMedia::InputMediaWebPage { .. }
+        ));
     }
 }

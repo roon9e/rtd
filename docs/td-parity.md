@@ -82,8 +82,10 @@ need to mirror.
 7. **TL pretty-printing** (`tdp`): a reflection-style field dump of any object. *Effort: M.*
 8. **NTP clock** (`clock/ntp`): an NTP-calibrated clock. *Effort: M, new dep.*
 9. **ASCII predicates** (`ascii`). *Effort: S.*
-10. **Staged message senders** (`telegram/message`): audio/video/gif/dice/game/venue/webpage/
-    sticker/typing/draft/report/join helpers and a schedule option. *Effort: M, no new deps.*
+10. **Staged message senders** (`telegram/message`): audio/video/gif/dice/game/venue/webpage
+    helpers. *Effort: M, no new deps.* — **done**, see `rtd-client::message`
+    (`send_audio`/`send_video`/`send_gif`/`send_dice`/`send_venue`/`send_game`/`send_webpage`).
+    Sticker/typing/draft/report/join and schedule options remain.
 11. **Query/pagination extras**: featured-stickers iterator and `query/cached` helpers.
     *Effort: S–M, no new deps.*
 12. **Markup richness** (`telegram/message/markup`): reply keyboards, force-reply, richer
