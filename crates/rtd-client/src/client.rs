@@ -650,7 +650,7 @@ impl<T: Transport> Client<T> {
         let mut writer = Writer::new();
         ServiceMethod::Ping(Box::new(Ping { ping_id })).encode(&mut writer);
         let body = writer.into_vec();
-        let message = self.session.allocate_service();
+        let mut message = self.session.allocate_service();
         self.send(message, &body)?;
 
         for _ in 0..MAX_ROUNDS {
@@ -667,11 +667,15 @@ impl<T: Transport> Client<T> {
                 }
                 continue;
             }
-            // Process unrelated frames (results, containers, updates) as usual.
-            let _ = self.handle_body(0, &decrypted.body)?;
+            // A stale-salt notification carries the salt to use; adopt it and
+            // resend the ping under the corrected salt.
+            if matches!(self.handle_body(0, &decrypted.body)?, Reply::BadSalt) {
+                message = self.session.allocate_service();
+                self.send(message, &body)?;
+            }
         }
         Err(Error::NoResult {
-            message_id: ping_id,
+            message_id: message.msg_id,
         })
     }
 

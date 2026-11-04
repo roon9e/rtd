@@ -114,22 +114,11 @@ fn client_gate(binary: &str) {
         Client::connect(transport, &config, clock).expect("exchange completes with the peer");
 
     // The official test server answers service `ping`s. A stale-salt correction
-    // is consumed by `ping`, so retry: the next ping resends under the salt the
-    // previous reply carried.
-    let mut last = None;
-    for _ in 0..3 {
-        let ping_id = i64::from_le_bytes(
-            rtd_crypto::random_bytes(8)
-                .try_into()
-                .expect("eight random bytes"),
-        );
-        match client.ping(ping_id) {
-            Ok(()) => return,
-            Err(error) => last = Some(error.to_string()),
-        }
-    }
-    panic!(
-        "the peer did not answer a client ping: {}",
-        last.unwrap_or_else(|| "no reply".to_owned())
+    // is adopted and resent by `ping` itself, so a single call is enough.
+    let ping_id = i64::from_le_bytes(
+        rtd_crypto::random_bytes(8)
+            .try_into()
+            .expect("eight random bytes"),
     );
+    client.ping(ping_id).expect("peer answers a client ping");
 }
