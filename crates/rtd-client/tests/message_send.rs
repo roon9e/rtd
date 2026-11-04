@@ -148,3 +148,29 @@ fn send_message_round_trips() {
     drop(client);
     server.join().expect("server thread");
 }
+
+#[test]
+fn invoke_json_round_trips() {
+    use rtd_client::{JsonValue, encode_method};
+    use rtd_tg::{HelpGetConfig, Method};
+
+    let (private, public) = keypair(127);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server(private, server_stream);
+
+    let mut client =
+        Client::connect(client_stream, &config(public), clock()).expect("client exchange");
+
+    let request = encode_method(&Method::HelpGetConfig(Box::new(HelpGetConfig)));
+    let response = client.invoke_json(&request).expect("invoke_json");
+    match &response {
+        JsonValue::Object(entries) => assert_eq!(
+            entries.get("@type"),
+            Some(&JsonValue::String("boolTrue".to_owned()))
+        ),
+        other => panic!("unexpected response: {other:?}"),
+    }
+
+    drop(client);
+    server.join().expect("server thread");
+}

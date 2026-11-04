@@ -104,6 +104,217 @@ pub fn describe(object: &Object) -> String {
     }
 }
 
+/// A TL-JSON coding error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JsonError(pub String);
+
+impl core::fmt::Display for JsonError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl core::error::Error for JsonError {}
+
+/// The `@type` field name.
+pub const TYPE_FIELD: &str = "@type";
+
+/// Returns the wire id for a constructor name, if known.
+#[must_use]
+pub fn type_id(name: &str) -> Option<u32> {
+    rtd_tg::types_map()
+        .iter()
+        .find(|(_, candidate)| *candidate == name)
+        .map(|(id, _)| *id)
+}
+
+/// Encodes a TL object to JSON as `{"@type": <name>, "body": <base64>}`.
+///
+/// The body is the constructor's fields without the wire identifier; decoding
+/// looks the identifier up from `@type`, so the value round-trips exactly.
+#[must_use]
+pub fn encode_object(object: &Object) -> JsonValue {
+    let mut writer = rtd_bin::Writer::new();
+    object.encode_body(&mut writer);
+    let mut entries = BTreeMap::new();
+    entries.insert(
+        TYPE_FIELD.to_owned(),
+        JsonValue::String(describe_name(object.type_id())),
+    );
+    entries.insert(
+        "body".to_owned(),
+        JsonValue::String(base64_encode(writer.as_slice())),
+    );
+    JsonValue::Object(entries)
+}
+
+/// Decodes a TL object from its JSON encoding.
+///
+/// # Errors
+///
+/// Returns [`JsonError`] when `@type` is missing or unknown, `body` is not
+/// valid base64, or the payload does not decode.
+pub fn decode_object(value: &JsonValue) -> Result<Object, JsonError> {
+    let id = decode_type_id(value)?;
+    let bytes = decode_body(value)?;
+    let mut decoder = rtd_tg::Decoder::new(&bytes, rtd_tg::DecodeLimits::default());
+    Object::decode_with_id(&mut decoder, id).map_err(|error| JsonError(error.to_string()))
+}
+
+/// Encodes a TL method to JSON as `{"@type": <name>, "body": <base64>}`.
+#[must_use]
+pub fn encode_method(method: &rtd_tg::Method) -> JsonValue {
+    let mut writer = rtd_bin::Writer::new();
+    method.encode_body(&mut writer);
+    let mut entries = BTreeMap::new();
+    entries.insert(
+        TYPE_FIELD.to_owned(),
+        JsonValue::String(describe_name(method.type_id())),
+    );
+    entries.insert(
+        "body".to_owned(),
+        JsonValue::String(base64_encode(writer.as_slice())),
+    );
+    JsonValue::Object(entries)
+}
+
+/// Decodes a TL method from its JSON encoding.
+///
+/// # Errors
+///
+/// Returns [`JsonError`] when `@type` is missing or unknown, `body` is not
+/// valid base64, or the payload does not decode.
+pub fn decode_method(value: &JsonValue) -> Result<rtd_tg::Method, JsonError> {
+    let id = decode_type_id(value)?;
+    let bytes = decode_body(value)?;
+    let mut decoder = rtd_tg::Decoder::new(&bytes, rtd_tg::DecodeLimits::default());
+    rtd_tg::Method::decode_with_id(&mut decoder, id).map_err(|error| JsonError(error.to_string()))
+}
+
+/// Renders an RPC error as a JSON object.
+#[must_use]
+pub fn rpc_error_json(error: &rtd_error::Error) -> JsonValue {
+    JsonValue::object([
+        (
+            TYPE_FIELD.to_owned(),
+            JsonValue::String("rpc_error".to_owned()),
+        ),
+        (
+            "error_code".to_owned(),
+            JsonValue::Number(f64::from(error.code())),
+        ),
+        (
+            "error_message".to_owned(),
+            JsonValue::String(error.message().to_owned()),
+        ),
+    ])
+}
+
+/// Pretty-prints an object using the generated constructor descriptors.
+///
+/// The generated model exposes constructor identifiers and names (via
+/// [`rtd_tg::types_map`]) but not per-field descriptors, so the payload is
+/// rendered as its encoded form alongside the resolved name.
+#[must_use]
+pub fn format(object: &Object) -> String {
+    let id = object.type_id();
+    let mut writer = rtd_bin::Writer::new();
+    object.encode_body(&mut writer);
+    format!(
+        "{}#{} {{ {} }}",
+        describe_name(id),
+        id,
+        base64_encode(writer.as_slice())
+    )
+}
+
+/// Returns a constructor's name, or `#id` when unknown.
+fn describe_name(id: u32) -> String {
+    type_name(id).map_or_else(|| format!("#{id:08x}"), str::to_owned)
+}
+
+/// Reads and resolves the `@type` field.
+fn decode_type_id(value: &JsonValue) -> Result<u32, JsonError> {
+    let JsonValue::Object(entries) = value else {
+        return Err(JsonError("expected a JSON object".to_owned()));
+    };
+    let name = match entries.get(TYPE_FIELD) {
+        Some(JsonValue::String(name)) => name,
+        _ => return Err(JsonError(format!("missing string {TYPE_FIELD} field"))),
+    };
+    type_id(name).ok_or_else(|| JsonError(format!("unknown constructor {name:?}")))
+}
+
+/// Reads and base64-decodes the `body` field.
+fn decode_body(value: &JsonValue) -> Result<Vec<u8>, JsonError> {
+    let JsonValue::Object(entries) = value else {
+        return Err(JsonError("expected a JSON object".to_owned()));
+    };
+    match entries.get("body") {
+        Some(JsonValue::String(body)) => {
+            base64_decode(body).ok_or_else(|| JsonError("invalid base64 body".to_owned()))
+        }
+        _ => Err(JsonError("missing string \"body\" field".to_owned())),
+    }
+}
+
+/// Encodes `data` as standard padded base64.
+#[must_use]
+pub fn base64_encode(data: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b0 = u32::from(chunk[0]);
+        let b1 = chunk.get(1).copied().map(u32::from);
+        let b2 = chunk.get(2).copied().map(u32::from);
+        let triple = (b0 << 16) | (b1.unwrap_or(0) << 8) | b2.unwrap_or(0);
+        out.push(ALPHABET[((triple >> 18) & 0x3f) as usize] as char);
+        out.push(ALPHABET[((triple >> 12) & 0x3f) as usize] as char);
+        out.push(if b1.is_some() {
+            ALPHABET[((triple >> 6) & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if b2.is_some() {
+            ALPHABET[(triple & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
+/// Decodes standard base64 (padding optional).
+#[must_use]
+pub fn base64_decode(input: &str) -> Option<Vec<u8>> {
+    if !input.len().is_multiple_of(4) {
+        return None;
+    }
+    let mut out = Vec::with_capacity(input.len() / 4 * 3);
+    let mut buffer = 0u32;
+    let mut bits = 0u32;
+    for byte in input.bytes() {
+        if byte == b'=' {
+            break;
+        }
+        let value = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return None,
+        };
+        buffer = (buffer << 6) | u32::from(value);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buffer >> bits) as u8);
+        }
+    }
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -127,5 +338,46 @@ mod tests {
     fn type_names_resolve_from_the_generated_map() {
         let (id, name) = rtd_tg::types_map()[0];
         assert_eq!(type_name(id), Some(name));
+    }
+
+    #[test]
+    fn objects_round_trip_through_json() {
+        use rtd_tg::Bool;
+        use rtd_tg::Object;
+
+        let object = Object::Bool(Box::new(Bool::BoolTrue));
+        let encoded = super::encode_object(&object);
+        assert_eq!(
+            encoded,
+            super::JsonValue::Object(std::collections::BTreeMap::from([
+                (
+                    super::TYPE_FIELD.to_owned(),
+                    super::JsonValue::String("boolTrue".to_owned())
+                ),
+                ("body".to_owned(), super::JsonValue::String(String::new())),
+            ]))
+        );
+        assert_eq!(super::decode_object(&encoded).unwrap(), object);
+    }
+
+    #[test]
+    fn unknown_types_and_bad_bodies_are_rejected() {
+        let unknown = super::JsonValue::Object(std::collections::BTreeMap::from([(
+            super::TYPE_FIELD.to_owned(),
+            super::JsonValue::String("notAConstructor".to_owned()),
+        )]));
+        assert!(super::decode_object(&unknown).is_err());
+
+        let bad_body = super::JsonValue::Object(std::collections::BTreeMap::from([
+            (
+                super::TYPE_FIELD.to_owned(),
+                super::JsonValue::String("boolTrue".to_owned()),
+            ),
+            (
+                "body".to_owned(),
+                super::JsonValue::String("!!!!".to_owned()),
+            ),
+        ]));
+        assert!(super::decode_object(&bad_body).is_err());
     }
 }

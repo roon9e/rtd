@@ -230,6 +230,28 @@ impl<T: Transport> Client<T> {
         result
     }
 
+    /// Invokes a TL method decoded from JSON and returns the result as JSON.
+    ///
+    /// A successful result is the encoded constructor; an RPC error is returned
+    /// as an `rpc_error` JSON object.
+    ///
+    /// # Errors
+    ///
+    /// Returns a decode error when `request` is not a valid TL method, or a
+    /// transport, crypto or decode error from the invocation.
+    pub fn invoke_json(
+        &mut self,
+        request: &crate::json::JsonValue,
+    ) -> Result<crate::json::JsonValue> {
+        let method = crate::json::decode_method(request)
+            .map_err(|error| Error::Decode(error.to_string()))?;
+        match self.invoke(method) {
+            Ok(object) => Ok(crate::json::encode_object(&object)),
+            Err(Error::Rpc(error)) => Ok(crate::json::rpc_error_json(&error)),
+            Err(other) => Err(other),
+        }
+    }
+
     /// Sends a login code to `phone_number` (`auth.sendCode`).
     ///
     /// # Errors

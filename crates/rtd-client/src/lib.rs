@@ -61,7 +61,10 @@ pub use entity::{parse_html, parse_markdown};
 pub use error::{Error, Result};
 pub use fileid::{FileId, PhotoSizeSource, Type as FileType, from_document, from_photo};
 pub use inline::{article, set_inline_bot_results};
-pub use json::{JsonValue, describe, type_name};
+pub use json::{
+    JsonError, JsonValue, base64_decode, base64_encode, decode_method, decode_object, describe,
+    encode_method, encode_object, format as format_object, rpc_error_json, type_id, type_name,
+};
 pub use keepalive::{Backoff, Keepalive, Reconnect};
 pub use manager::{DcRouter, ReconnectingClient};
 pub use markup::{InlineButton, inline_keyboard};
