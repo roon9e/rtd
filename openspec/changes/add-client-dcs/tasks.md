@@ -8,7 +8,7 @@
 
 ## 2. Migration
 
-- [ ] 2.1 Handle `_MIGRATE_*` errors at the invoke boundary and switch the pool target (`client.rs`)
+- [x] 2.1 Handle `_MIGRATE_*` errors at the invoke boundary and switch the pool target (`client.rs`)
 - [x] 2.2 Implement authorization export/import across DCs
 
 ## 3. Verification

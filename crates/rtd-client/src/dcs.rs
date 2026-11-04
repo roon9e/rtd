@@ -299,6 +299,29 @@ pub fn migrate_target(error: &rtd_error::Error) -> Option<i32> {
     }
 }
 
+/// A resolved migration: the target datacenter and its endpoints.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Migration {
+    /// The target datacenter id.
+    pub dc: i32,
+    /// The target's endpoints, resolved from the resolver.
+    pub endpoints: Vec<Endpoint>,
+}
+
+/// Resolves a `*_MIGRATE_<dc>` error into a [`Migration`] plan.
+///
+/// Returns `None` when the error is not a migrate error or the target
+/// datacenter is unknown to `resolver`.
+#[must_use]
+pub fn migrate_plan(error: &rtd_error::Error, resolver: &impl Resolver) -> Option<Migration> {
+    let dc = migrate_target(error)?;
+    let datacenter = resolver.resolve(dc)?;
+    Some(Migration {
+        dc,
+        endpoints: datacenter.endpoints.clone(),
+    })
+}
+
 /// Resolves a datacenter identifier to its endpoints.
 pub trait Resolver {
     /// Returns the datacenter for `id`, if known.
@@ -499,5 +522,22 @@ mod tests {
             websocket.resolve(2).unwrap().endpoints[0].protocol,
             Protocol::WebSocket
         );
+    }
+
+    #[test]
+    fn migrate_plan_resolves_the_target() {
+        use super::{migrate_plan, migrate_target};
+
+        let resolver = StaticResolver::production();
+        let error = rtd_error::Error::new(303, "PHONE_MIGRATE_2");
+        assert_eq!(migrate_target(&error), Some(2));
+
+        let plan = migrate_plan(&error, &resolver).expect("migration");
+        assert_eq!(plan.dc, 2);
+        assert_eq!(plan.endpoints.len(), 1);
+
+        // A non-migrate error and an unknown target both yield no plan.
+        assert!(migrate_plan(&rtd_error::Error::new(400, "FLOOD_WAIT_1"), &resolver).is_none());
+        assert!(migrate_plan(&rtd_error::Error::new(303, "FILE_MIGRATE_99"), &resolver).is_none());
     }
 }

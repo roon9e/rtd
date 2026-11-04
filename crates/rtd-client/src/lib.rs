@@ -50,8 +50,8 @@ pub use cdn::{
 };
 pub use client::{Client, InitParams};
 pub use dcs::{
-    DataCenter, DnsConfig, DnsError, Endpoint, Protocol, Resolver, StaticResolver, migrate_target,
-    parse_dns_config,
+    DataCenter, DnsConfig, DnsError, Endpoint, Migration, Protocol, Resolver, StaticResolver,
+    migrate_plan, migrate_target, parse_dns_config,
 };
 pub use deeplink::{Deeplink, DeeplinkError};
 pub use downloader::Downloader;
