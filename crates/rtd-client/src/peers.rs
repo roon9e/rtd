@@ -6,7 +6,10 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use rtd_tg::{Chat, ContactsResolveUsername, InputPeer, Method, Object, Peer, Updates, User};
+use rtd_tg::{
+    Chat as TgChat, ContactsResolveUsername, InputPeer, Method, Object, Peer, Updates,
+    User as TgUser,
+};
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -164,6 +167,105 @@ impl ResolvedPeer {
     }
 }
 
+/// A resolved user with its access hash.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct User {
+    /// The user id.
+    pub id: i64,
+    /// The user's access hash.
+    pub access_hash: i64,
+}
+
+impl User {
+    /// Creates a user.
+    #[must_use]
+    pub fn new(id: i64, access_hash: i64) -> Self {
+        Self { id, access_hash }
+    }
+
+    /// Returns the user's [`InputPeer`].
+    #[must_use]
+    pub fn input_peer(&self) -> InputPeer {
+        InputPeer::InputPeerUser {
+            user_id: self.id,
+            access_hash: self.access_hash,
+        }
+    }
+}
+
+/// A legacy chat (which carries no access hash).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Chat {
+    /// The chat id.
+    pub id: i64,
+}
+
+impl Chat {
+    /// Creates a chat.
+    #[must_use]
+    pub fn new(id: i64) -> Self {
+        Self { id }
+    }
+
+    /// Returns the chat's [`InputPeer`].
+    #[must_use]
+    pub fn input_peer(&self) -> InputPeer {
+        InputPeer::InputPeerChat { chat_id: self.id }
+    }
+}
+
+/// A channel with its access hash.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Channel {
+    /// The channel id.
+    pub id: i64,
+    /// The channel's access hash.
+    pub access_hash: i64,
+}
+
+impl Channel {
+    /// Creates a channel.
+    #[must_use]
+    pub fn new(id: i64, access_hash: i64) -> Self {
+        Self { id, access_hash }
+    }
+
+    /// Returns the channel's [`InputPeer`].
+    #[must_use]
+    pub fn input_peer(&self) -> InputPeer {
+        InputPeer::InputPeerChannel {
+            channel_id: self.id,
+            access_hash: self.access_hash,
+        }
+    }
+}
+
+/// A supergroup (a megagroup channel) with its access hash.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Supergroup {
+    /// The supergroup id.
+    pub id: i64,
+    /// The supergroup's access hash.
+    pub access_hash: i64,
+}
+
+impl Supergroup {
+    /// Creates a supergroup.
+    #[must_use]
+    pub fn new(id: i64, access_hash: i64) -> Self {
+        Self { id, access_hash }
+    }
+
+    /// Returns the supergroup's [`InputPeer`].
+    #[must_use]
+    pub fn input_peer(&self) -> InputPeer {
+        InputPeer::InputPeerChannel {
+            channel_id: self.id,
+            access_hash: self.access_hash,
+        }
+    }
+}
+
 /// The kind of a cached peer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PeerKind {
@@ -232,7 +334,7 @@ impl PeerManager {
     }
 
     /// Caches users and chats by kind and id (and username, when present).
-    pub fn cache_entities(&self, users: &[User], chats: &[Chat]) {
+    pub fn cache_entities(&self, users: &[TgUser], chats: &[TgChat]) {
         let mut entities = self
             .entities
             .lock()
@@ -242,7 +344,7 @@ impl PeerManager {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         for user in users {
-            if let User::User {
+            if let TgUser::User {
                 id,
                 access_hash,
                 username,
@@ -262,7 +364,7 @@ impl PeerManager {
         }
         for chat in chats {
             match chat {
-                Chat::Channel {
+                TgChat::Channel {
                     id,
                     access_hash: Some(access_hash),
                     username,
@@ -277,7 +379,7 @@ impl PeerManager {
                         by_name.insert(name.to_lowercase(), peer);
                     }
                 }
-                Chat::Chat { id, .. } => {
+                TgChat::Chat { id, .. } => {
                     entities.insert(
                         (PeerKind::Chat.tag(), *id),
                         ResolvedPeer::Chat { chat_id: *id },
@@ -339,7 +441,7 @@ impl PeerManager {
                     .chats
                     .iter()
                     .find_map(|chat| match chat {
-                        Chat::Channel {
+                        TgChat::Channel {
                             id, access_hash, ..
                         } if id == channel_id => *access_hash,
                         _ => None,
@@ -382,6 +484,37 @@ mod tests {
         assert_eq!(
             ResolvedPeer::Chat { chat_id: 3 }.input_peer(),
             InputPeer::InputPeerChat { chat_id: 3 }
+        );
+    }
+
+    #[test]
+    fn entity_wrappers_produce_input_peers() {
+        use super::{Channel, Chat, Supergroup, User};
+
+        assert_eq!(
+            User::new(1, 2).input_peer(),
+            InputPeer::InputPeerUser {
+                user_id: 1,
+                access_hash: 2,
+            }
+        );
+        assert_eq!(
+            Chat::new(3).input_peer(),
+            InputPeer::InputPeerChat { chat_id: 3 }
+        );
+        assert_eq!(
+            Channel::new(4, 5).input_peer(),
+            InputPeer::InputPeerChannel {
+                channel_id: 4,
+                access_hash: 5,
+            }
+        );
+        assert_eq!(
+            Supergroup::new(6, 7).input_peer(),
+            InputPeer::InputPeerChannel {
+                channel_id: 6,
+                access_hash: 7,
+            }
         );
     }
 

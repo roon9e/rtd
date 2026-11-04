@@ -74,7 +74,8 @@ pub use pagination::{
     fetch_dialogs, fetch_history, fetch_participants, for_each,
 };
 pub use peers::{
-    MemoryPeerStorage, PeerKey, PeerKind, PeerManager, PeerStorage, PeerValue, ResolvedPeer,
+    Channel, Chat, MemoryPeerStorage, PeerKey, PeerKind, PeerManager, PeerStorage, PeerValue,
+    ResolvedPeer, Supergroup, User,
 };
 pub use pool::{Pool, SelectedKey, SessionOptions};
 pub use qr::{LoginToken, drive_login, login_url};

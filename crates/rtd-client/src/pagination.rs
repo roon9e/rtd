@@ -891,6 +891,42 @@ mod tests {
         assert_eq!(dialogs.remaining, 5);
     }
 
+    #[test]
+    fn history_iter_pages_then_stops_on_a_short_page() {
+        use rtd_tg::{Message, MessagesMessages, Object};
+
+        use super::Query;
+
+        let mut iter = HistoryIter::new(InputPeer::InputPeerEmpty).with_batch(10);
+        assert!(iter.request().is_some());
+
+        let page = |count: i32, start: i32| {
+            let messages = (0..count)
+                .map(|i| Message::MessageEmpty {
+                    flags: 0,
+                    id: start + i,
+                    peer_id: None,
+                })
+                .collect();
+            Object::MessagesMessages(Box::new(MessagesMessages::Messages {
+                messages,
+                topics: Vec::new(),
+                chats: Vec::new(),
+                users: Vec::new(),
+            }))
+        };
+
+        // A full page does not finish the iterator.
+        let first = iter.accept(page(10, 1)).unwrap().unwrap();
+        assert_eq!(first.len(), 10);
+        assert!(iter.request().is_some());
+
+        // A short page finishes it: no further request is produced.
+        let second = iter.accept(page(3, 100)).unwrap().unwrap();
+        assert_eq!(second.len(), 3);
+        assert!(iter.request().is_none());
+    }
+
     /// A fixed set of pages, ignoring the response.
     struct Pages {
         pages: Vec<Vec<u32>>,

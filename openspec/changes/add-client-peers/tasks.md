@@ -2,7 +2,7 @@
 
 ## 1. Entities
 
-- [ ] 1.1 Add `User`/`Chat`/`Channel`/`Supergroup` with `InputPeer` and access hashes (`peers/mod.rs`)
+- [x] 1.1 Add `User`/`Chat`/`Channel`/`Supergroup` with `InputPeer` and access hashes (`peers/mod.rs`)
 - [x] 1.2 Add the `Storage` trait (in-memory default)
 
 ## 2. Resolution
