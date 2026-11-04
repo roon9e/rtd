@@ -50,10 +50,14 @@ jobs:
           go-version: stable
       - name: Check out the Go reference (module replace target)
         run: git clone --depth 1 https://github.com/iamxvbaba/td "$GITHUB_WORKSPACE/../td"
-      - name: Regenerate the Go cross-check vectors
-        working-directory: interop/vectors
-        run: go run . > ../vectors.json
-      - run: git diff --exit-code
+      - name: Regenerate the Go cross-check vectors and compare
+        run: |
+          ( cd interop/vectors && go run . ) > "$RUNNER_TEMP/vectors.json"
+          # Compare semantically: the generator's indentation may differ from the
+          # committed formatting, and only *data* drift should fail the job.
+          jq -S . "$RUNNER_TEMP/vectors.json" > "$RUNNER_TEMP/vectors.norm.json"
+          jq -S . interop/vectors.json > "$RUNNER_TEMP/committed.norm.json"
+          diff -u "$RUNNER_TEMP/committed.norm.json" "$RUNNER_TEMP/vectors.norm.json"
 
   # Drive the rtd client through the *published* rtd-edge image in front of the
   # pinned gramsrv v2 core, without building the edge from source. The edge

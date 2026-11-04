@@ -12,6 +12,7 @@ use std::io::{BufRead, BufReader};
 use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
+use std::sync::mpsc;
 use std::time::Duration;
 
 use rtd_bin::Writer;
@@ -28,7 +29,8 @@ use rtd_util::SystemClock;
 ///
 /// The official test server accepts only obfuscated2 on TCP; the framing is
 /// carried by the obfuscation protocol tag, so no plain transport header is
-/// written.
+/// written. The socket has read/write timeouts so a non-answering peer fails the
+/// gate instead of hanging.
 struct CodecStream {
     stream: Obfuscated2<TcpStream>,
     codec: Intermediate,
@@ -222,14 +224,44 @@ fn ping_round_trip(
     );
 }
 
+/// Runs `f` on a worker thread and fails fast if it does not finish in time.
+///
+/// A non-answering test server (for example, one that never prints its
+/// advertised address) would otherwise block the reader forever and burn the
+/// whole CI job's time budget; the watchdog turns that into a prompt failure.
+fn run_with_timeout<F: FnOnce() + Send + 'static>(label: &str, timeout: Duration, f: F) {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        f();
+        let _ = tx.send(());
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(()) => {}
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            panic!("{label}: timed out after {timeout:?} (test server did not answer)")
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            panic!("{label}: failed (worker thread panicked; see the panic above)")
+        }
+    }
+}
+
 #[test]
 fn exchange_completes_against_official_testserver() {
     let Ok(binary) = std::env::var("RTD_PEER_TESTSERVER") else {
         eprintln!("RTD_PEER_TESTSERVER is unset; skipping the external-peer gate");
         return;
     };
+    run_with_timeout(
+        "external-peer gate (exchange)",
+        Duration::from_secs(120),
+        move || exchange_gate(&binary),
+    );
+}
 
-    let peer = start_peer(&binary);
+/// The gate body, run under a watchdog so a stuck read cannot hang CI.
+fn exchange_gate(binary: &str) {
+    let peer = start_peer(binary);
     let public_key =
         rtd_crypto::parse_rsa_public_key(&peer.public_key_pem).expect("parse peer public key");
 
