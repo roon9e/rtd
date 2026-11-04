@@ -26,6 +26,7 @@ pub struct HistoryIter {
     offset_id: i32,
     remaining: i32,
     batch: i32,
+    hash: i64,
     done: bool,
 }
 
@@ -38,8 +39,19 @@ impl HistoryIter {
             offset_id: 0,
             remaining: i32::MAX,
             batch: DEFAULT_BATCH,
+            hash: 0,
             done: false,
         }
+    }
+
+    /// Sets the cached-query `hash` for this request.
+    ///
+    /// Telegram answers a matching hash with `messages.messagesNotModified`,
+    /// which the iterator treats as "nothing changed".
+    #[must_use]
+    pub fn cached(mut self, hash: i64) -> Self {
+        self.hash = hash;
+        self
     }
 
     /// Bounds the total number of messages returned.
@@ -75,7 +87,7 @@ impl HistoryIter {
             limit,
             max_id: 0,
             min_id: 0,
-            hash: 0,
+            hash: self.hash,
         }));
         let messages = match client.invoke(query)? {
             Object::MessagesMessages(page) => extract_messages(*page),
@@ -127,6 +139,7 @@ pub struct DialogsIter {
     offset_peer: InputPeer,
     remaining: i32,
     batch: i32,
+    hash: i64,
     done: bool,
 }
 
@@ -140,8 +153,16 @@ impl DialogsIter {
             offset_peer: InputPeer::InputPeerEmpty,
             remaining: i32::MAX,
             batch: DEFAULT_BATCH,
+            hash: 0,
             done: false,
         }
+    }
+
+    /// Sets the cached-query `hash`; a matching hash yields no dialogs.
+    #[must_use]
+    pub fn cached(mut self, hash: i64) -> Self {
+        self.hash = hash;
+        self
     }
 
     /// Bounds the total number of dialogs returned.
@@ -177,7 +198,7 @@ impl DialogsIter {
             offset_id: self.offset_id,
             offset_peer: Box::new(self.offset_peer.clone()),
             limit,
-            hash: 0,
+            hash: self.hash,
         }));
         let (dialogs, users, chats) = match client.invoke(query)? {
             Object::MessagesDialogs(page) => extract_dialogs(*page),
@@ -594,7 +615,7 @@ impl Query for HistoryIter {
             limit,
             max_id: 0,
             min_id: 0,
-            hash: 0,
+            hash: self.hash,
         })))
     }
 
@@ -640,7 +661,7 @@ impl Query for DialogsIter {
             offset_id: self.offset_id,
             offset_peer: Box::new(self.offset_peer.clone()),
             limit,
-            hash: 0,
+            hash: self.hash,
         })))
     }
 
@@ -924,6 +945,25 @@ mod tests {
         // A short page finishes it: no further request is produced.
         let second = iter.accept(page(3, 100)).unwrap().unwrap();
         assert_eq!(second.len(), 3);
+        assert!(iter.request().is_none());
+    }
+
+    #[test]
+    fn cached_history_sends_the_hash_and_stops_on_not_modified() {
+        use rtd_tg::{MessagesMessages, Method, Object};
+
+        use super::Query;
+
+        let mut iter = HistoryIter::new(InputPeer::InputPeerEmpty).cached(1234);
+        match iter.request() {
+            Some(Method::MessagesGetHistory(request)) => assert_eq!(request.hash, 1234),
+            other => panic!("expected messages.getHistory, got {other:?}"),
+        }
+
+        // A matching hash is answered with not-modified, which finishes it.
+        let response =
+            Object::MessagesMessages(Box::new(MessagesMessages::MessagesNotModified { count: 0 }));
+        assert!(iter.accept(response).unwrap().is_none());
         assert!(iter.request().is_none());
     }
 
