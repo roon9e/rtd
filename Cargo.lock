@@ -974,15 +974,15 @@ dependencies = [
 
 [[package]]
 name = "rtd"
-version = "0.0.0"
+version = "0.1.1"
 
 [[package]]
 name = "rtd-bin"
-version = "0.0.0"
+version = "0.1.1"
 
 [[package]]
 name = "rtd-client"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "hex",
  "num-bigint",
@@ -1006,7 +1006,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-codegen"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-layerhooks-registry",
  "sha2 0.10.9",
@@ -1014,7 +1014,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-crypto"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "aes 0.8.4",
  "hex",
@@ -1032,7 +1032,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-edge"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "futures-util",
  "prost",
@@ -1054,18 +1054,18 @@ dependencies = [
 
 [[package]]
 name = "rtd-edge-proto"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "prost",
 ]
 
 [[package]]
 name = "rtd-error"
-version = "0.0.0"
+version = "0.1.1"
 
 [[package]]
 name = "rtd-exchange"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "num-bigint",
  "rand",
@@ -1081,7 +1081,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-layerhooks"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-layerhooks-registry",
  "rtd-tg",
@@ -1089,18 +1089,18 @@ dependencies = [
 
 [[package]]
 name = "rtd-layerhooks-registry"
-version = "0.0.0"
+version = "0.1.1"
 
 [[package]]
 name = "rtd-mt"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-bin",
 ]
 
 [[package]]
 name = "rtd-proto"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "crc32fast",
  "flate2",
@@ -1113,7 +1113,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-server"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "futures-util",
@@ -1138,21 +1138,21 @@ dependencies = [
 
 [[package]]
 name = "rtd-tg"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-bin",
 ]
 
 [[package]]
 name = "rtd-tg-e2e"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-bin",
 ]
 
 [[package]]
 name = "rtd-tgtrace"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-bin",
  "rtd-tg",
@@ -1160,7 +1160,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-tlprofile"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-bin",
  "rtd-layerhooks",
@@ -1170,7 +1170,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-tmap"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "rtd-mt",
  "rtd-proto",
@@ -1179,7 +1179,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-transport"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "aes 0.9.3",
  "ctr",
@@ -1191,7 +1191,7 @@ dependencies = [
 
 [[package]]
 name = "rtd-util"
-version = "0.0.0"
+version = "0.1.1"
 dependencies = [
  "getrandom 0.4.3",
 ]
