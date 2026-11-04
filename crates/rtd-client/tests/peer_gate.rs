@@ -1,6 +1,6 @@
 //! External-peer gate: run the official engine's test server, connect the
-//! client over obfuscated TCP, complete the authorization-key exchange and make
-//! an RPC call.
+//! client over obfuscated TCP, complete the authorization-key exchange and drive
+//! a full encrypted session with a service `ping`.
 //!
 //! The official engine is GPL-2.0 and is never linked or vendored; this test
 //! only *runs* its published binary as a peer. Set `RTD_PEER_TESTSERVER` to the
@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use rtd_client::{Client, Error, InitParams, connect_tcp};
+use rtd_client::{Client, connect_tcp};
 use rtd_exchange::ClientConfig;
 use rtd_proto::CodecKind;
 use rtd_util::SystemClock;
@@ -113,21 +113,23 @@ fn client_gate(binary: &str) {
     let mut client =
         Client::connect(transport, &config, clock).expect("exchange completes with the peer");
 
-    let result = client.initialize(InitParams {
-        api_id: 2040,
-        device_model: "rtd".to_owned(),
-        system_version: "test".to_owned(),
-        app_version: "0.0.0".to_owned(),
-        system_lang_code: "en".to_owned(),
-        lang_pack: String::new(),
-        lang_code: "en".to_owned(),
-    });
-    match result {
-        // A real reply (a `config`) proves the whole path.
-        Ok(_) => {}
-        // The server answering with an RPC error still proves the encrypted RPC
-        // round trip; only a transport/timeout failure would be a regression.
-        Err(Error::Rpc(_)) => {}
-        Err(other) => panic!("unexpected client failure: {other}"),
+    // The official test server answers service `ping`s. A stale-salt correction
+    // is consumed by `ping`, so retry: the next ping resends under the salt the
+    // previous reply carried.
+    let mut last = None;
+    for _ in 0..3 {
+        let ping_id = i64::from_le_bytes(
+            rtd_crypto::random_bytes(8)
+                .try_into()
+                .expect("eight random bytes"),
+        );
+        match client.ping(ping_id) {
+            Ok(()) => return,
+            Err(error) => last = Some(error.to_string()),
+        }
     }
+    panic!(
+        "the peer did not answer a client ping: {}",
+        last.unwrap_or_else(|| "no reply".to_owned())
+    );
 }
