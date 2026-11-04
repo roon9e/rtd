@@ -6,6 +6,7 @@
 //! `photo_size_source`, which is not yet supported here.
 
 use crate::error::{Error, Result};
+use rtd_tg::{Document, DocumentAttribute, Photo, PhotoSize};
 
 /// Flags packed into the file-id `type_id`.
 const WEB_LOCATION_FLAG: u32 = 1 << 24;
@@ -620,6 +621,175 @@ fn base64_url_encode(data: &[u8]) -> String {
     out
 }
 
+impl FileId {
+    /// Returns the thumbnail size marker as a string, if this is a thumbnail id.
+    fn thumb_size(&self) -> String {
+        match &self.photo_size {
+            Some(PhotoSizeSource::Thumbnail { thumbnail_type, .. }) => {
+                char::from_u32(u32::try_from(*thumbnail_type).unwrap_or(0))
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
+            }
+            _ => String::new(),
+        }
+    }
+
+    /// Returns the `InputFileLocation` for this file id.
+    ///
+    /// Returns `None` for a web location (use
+    /// [`FileId::as_input_web_file_location`] instead) and for types that have
+    /// no input-file location.
+    #[must_use]
+    pub fn as_input_file_location(&self) -> Option<rtd_tg::InputFileLocation> {
+        use rtd_tg::InputFileLocation;
+        if !self.url.is_empty() {
+            return None;
+        }
+        Some(match self.type_ {
+            Type::Encrypted | Type::EncryptedThumbnail => {
+                InputFileLocation::InputEncryptedFileLocation {
+                    id: self.id,
+                    access_hash: self.access_hash,
+                }
+            }
+            Type::Document
+            | Type::DocumentAsFile
+            | Type::Video
+            | Type::VideoNote
+            | Type::Audio
+            | Type::Voice
+            | Type::Animation
+            | Type::Sticker => InputFileLocation::InputDocumentFileLocation {
+                id: self.id,
+                access_hash: self.access_hash,
+                file_reference: self.file_reference.clone(),
+                thumb_size: self.thumb_size(),
+            },
+            Type::Photo
+            | Type::ProfilePhoto
+            | Type::Thumbnail
+            | Type::Wallpaper
+            | Type::Background => InputFileLocation::InputPhotoFileLocation {
+                id: self.id,
+                access_hash: self.access_hash,
+                file_reference: self.file_reference.clone(),
+                thumb_size: self.thumb_size(),
+            },
+            _ => return None,
+        })
+    }
+
+    /// Returns the `InputWebFileLocation` for a web file id.
+    #[must_use]
+    pub fn as_input_web_file_location(&self) -> Option<rtd_tg::InputWebFileLocation> {
+        if self.url.is_empty() {
+            return None;
+        }
+        Some(rtd_tg::InputWebFileLocation::InputWebFileLocation {
+            url: self.url.clone(),
+            access_hash: self.access_hash,
+        })
+    }
+}
+
+/// Builds a document file id from a `Document`.
+///
+/// The file type is derived from the document's attributes (sticker, animation,
+/// voice/audio, video or video note), falling back to a plain document.
+#[must_use]
+pub fn from_document(document: &Document, dc: i32) -> Option<FileId> {
+    let Document::Document {
+        id,
+        access_hash,
+        file_reference,
+        attributes,
+        ..
+    } = document
+    else {
+        return None;
+    };
+    Some(FileId {
+        type_: document_type(attributes),
+        dc,
+        id: *id,
+        access_hash: *access_hash,
+        file_reference: file_reference.clone(),
+        url: String::new(),
+        photo_size: None,
+    })
+}
+
+/// Builds a photo file id from a `Photo`, choosing the largest usable size.
+///
+/// The chosen size's type marker becomes the file id's thumbnail type, and the
+/// file type is stored as [`Type::Photo`].
+#[must_use]
+pub fn from_photo(photo: &Photo, dc: i32) -> Option<FileId> {
+    let Photo::Photo {
+        id,
+        access_hash,
+        file_reference,
+        sizes,
+        ..
+    } = photo
+    else {
+        return None;
+    };
+    let thumbnail_type = sizes
+        .iter()
+        .filter_map(photo_size_info)
+        .max_by_key(|(_, w, h)| i64::from(*w) * i64::from(*h))
+        .map(|(thumbnail_type, _, _)| thumbnail_type)?;
+    Some(FileId {
+        type_: Type::Photo,
+        dc,
+        id: *id,
+        access_hash: *access_hash,
+        file_reference: file_reference.clone(),
+        url: String::new(),
+        photo_size: Some(PhotoSizeSource::Thumbnail {
+            file_type: Type::Photo,
+            thumbnail_type,
+        }),
+    })
+}
+
+/// Extracts `(type marker, width, height)` from a dimensionless photo size.
+fn photo_size_info(size: &PhotoSize) -> Option<(i32, i32, i32)> {
+    match size {
+        PhotoSize::PhotoSize { type_, w, h, .. }
+        | PhotoSize::PhotoSizeProgressive { type_, w, h, .. }
+        | PhotoSize::PhotoCachedSize { type_, w, h, .. } => {
+            Some((i32::from(type_.bytes().next()?), *w, *h))
+        }
+        _ => None,
+    }
+}
+
+/// Maps document attributes to a Bot-API file type.
+fn document_type(attributes: &[DocumentAttribute]) -> Type {
+    let mut kind = Type::Document;
+    for attribute in attributes {
+        match attribute {
+            DocumentAttribute::DocumentAttributeSticker { .. }
+            | DocumentAttribute::DocumentAttributeCustomEmoji { .. } => return Type::Sticker,
+            DocumentAttribute::DocumentAttributeAnimated => kind = Type::Animation,
+            DocumentAttribute::DocumentAttributeAudio { voice, .. } => {
+                kind = if *voice { Type::Voice } else { Type::Audio };
+            }
+            DocumentAttribute::DocumentAttributeVideo { round_message, .. } => {
+                kind = if *round_message {
+                    Type::VideoNote
+                } else {
+                    Type::Video
+                };
+            }
+            _ => {}
+        }
+    }
+    kind
+}
+
 /// Decodes unpadded URL-safe base64.
 fn base64_url_decode(input: &str) -> core::result::Result<Vec<u8>, &'static str> {
     let mut out = Vec::new();
@@ -704,5 +874,133 @@ mod tests {
     fn rle_round_trips_zero_runs() {
         let data = vec![1, 0, 0, 0, 2, 0, 3];
         assert_eq!(super::rle_decode(&super::rle_encode(&data)), data);
+    }
+
+    #[test]
+    fn builds_a_document_file_id() {
+        use rtd_tg::{Document, DocumentAttribute};
+
+        let document = Document::Document {
+            flags: 0,
+            id: 42,
+            access_hash: 7,
+            file_reference: vec![1, 2, 3],
+            date: 0,
+            mime_type: "video/mp4".to_owned(),
+            size: 10,
+            thumbs: None,
+            video_thumbs: None,
+            dc_id: 2,
+            attributes: vec![DocumentAttribute::DocumentAttributeVideo {
+                flags: 0,
+                round_message: false,
+                supports_streaming: false,
+                nosound: false,
+                duration: 1.0,
+                w: 1,
+                h: 1,
+                preload_prefix_size: None,
+                video_start_ts: None,
+                video_codec: None,
+            }],
+        };
+        let id = super::from_document(&document, 4).expect("file id");
+        assert_eq!(id.type_, Type::Video);
+        assert_eq!(id.dc, 4);
+        assert_eq!(id.id, 42);
+        // It round-trips through its encoded form.
+        let decoded = FileId::decode(&id.encode().expect("encode")).expect("decode");
+        assert_eq!(decoded, id);
+
+        // An empty document has no usable file id.
+        assert!(super::from_document(&Document::DocumentEmpty { id: 0 }, 2).is_none());
+    }
+
+    #[test]
+    fn builds_a_photo_file_id() {
+        use rtd_tg::{Photo, PhotoSize};
+
+        let photo = Photo::Photo {
+            flags: 0,
+            has_stickers: false,
+            id: 9,
+            access_hash: 11,
+            file_reference: vec![4, 5],
+            date: 0,
+            sizes: vec![
+                PhotoSize::PhotoSize {
+                    type_: "m".to_owned(),
+                    w: 100,
+                    h: 100,
+                    size: 10,
+                },
+                PhotoSize::PhotoSize {
+                    type_: "y".to_owned(),
+                    w: 800,
+                    h: 600,
+                    size: 20,
+                },
+            ],
+            video_sizes: None,
+            dc_id: 2,
+        };
+        let id = super::from_photo(&photo, 3).expect("file id");
+        assert_eq!(id.type_, Type::Photo);
+        assert_eq!(
+            id.photo_size,
+            Some(super::PhotoSizeSource::Thumbnail {
+                file_type: Type::Photo,
+                thumbnail_type: i32::from(b'y'),
+            })
+        );
+        // It round-trips through its encoded form.
+        let decoded = FileId::decode(&id.encode().expect("encode")).expect("decode");
+        assert_eq!(decoded, id);
+    }
+
+    #[test]
+    fn maps_to_input_locations() {
+        use rtd_tg::{InputFileLocation, InputWebFileLocation};
+
+        let document = FileId {
+            type_: Type::Document,
+            dc: 2,
+            id: 1,
+            access_hash: 2,
+            file_reference: vec![9],
+            url: String::new(),
+            photo_size: None,
+        };
+        match document.as_input_file_location() {
+            Some(InputFileLocation::InputDocumentFileLocation {
+                id,
+                access_hash,
+                thumb_size,
+                ..
+            }) => {
+                assert_eq!((id, access_hash), (1, 2));
+                assert_eq!(thumb_size, "");
+            }
+            other => panic!("expected document location, got {other:?}"),
+        }
+        assert!(document.as_input_web_file_location().is_none());
+
+        let web = FileId {
+            type_: Type::Document,
+            dc: 2,
+            id: 0,
+            access_hash: 5,
+            file_reference: Vec::new(),
+            url: "https://example.com/x".to_owned(),
+            photo_size: None,
+        };
+        assert!(web.as_input_file_location().is_none());
+        match web.as_input_web_file_location() {
+            Some(InputWebFileLocation::InputWebFileLocation { url, access_hash }) => {
+                assert_eq!(url, "https://example.com/x");
+                assert_eq!(access_hash, 5);
+            }
+            other => panic!("expected web location, got {other:?}"),
+        }
     }
 }

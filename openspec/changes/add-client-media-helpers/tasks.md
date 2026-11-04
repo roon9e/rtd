@@ -3,7 +3,7 @@
 ## 1. File ids
 
 - [x] 1.1 Add `FileId`/`Type`/`PhotoSizeSource` encode/decode with RLE (`fileid.rs`)
-- [ ] 1.2 Add `FromDocument`/`FromPhoto` and `AsInputFileLocation`/`AsInputWebFileLocation`
+- [x] 1.2 Add `FromDocument`/`FromPhoto` and `AsInputFileLocation`/`AsInputWebFileLocation`
 
 ## 2. Thumbnail and deeplink
 
