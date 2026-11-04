@@ -14,9 +14,9 @@ use rtd_exchange::{
     ClientConfig, ServerConfig, Stream as ExchangeStream, TestServerRng, server_exchange,
 };
 use rtd_tg::{
-    AuthAuthorization, AuthExportLoginToken, AuthImportLoginToken, AuthLoginToken, AuthSendCode,
-    AuthSentCode, AuthSentCodeType, AuthSignIn, Bool, CodeSettings, DecodeLimits, Decoder, Method,
-    Object,
+    AuthAuthorization, AuthExportAuthorization, AuthExportLoginToken, AuthExportedAuthorization,
+    AuthImportAuthorization, AuthImportLoginToken, AuthLoginToken, AuthSendCode, AuthSentCode,
+    AuthSentCodeType, AuthSignIn, Bool, CodeSettings, DecodeLimits, Decoder, Method, Object,
 };
 use rtd_util::{Clock, SystemClock};
 
@@ -98,19 +98,28 @@ fn reply_auth_extras(body: &[u8]) -> Option<Vec<u8>> {
         ))),
         AuthImportLoginToken::TYPE_ID => encode(&Object::AuthLoginToken(Box::new(
             AuthLoginToken::LoginTokenSuccess {
-                authorization: Box::new(AuthAuthorization::AuthorizationSignUpRequired {
-                    flags: 0,
-                    terms_of_service: None,
-                }),
+                authorization: Box::new(sign_up_required()),
             },
         ))),
-        _ => encode(&Object::AuthAuthorization(Box::new(
-            AuthAuthorization::AuthorizationSignUpRequired {
-                flags: 0,
-                terms_of_service: None,
+        AuthExportAuthorization::TYPE_ID => encode(&Object::AuthExportedAuthorization(Box::new(
+            AuthExportedAuthorization {
+                id: 1,
+                bytes: b"blob".to_vec(),
             },
         ))),
+        AuthImportAuthorization::TYPE_ID => {
+            encode(&Object::AuthAuthorization(Box::new(sign_up_required())))
+        }
+        _ => encode(&Object::AuthAuthorization(Box::new(sign_up_required()))),
     })
+}
+
+/// A minimal `auth.authorizationSignUpRequired`.
+fn sign_up_required() -> AuthAuthorization {
+    AuthAuthorization::AuthorizationSignUpRequired {
+        flags: 0,
+        terms_of_service: None,
+    }
 }
 
 /// Runs the server exchange, then answers every client request with `reply`.
@@ -330,6 +339,29 @@ fn qr_login_exports_then_imports() {
     let authorization = client
         .import_login_token(token.token.clone())
         .expect("import token");
+    assert!(matches!(
+        authorization,
+        AuthAuthorization::AuthorizationSignUpRequired { .. }
+    ));
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn authorization_export_and_import_cross_dc() {
+    let (mut client, server) = start(73, reply_auth_extras);
+    client.initialize(params()).expect("initialize");
+
+    let exported = client
+        .export_authorization(2)
+        .expect("export authorization");
+    assert_eq!(exported.id, 1);
+    assert_eq!(exported.bytes, b"blob".to_vec());
+
+    let authorization = client
+        .import_authorization(exported.id, exported.bytes)
+        .expect("import authorization");
     assert!(matches!(
         authorization,
         AuthAuthorization::AuthorizationSignUpRequired { .. }

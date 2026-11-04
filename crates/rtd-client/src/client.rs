@@ -17,7 +17,8 @@ use rtd_proto::{
 };
 use rtd_tg::{
     AccountGetPassword, AuthAcceptLoginToken, AuthAuthorization, AuthBindTempAuthKey,
-    AuthCheckPassword, AuthCheckRecoveryPassword, AuthExportLoginToken, AuthImportBotAuthorization,
+    AuthCheckPassword, AuthCheckRecoveryPassword, AuthExportAuthorization, AuthExportLoginToken,
+    AuthExportedAuthorization, AuthImportAuthorization, AuthImportBotAuthorization,
     AuthImportLoginToken, AuthLoginToken, AuthPasswordRecovery, AuthRecoverPassword,
     AuthRequestPasswordRecovery, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings,
     DecodeLimits, Decoder, HelpGetConfig, InitConnection, InputCheckPasswordSRP, InvokeWithLayer,
@@ -512,6 +513,36 @@ impl<T: Transport> Client<T> {
         match self.invoke(query)? {
             Object::AuthAuthorization(authorization) => Ok(*authorization),
             other => Err(unexpected("auth.importBotAuthorization", &other)),
+        }
+    }
+
+    /// Exports this session's authorization for `dc_id` so it can be imported
+    /// on another datacenter (`auth.exportAuthorization`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a different constructor.
+    pub fn export_authorization(&mut self, dc_id: i32) -> Result<AuthExportedAuthorization> {
+        let query = Method::AuthExportAuthorization(Box::new(AuthExportAuthorization { dc_id }));
+        match self.invoke(query)? {
+            Object::AuthExportedAuthorization(exported) => Ok(*exported),
+            other => Err(unexpected("auth.exportAuthorization", &other)),
+        }
+    }
+
+    /// Imports a previously exported authorization (`auth.importAuthorization`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a different constructor.
+    pub fn import_authorization(&mut self, id: i64, bytes: Vec<u8>) -> Result<AuthAuthorization> {
+        let query =
+            Method::AuthImportAuthorization(Box::new(AuthImportAuthorization { id, bytes }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.importAuthorization", &other)),
         }
     }
 
