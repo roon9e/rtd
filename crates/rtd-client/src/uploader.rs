@@ -22,10 +22,11 @@ const DEFAULT_PART: usize = 512 * 1024;
 const MIN_PART: usize = 4096;
 
 /// A source of bytes to upload.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source {
     /// An in-memory buffer.
     Bytes(Vec<u8>),
+    /// An arbitrary reader, drained into memory before uploading.
+    Reader(Box<dyn std::io::Read + Send>),
 }
 
 impl Source {
@@ -35,11 +36,25 @@ impl Source {
         Self::Bytes(data.into())
     }
 
-    /// Returns the source bytes.
+    /// Creates a reader source.
     #[must_use]
-    pub fn as_slice(&self) -> &[u8] {
+    pub fn reader(reader: impl std::io::Read + Send + 'static) -> Self {
+        Self::Reader(Box::new(reader))
+    }
+
+    /// Drains the source into a byte buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when a reader source fails.
+    pub fn read_all(self) -> Result<Vec<u8>> {
         match self {
-            Self::Bytes(data) => data,
+            Self::Bytes(data) => Ok(data),
+            Self::Reader(mut reader) => {
+                let mut data = Vec::new();
+                reader.read_to_end(&mut data)?;
+                Ok(data)
+            }
         }
     }
 }
@@ -134,6 +149,23 @@ impl Uploader {
     ) -> Result<InputFile> {
         let mut data = Vec::new();
         reader.read_to_end(&mut data)?;
+        self.upload_with_progress(client, name, &data, progress)
+    }
+
+    /// Uploads a [`Source`] under `name`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when a reader source fails, otherwise see
+    /// [`Uploader::upload`].
+    pub fn upload_source<T: Transport>(
+        &self,
+        client: &mut Client<T>,
+        name: &str,
+        source: Source,
+        progress: &dyn Progress,
+    ) -> Result<InputFile> {
+        let data = source.read_all()?;
         self.upload_with_progress(client, name, &data, progress)
     }
 
@@ -244,5 +276,16 @@ mod tests {
     fn explicit_part_size_is_aligned() {
         let uploader = Uploader::new().with_part_size(1000);
         assert_eq!(uploader.part_size(10), 4096);
+    }
+
+    #[test]
+    fn sources_materialize_to_bytes() {
+        use std::io::Cursor;
+
+        use super::Source;
+
+        assert_eq!(Source::bytes(b"abc".to_vec()).read_all().unwrap(), b"abc");
+        let reader = Source::reader(Cursor::new(b"read".to_vec()));
+        assert_eq!(reader.read_all().unwrap(), b"read");
     }
 }

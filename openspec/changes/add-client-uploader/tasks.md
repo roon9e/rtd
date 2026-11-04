@@ -3,7 +3,7 @@
 ## 1. Core
 
 - [x] 1.1 Add `Uploader` with small/big selection and `part_size` growth (`uploader/mod.rs`)
-- [ ] 1.2 Add `Source` (bytes, reader, HTTP) and `Progress`
+- [x] 1.2 Add `Source` (bytes, reader, HTTP) and `Progress`
 
 ## 2. Concurrency
 
