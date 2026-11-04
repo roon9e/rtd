@@ -333,7 +333,10 @@ pub enum TrackKind {
 }
 
 /// Callbacks a media backend raises for connection lifecycle events.
-pub trait MediaEvents: Send {
+///
+/// `Sync` is required because WebRTC dispatches events from its own threads and
+/// shares the handler across them.
+pub trait MediaEvents: Send + Sync {
     /// Called once a remote track is available.
     fn on_track(&self, kind: TrackKind);
     /// Called when the media connection is established.

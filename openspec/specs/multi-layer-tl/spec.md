@@ -87,12 +87,11 @@ admissible without a negotiated profile.
 - **THEN** it is admitted and handled without requiring any layer profile
 
 ### Requirement: Present-family non-direct route execution
-The system SHALL admit and execute a non-direct route — retag, rewrite or policy — when the
-definition is present in both the target layer and the canonical layer, producing a value
-valid for the target profile exactly per the reviewed conversion. A route that exists only in
-the target layer SHALL be served through its reviewed `old-only` hook when one is registered,
-decoded into the canonical class value and encoded back, and SHALL fail closed when no hook
-exists. A route with no representation in the target layer SHALL fail closed.
+The system SHALL admit and execute a non-direct route — retag, rewrite or policy — when
+the definition is present in both the target layer and the canonical layer, producing a
+value valid for the target profile per the reviewed conversion. A target-only route SHALL
+be served through its registered `old-only` hook when one exists, and SHALL fail closed
+otherwise. A route with no representation in the target layer SHALL fail closed.
 
 #### Scenario: Retag route is served
 - **WHEN** a request selects an enabled layer whose route re-tags a canonical definition present in that layer

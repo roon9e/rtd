@@ -1,7 +1,7 @@
 # ci-fuzz Specification
 
 ## Purpose
-Defines fuzz targets and a bounded fuzz CI job.
+Defines the fuzz targets for key exchange and parsing, and the bounded fuzz CI job.
 
 ## Requirements
 

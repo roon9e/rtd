@@ -1,7 +1,7 @@
 # client-downloader Specification
 
 ## Purpose
-Defines file download helpers with CDN support.
+Defines file download helpers, including ranged fetch and CDN support.
 
 ## Requirements
 

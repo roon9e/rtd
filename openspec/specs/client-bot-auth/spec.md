@@ -1,7 +1,7 @@
 # client-bot-auth Specification
 
 ## Purpose
-Defines bot-token authorization for the client.
+Defines bot-token authorization for the client via `auth.importBotAuthorization`.
 
 ## Requirements
 

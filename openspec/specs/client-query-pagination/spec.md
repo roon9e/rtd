@@ -1,7 +1,7 @@
 # client-query-pagination Specification
 
 ## Purpose
-Defines paginated query iterators.
+Defines paginated query iterators over participants, dialogs, messages and more.
 
 ## Requirements
 

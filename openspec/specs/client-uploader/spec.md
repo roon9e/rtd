@@ -1,7 +1,7 @@
 # client-uploader Specification
 
 ## Purpose
-Defines upload helpers for small and big files.
+Defines upload helpers for small and big files, including streaming sources.
 
 ## Requirements
 

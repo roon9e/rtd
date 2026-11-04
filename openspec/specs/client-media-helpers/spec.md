@@ -1,7 +1,7 @@
 # client-media-helpers Specification
 
 ## Purpose
-Defines file-id, thumbnail and deep-link helpers.
+Defines file-id, thumbnail and deep-link helpers for the client.
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # client-qr-login Specification
 
 ## Purpose
-Defines QR-token login for the client.
+Defines QR-token login for the client: exporting and importing login tokens.
 
 ## Requirements
 

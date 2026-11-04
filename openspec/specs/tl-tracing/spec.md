@@ -1,7 +1,7 @@
 # tl-tracing Specification
 
 ## Purpose
-Defines a generated tracing value model.
+Defines a generated tracing value model for inspecting TL method calls.
 
 ## Requirements
 

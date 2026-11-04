@@ -7,7 +7,7 @@
 
 ## 2. Media
 
-- [ ] 2.1 Add a WebRTC media connection with audio tracks, `OnTrack`/`OnConnected`/`OnDisconnected`
+- [x] 2.1 Add a WebRTC media connection with audio tracks, `OnTrack`/`OnConnected`/`OnDisconnected` (`WebRtcMedia` behind the optional, non-default `media-webrtc` feature)
 - [x] 2.2 Add group-call join/leave with `WriteAudio`/`AudioTrack`/`AudioSSRC` and RTCP sender reports
 
 ## 3. Verification

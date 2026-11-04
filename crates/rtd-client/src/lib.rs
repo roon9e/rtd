@@ -22,6 +22,8 @@ pub mod keepalive;
 pub mod manager;
 pub mod markup;
 pub mod md5;
+#[cfg(feature = "media-webrtc")]
+pub mod media;
 pub mod members;
 pub mod message;
 pub mod middleware;
@@ -68,6 +70,8 @@ pub use json::{
 pub use keepalive::{Backoff, Keepalive, Reconnect};
 pub use manager::{DcRouter, ReconnectingClient};
 pub use markup::{InlineButton, inline_keyboard};
+#[cfg(feature = "media-webrtc")]
+pub use media::WebRtcMedia;
 pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
     PollSpec, RequestBuilder, build_send_media, build_send_media_group, delete_messages,
