@@ -14,4 +14,4 @@
 
 - [ ] 3.1 Verify generation freshness produces no diff
 - [ ] 3.2 Verify a secret-chat message and a trace object round-trip (generated tests)
-- [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

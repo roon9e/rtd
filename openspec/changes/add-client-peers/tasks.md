@@ -14,4 +14,4 @@
 
 - [ ] 3.1 Verify a username resolves to a cached entity with an access hash (`peers` tests)
 - [ ] 3.2 Verify an update refreshes the cached entity
-- [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

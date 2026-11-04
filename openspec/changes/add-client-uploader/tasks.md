@@ -13,4 +13,4 @@
 
 - [x] 3.1 Verify a large file stays within 3999 parts and the part size grows (`uploader` tests)
 - [ ] 3.2 Verify progress is reported monotonically and cancellation stops the upload
-- [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

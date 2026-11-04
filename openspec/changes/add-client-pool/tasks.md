@@ -12,5 +12,5 @@
 ## 3. Verification
 
 - [ ] 3.1 Verify a dead connection is replaced and the next call succeeds (`tests/pool.rs`)
-- [ ] 3.2 Verify the open-connection cap is enforced
-- [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 3.2 Verify the open-connection cap is enforced
+- [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

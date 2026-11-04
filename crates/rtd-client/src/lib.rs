@@ -62,8 +62,9 @@ pub use keepalive::{Backoff, Keepalive};
 pub use markup::{InlineButton, inline_keyboard};
 pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
-    RequestBuilder, build_send_media, delete_messages, edit_message, edit_message_html,
-    edit_message_with, forward_messages, send_document, send_photo,
+    PollSpec, RequestBuilder, build_send_media, build_send_media_group, delete_messages,
+    document_media, edit_message, edit_message_html, edit_message_with, forward_messages, send,
+    send_contact, send_document, send_geo, send_media, send_media_group, send_photo, send_poll,
 };
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{

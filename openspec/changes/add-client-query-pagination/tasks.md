@@ -14,4 +14,4 @@
 
 - [ ] 3.1 Verify an iterator pages to completion and stops on a short page (`query` tests)
 - [ ] 3.2 Verify a cached query only requests changed items
-- [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

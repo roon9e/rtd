@@ -15,4 +15,4 @@
 ## 4. Verification
 
 - [ ] 4.1 Verify all new jobs pass on `dev` and are required checks
-- [ ] 4.2 Run the full workspace gate locally (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 4.2 Run the full workspace gate locally (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

@@ -9,4 +9,4 @@
 
 - [x] 2.1 Verify calls inside the closure are wrapped and the session is finished on success (`takeout` tests)
 - [x] 2.2 Verify the session is finished on error
-- [ ] 2.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 2.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

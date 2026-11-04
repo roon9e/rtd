@@ -4,9 +4,10 @@
 //! text and options; [`send`] invokes it through a client.
 
 use rtd_tg::{
-    DocumentAttribute, InputFile, InputMedia, InputPeer, MessageEntity, MessagesDeleteMessages,
-    MessagesEditMessage, MessagesForwardMessages, MessagesSendMedia, MessagesSendMessage, Method,
-    Object, ReplyMarkup,
+    DocumentAttribute, InputFile, InputGeoPoint, InputMedia, InputPeer, InputSingleMedia,
+    MessageEntity, MessagesDeleteMessages, MessagesEditMessage, MessagesForwardMessages,
+    MessagesSendMedia, MessagesSendMessage, MessagesSendMultiMedia, Method, Object, Poll,
+    PollAnswer, ReplyMarkup, TextWithEntities,
 };
 
 use crate::client::Client;
@@ -229,7 +230,21 @@ pub fn send_document<T: Transport>(
     mime_type: &str,
     attributes: Vec<DocumentAttribute>,
 ) -> Result<Object> {
-    let media = InputMedia::InputMediaUploadedDocument {
+    client.invoke(build_send_media(
+        peer,
+        document_media(file, mime_type, attributes),
+        caption,
+    ))
+}
+
+/// Builds an uploaded-document media value.
+#[must_use]
+pub fn document_media(
+    file: InputFile,
+    mime_type: &str,
+    attributes: Vec<DocumentAttribute>,
+) -> InputMedia {
+    InputMedia::InputMediaUploadedDocument {
         flags: 0,
         nosound_video: false,
         force_file: false,
@@ -242,6 +257,220 @@ pub fn send_document<T: Transport>(
         video_cover: None,
         video_timestamp: None,
         ttl_seconds: None,
+    }
+}
+
+/// Sends already-uploaded `media` with `caption` (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_media<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    media: InputMedia,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, media, caption))
+}
+
+/// Builds a `messages.sendMultiMedia` (album) request from `(media, caption)`
+/// pairs.
+#[must_use]
+pub fn build_send_media_group(peer: InputPeer, items: Vec<(InputMedia, String)>) -> Method {
+    let multi_media = items
+        .into_iter()
+        .map(|(media, caption)| InputSingleMedia {
+            flags: 0,
+            media: Box::new(media),
+            random_id: random_id(),
+            message: caption,
+            entities: None,
+        })
+        .collect();
+    Method::MessagesSendMultiMedia(Box::new(MessagesSendMultiMedia {
+        flags: 0,
+        silent: false,
+        background: false,
+        clear_draft: false,
+        noforwards: false,
+        update_stickersets_order: false,
+        invert_media: false,
+        allow_paid_floodskip: false,
+        peer: Box::new(peer),
+        reply_to: None,
+        multi_media,
+        schedule_date: None,
+        send_as: None,
+        quick_reply_shortcut: None,
+        effect: None,
+        allow_paid_stars: None,
+    }))
+}
+
+/// Sends an album (`messages.sendMultiMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_media_group<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    items: Vec<(InputMedia, String)>,
+) -> Result<Object> {
+    client.invoke(build_send_media_group(peer, items))
+}
+
+/// Sends a geographic point (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_geo<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    lat: f64,
+    long: f64,
+    accuracy_radius: Option<i32>,
+) -> Result<Object> {
+    let media = InputMedia::InputMediaGeoPoint {
+        geo_point: Box::new(InputGeoPoint::InputGeoPoint {
+            flags: if accuracy_radius.is_some() { 1 } else { 0 },
+            lat,
+            long,
+            accuracy_radius,
+        }),
+    };
+    client.invoke(build_send_media(peer, media, caption))
+}
+
+/// Sends a contact (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_contact<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    phone_number: &str,
+    first_name: &str,
+    last_name: &str,
+    vcard: &str,
+) -> Result<Object> {
+    let media = InputMedia::InputMediaContact {
+        phone_number: phone_number.to_owned(),
+        first_name: first_name.to_owned(),
+        last_name: last_name.to_owned(),
+        vcard: vcard.to_owned(),
+    };
+    client.invoke(build_send_media(peer, media, caption))
+}
+
+/// The parameters of a new poll.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PollSpec {
+    /// The poll question.
+    pub question: String,
+    /// The answer options.
+    pub answers: Vec<String>,
+    /// Whether voters are public.
+    pub public_voters: bool,
+    /// Whether multiple answers may be chosen.
+    pub multiple_choice: bool,
+    /// Whether this is a quiz.
+    pub quiz: bool,
+}
+
+impl PollSpec {
+    /// Creates a poll spec.
+    #[must_use]
+    pub fn new(question: impl Into<String>, answers: Vec<String>) -> Self {
+        Self {
+            question: question.into(),
+            answers,
+            public_voters: false,
+            multiple_choice: false,
+            quiz: false,
+        }
+    }
+
+    /// Enables public voters.
+    #[must_use]
+    pub fn public(mut self) -> Self {
+        self.public_voters = true;
+        self
+    }
+
+    /// Enables multiple choice.
+    #[must_use]
+    pub fn multiple_choice(mut self) -> Self {
+        self.multiple_choice = true;
+        self
+    }
+
+    /// Marks the poll a quiz.
+    #[must_use]
+    pub fn quiz(mut self) -> Self {
+        self.quiz = true;
+        self
+    }
+}
+
+/// Sends a poll (`messages.sendMedia` with an `inputMediaPoll`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_poll<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    spec: PollSpec,
+) -> Result<Object> {
+    let poll = Poll {
+        id: 0,
+        flags: 0,
+        closed: false,
+        public_voters: spec.public_voters,
+        multiple_choice: spec.multiple_choice,
+        quiz: spec.quiz,
+        open_answers: false,
+        revoting_disabled: false,
+        shuffle_answers: false,
+        hide_results_until_close: false,
+        creator: false,
+        subscribers_only: false,
+        question: Box::new(TextWithEntities {
+            text: spec.question,
+            entities: Vec::new(),
+        }),
+        answers: spec
+            .answers
+            .into_iter()
+            .map(|text| PollAnswer::InputPollAnswer {
+                flags: 0,
+                text: Box::new(TextWithEntities {
+                    text,
+                    entities: Vec::new(),
+                }),
+                media: None,
+            })
+            .collect(),
+        close_period: None,
+        close_date: None,
+        countries_iso2: None,
+        hash: 0,
+    };
+    let media = InputMedia::InputMediaPoll {
+        flags: 0,
+        poll: Box::new(poll),
+        correct_answers: None,
+        attached_media: None,
+        solution: None,
+        solution_entities: None,
+        solution_media: None,
     };
     client.invoke(build_send_media(peer, media, caption))
 }
@@ -445,6 +674,32 @@ mod tests {
                 assert_ne!(request.random_id, 0);
             }
             _ => panic!("expected messages.sendMessage"),
+        }
+    }
+
+    #[test]
+    fn builds_a_media_group() {
+        use rtd_tg::{InputGeoPoint, InputMedia};
+
+        let geo = InputMedia::InputMediaGeoPoint {
+            geo_point: Box::new(InputGeoPoint::InputGeoPoint {
+                flags: 0,
+                lat: 1.0,
+                long: 2.0,
+                accuracy_radius: None,
+            }),
+        };
+        let method = super::build_send_media_group(
+            InputPeer::InputPeerEmpty,
+            vec![(geo.clone(), "a".to_owned()), (geo, "b".to_owned())],
+        );
+        match method {
+            Method::MessagesSendMultiMedia(request) => {
+                assert_eq!(request.multi_media.len(), 2);
+                assert_eq!(request.multi_media[0].message, "a");
+                assert_ne!(request.multi_media[0].random_id, 0);
+            }
+            _ => panic!("expected messages.sendMultiMedia"),
         }
     }
 }

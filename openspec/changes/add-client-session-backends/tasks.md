@@ -14,4 +14,4 @@
 
 - [x] 3.1 Verify file round-trip and atomic write (`tests/session.rs`)
 - [ ] 3.2 Verify Telethon and TDesktop fixtures decode to a usable `SessionData`
-- [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
+- [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
