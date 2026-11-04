@@ -11,6 +11,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify a mock server that answers `SESSION_PASSWORD_NEEDED` and verifies `M1` completes `checkPassword` (`tests/authorization.rs`)
-- [ ] 3.2 Verify a wrong password returns a typed error
+- [x] 3.1 Verify a mock server that answers `SESSION_PASSWORD_NEEDED` and verifies `M1` completes `checkPassword` (`tests/authorization.rs`)
+- [x] 3.2 Verify a wrong password returns a typed error
 - [ ] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
