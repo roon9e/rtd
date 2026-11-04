@@ -9,9 +9,9 @@ use std::sync::Arc;
 
 use rtd_exchange::ClientConfig;
 use rtd_proto::CodecKind;
-use rtd_tg::{Method, Object};
+use rtd_tg::{Method, Object, Updates};
 use rtd_util::Clock;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 
 use crate::client::{Client, InitParams};
 use crate::error::{Error, Result};
@@ -33,6 +33,7 @@ enum Command {
 pub struct AsyncClient {
     tx: Option<mpsc::Sender<Command>>,
     handle: Option<std::thread::JoinHandle<()>>,
+    updates: broadcast::Sender<Updates>,
 }
 
 impl AsyncClient {
@@ -48,7 +49,9 @@ impl AsyncClient {
         clock: Arc<dyn Clock + Send + Sync>,
     ) -> Result<Self> {
         let (tx, mut rx) = mpsc::channel::<Command>(1);
+        let (updates_tx, _) = broadcast::channel::<Updates>(64);
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
+        let handler_tx = updates_tx.clone();
         let handle = std::thread::spawn(move || {
             let mut client = match Client::connect(transport, &config, clock) {
                 Ok(client) => {
@@ -60,6 +63,9 @@ impl AsyncClient {
                     return;
                 }
             };
+            client.set_update_handler(move |updates| {
+                let _ = handler_tx.send(updates);
+            });
             while let Some(command) = rx.blocking_recv() {
                 match command {
                     Command::Initialize(params, reply) => {
@@ -75,6 +81,7 @@ impl AsyncClient {
             Ok(Ok(())) => Ok(Self {
                 tx: Some(tx),
                 handle: Some(handle),
+                updates: updates_tx,
             }),
             Ok(Err(error)) => {
                 drop(tx);
@@ -128,6 +135,15 @@ impl AsyncClient {
             .await
             .map_err(|_| Error::Closed)?;
         rx.await.map_err(|_| Error::Closed)?
+    }
+
+    /// Subscribes to server updates received while calls await their replies.
+    ///
+    /// Each returned receiver observes a copy of every `Updates` envelope the
+    /// actor thread dispatches.
+    #[must_use]
+    pub fn subscribe(&self) -> broadcast::Receiver<Updates> {
+        self.updates.subscribe()
     }
 
     fn sender(&self) -> Result<&mpsc::Sender<Command>> {

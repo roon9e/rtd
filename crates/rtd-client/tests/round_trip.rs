@@ -15,7 +15,7 @@ use rtd_crypto::{EncryptedMessage, MessageHeader, Side, SystemRandom, decrypt, e
 use rtd_exchange::{
     ClientConfig, ServerConfig, Stream as ExchangeStream, TestServerRng, server_exchange,
 };
-use rtd_tg::{Bool, Object};
+use rtd_tg::{Bool, Object, Update, Updates};
 use rtd_util::{Clock, SystemClock};
 
 /// Adapts the client's duplex to the exchange `Stream` the server flow expects.
@@ -79,6 +79,85 @@ fn spawn_server(
                 session_id: decrypted.header.session_id,
                 msg_id: server_msg_id,
                 seq_no: decrypted.header.seq_no,
+            };
+            let reply = encrypt(&auth_key, &header, &result, Side::Server, &mut random).encode();
+            stream.0.send_frame(&reply).expect("send reply");
+            replied = true;
+        }
+    })
+}
+
+/// Runs the server exchange over `server_stream`, sends one unsolicited
+/// `Updates` frame, then answers the client's first content request.
+fn spawn_server_with_update(
+    private: RsaPrivateKey,
+    server_stream: DuplexStream,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let clock = SystemClock;
+        let mut stream = ServerStream(server_stream);
+        let mut parameters = TestServerRng;
+        let mut random = SystemRandom;
+        let result = server_exchange(
+            &mut stream,
+            &ServerConfig {
+                dc: 2,
+                key: &private,
+                strict_dc: true,
+            },
+            &mut parameters,
+            &clock,
+            &mut random,
+        )
+        .expect("server exchange");
+        let auth_key = result.auth_key;
+        let server_salt = result.server_salt;
+
+        let mut replied = false;
+        let mut server_msg_id = 0i64;
+        while let Ok(frame) = stream.0.recv_frame() {
+            let message = EncryptedMessage::decode(&frame).expect("decode client frame");
+            let decrypted = decrypt(&auth_key, &message, Side::Client).expect("decrypt client");
+            if replied {
+                continue;
+            }
+            let session_id = decrypted.header.session_id;
+            let seq_no = decrypted.header.seq_no;
+
+            // An unsolicited update sent while the client awaits its reply.
+            let mut update_writer = Writer::new();
+            Updates::UpdateShort {
+                update: Box::new(Update::UpdatePtsChanged),
+                date: 0,
+            }
+            .encode(&mut update_writer);
+            server_msg_id += 1;
+            let header = MessageHeader {
+                salt: server_salt,
+                session_id,
+                msg_id: server_msg_id,
+                seq_no,
+            };
+            let update_frame = encrypt(
+                &auth_key,
+                &header,
+                &update_writer.into_vec(),
+                Side::Server,
+                &mut random,
+            )
+            .encode();
+            stream.0.send_frame(&update_frame).expect("send update");
+
+            let mut writer = Writer::new();
+            Object::Bool(Box::new(Bool::BoolTrue)).encode(&mut writer);
+            let result =
+                rtd_proto::RpcResult::new(decrypted.header.msg_id, writer.into_vec()).encode();
+            server_msg_id += 1;
+            let header = MessageHeader {
+                salt: server_salt,
+                session_id,
+                msg_id: server_msg_id,
+                seq_no,
             };
             let reply = encrypt(&auth_key, &header, &result, Side::Server, &mut random).encode();
             stream.0.send_frame(&reply).expect("send reply");
@@ -160,6 +239,24 @@ fn async_client_completes_exchange_and_invokes() {
         matches!(result, Object::Bool(_)),
         "expected the server's Bool result, got {result:?}"
     );
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn async_client_receives_updates() {
+    let (private, public) = keypair(31);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server_with_update(private, server_stream);
+
+    let client = AsyncClient::spawn(client_stream, config(public), clock()).expect("spawn");
+    let mut updates = client.subscribe();
+    let result = block_on(client.initialize(params())).expect("async initialize");
+    assert!(matches!(result, Object::Bool(_)));
+
+    let received = block_on(updates.recv()).expect("update delivered");
+    assert!(matches!(received, Updates::UpdateShort { .. }));
 
     drop(client);
     server.join().expect("server thread");
