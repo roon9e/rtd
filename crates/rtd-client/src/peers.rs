@@ -539,4 +539,87 @@ mod tests {
         storage.save_contacts_hash(123);
         assert_eq!(storage.contacts_hash(), 123);
     }
+
+    /// Builds a minimal `User` with the given identity fields set.
+    fn tg_user(id: i64, access_hash: Option<i64>, username: Option<&str>) -> rtd_tg::User {
+        rtd_tg::User::User {
+            flags: 0,
+            self_: false,
+            contact: false,
+            mutual_contact: false,
+            deleted: false,
+            bot: false,
+            bot_chat_history: false,
+            bot_nochats: false,
+            verified: false,
+            restricted: false,
+            min: false,
+            bot_inline_geo: false,
+            support: false,
+            scam: false,
+            apply_min_photo: false,
+            fake: false,
+            bot_attach_menu: false,
+            premium: false,
+            attach_menu_enabled: false,
+            flags2: 0,
+            bot_can_edit: false,
+            close_friend: false,
+            stories_hidden: false,
+            stories_unavailable: false,
+            contact_require_premium: false,
+            bot_business: false,
+            bot_has_main_app: false,
+            bot_forum_view: false,
+            bot_forum_can_manage_topics: false,
+            bot_can_manage_bots: false,
+            bot_guestchat: false,
+            bot_guard: false,
+            id,
+            access_hash,
+            first_name: None,
+            last_name: None,
+            username: username.map(str::to_owned),
+            phone: None,
+            photo: None,
+            status: None,
+            bot_info_version: None,
+            restriction_reason: None,
+            bot_inline_placeholder: None,
+            lang_code: None,
+            emoji_status: None,
+            usernames: None,
+            stories_max_id: None,
+            color: None,
+            profile_color: None,
+            bot_active_users: None,
+            bot_verification_icon: None,
+            send_paid_messages_stars: None,
+            linked_community_id: None,
+        }
+    }
+
+    #[test]
+    fn caches_and_refreshes_entities() {
+        use super::{PeerKind, PeerManager, ResolvedPeer};
+
+        let manager = PeerManager::new();
+        manager.cache_entities(&[tg_user(7, Some(9), Some("Alice"))], &[]);
+
+        let expected = ResolvedPeer::User {
+            user_id: 7,
+            access_hash: 9,
+        };
+        assert_eq!(manager.get("alice"), Some(expected));
+        assert_eq!(manager.get_by_id(PeerKind::User, 7), Some(expected));
+
+        // A later update with a new access hash refreshes the cache.
+        manager.cache_entities(&[tg_user(7, Some(10), Some("Alice"))], &[]);
+        let refreshed = ResolvedPeer::User {
+            user_id: 7,
+            access_hash: 10,
+        };
+        assert_eq!(manager.get_by_id(PeerKind::User, 7), Some(refreshed));
+        assert_eq!(manager.get("alice"), Some(refreshed));
+    }
 }
