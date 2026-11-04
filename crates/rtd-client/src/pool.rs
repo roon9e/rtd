@@ -165,6 +165,11 @@ impl<C> Pool<C> {
             .push(connection);
     }
 
+    /// Discards a checked-out connection without returning it for reuse.
+    pub fn discard(&self, _connection: C) {
+        self.in_use.fetch_sub(1, Ordering::SeqCst);
+    }
+
     /// Returns the number of idle connections.
     #[must_use]
     pub fn idle(&self) -> usize {
@@ -178,6 +183,68 @@ impl<C> Pool<C> {
     #[must_use]
     pub fn in_use(&self) -> usize {
         self.in_use.load(Ordering::SeqCst)
+    }
+}
+
+/// A pooled connection that can report whether it is still usable.
+pub trait Connection {
+    /// Returns whether the connection is no longer usable and must be replaced.
+    fn is_dead(&self) -> bool;
+}
+
+/// Routes calls through a [`Pool`], replacing dead connections and retrying
+/// once on a connection error.
+pub struct Router<C> {
+    pool: Pool<C>,
+}
+
+impl<C: Connection> Router<C> {
+    /// Creates a router over `pool`.
+    #[must_use]
+    pub fn new(pool: Pool<C>) -> Self {
+        Self { pool }
+    }
+
+    /// Acquires a connection, runs `call`, and discards the connection if it
+    /// died or the call failed.
+    ///
+    /// A failed call is retried once on a fresh connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns the pool's error when no connection can be acquired, or the
+    /// call's error if the retry also fails.
+    pub fn route<R>(&self, mut call: impl FnMut(&mut C) -> Result<R>) -> Result<R> {
+        let mut connection = self.pool.acquire()?;
+        match call(&mut connection) {
+            Ok(value) => {
+                self.finish(connection);
+                Ok(value)
+            }
+            Err(error) => {
+                self.pool.discard(connection);
+                let mut fresh = self.pool.acquire()?;
+                match call(&mut fresh) {
+                    Ok(value) => {
+                        self.finish(fresh);
+                        Ok(value)
+                    }
+                    Err(_) => {
+                        self.pool.discard(fresh);
+                        Err(error)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Releases a connection, discarding it when it has died.
+    fn finish(&self, connection: C) {
+        if connection.is_dead() {
+            self.pool.discard(connection);
+        } else {
+            self.pool.release(connection);
+        }
     }
 }
 
@@ -233,5 +300,54 @@ mod tests {
         assert!(only_temp.select_key().unwrap().is_temporary());
         // With no key at all, nothing is selected.
         assert!(SessionOptions::new(2).select_key().is_none());
+    }
+
+    #[test]
+    fn router_replaces_dead_connections_and_retries_once() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        use super::{Connection, Router};
+
+        #[derive(Clone)]
+        struct Mock {
+            dead: bool,
+        }
+        impl Connection for Mock {
+            fn is_dead(&self) -> bool {
+                self.dead
+            }
+        }
+
+        let created = Arc::new(AtomicUsize::new(0));
+        let created_factory = created.clone();
+        let router = Router::new(Pool::new(1, move || {
+            created_factory.fetch_add(1, Ordering::SeqCst);
+            Ok(Mock { dead: false })
+        }));
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let calls_counter = calls.clone();
+        let value = router
+            .route(|_connection| {
+                let attempt = calls_counter.fetch_add(1, Ordering::SeqCst);
+                if attempt == 0 {
+                    Err(crate::error::Error::Closed)
+                } else {
+                    Ok(42)
+                }
+            })
+            .unwrap();
+        assert_eq!(value, 42);
+        // The failed call is retried once on a fresh connection.
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        assert_eq!(created.load(Ordering::SeqCst), 2);
+        assert_eq!(router.pool.in_use(), 0);
+
+        // A connection that died is discarded, not reused.
+        let router = Router::new(Pool::new(1, || Ok(Mock { dead: true })));
+        router.route(|_connection| Ok(7)).unwrap();
+        assert_eq!(router.pool.idle(), 0);
+        assert_eq!(router.pool.in_use(), 0);
     }
 }

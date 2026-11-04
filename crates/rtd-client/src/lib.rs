@@ -77,7 +77,7 @@ pub use peers::{
     Channel, Chat, MemoryPeerStorage, PeerKey, PeerKind, PeerManager, PeerStorage, PeerValue,
     ResolvedPeer, Supergroup, User,
 };
-pub use pool::{Pool, SelectedKey, SessionOptions};
+pub use pool::{Connection, Pool, Router, SelectedKey, SessionOptions};
 pub use qr::{LoginToken, drive_login, login_url};
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};
