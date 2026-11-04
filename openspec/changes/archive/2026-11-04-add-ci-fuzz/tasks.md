@@ -15,5 +15,5 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Verify each target runs cleanly for a short local campaign
+- [x] 4.1 Verify each target runs cleanly for a short local campaign
 - [x] 4.2 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
