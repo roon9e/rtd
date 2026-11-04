@@ -353,7 +353,9 @@ impl<'a> QtReader<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{create_local_key, old_keys_server};
+    use sha1::{Digest, Sha1};
+
+    use super::{DBI_MTP_AUTHORIZATION, MAGIC, create_local_key, old_keys_server, read};
 
     #[test]
     fn local_key_is_deterministic() {
@@ -372,5 +374,88 @@ mod tests {
         assert_eq!(k1, k2);
         assert_eq!(iv1, iv2);
         assert_ne!(k1, iv1);
+    }
+
+    /// Wraps `body` as a `TDF$` file with its `md5` trailer.
+    fn tdf_file(body: &[u8]) -> Vec<u8> {
+        let version = [0u8; 4];
+        let mut out = MAGIC.to_vec();
+        out.extend_from_slice(&version);
+        out.extend_from_slice(body);
+        let mut input = body.to_vec();
+        input.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        input.extend_from_slice(&version);
+        input.extend_from_slice(&MAGIC);
+        out.extend_from_slice(&crate::md5::md5(&input));
+        out
+    }
+
+    /// A big-endian length-prefixed Qt array.
+    fn put_array(data: &[u8]) -> Vec<u8> {
+        let mut out = (data.len() as u32).to_be_bytes().to_vec();
+        out.extend_from_slice(data);
+        out
+    }
+
+    /// Inverse of `decrypt_local`: SHA-1 message key + AES-IGE over padded data.
+    fn encrypt_local(plain: &[u8], local_key: &[u8; 256]) -> Vec<u8> {
+        let mut padded = plain.to_vec();
+        while !padded.len().is_multiple_of(16) {
+            padded.push(0);
+        }
+        let digest = Sha1::digest(&padded);
+        let mut msg_key = [0u8; 16];
+        msg_key.copy_from_slice(&digest[..16]);
+        let (key, iv) = old_keys_server(local_key, &msg_key);
+        rtd_crypto::ige_encrypt(&key, &iv, &mut padded);
+        let mut out = msg_key.to_vec();
+        out.extend_from_slice(&padded);
+        out
+    }
+
+    #[test]
+    fn reads_a_synthetic_tdata_directory() {
+        let passcode = b"passcode";
+        let salt = [0x33u8; 32];
+        let passcode_key = create_local_key(passcode, &salt);
+        let local_key = [0x44u8; 256];
+
+        // `key_data`: salt, the wrapped local key, then the account list.
+        let key_inner = put_array(&local_key);
+        let key_encrypted = encrypt_local(&key_inner, &passcode_key);
+        let mut info_plain = vec![0u8; 4];
+        info_plain.extend_from_slice(&1u32.to_be_bytes()); // account count
+        info_plain.extend_from_slice(&0u32.to_be_bytes()); // account index 0
+        let info_encrypted = encrypt_local(&info_plain, &local_key);
+        let mut key_body = put_array(&salt);
+        key_body.extend_from_slice(&put_array(&key_encrypted));
+        key_body.extend_from_slice(&put_array(&info_encrypted));
+
+        // `data`: the `dbiMtpAuthorization` record.
+        let mut mtp_plain = vec![0u8; 4];
+        mtp_plain.extend_from_slice(&DBI_MTP_AUTHORIZATION.to_be_bytes());
+        mtp_plain.extend_from_slice(&[0u8; 4]);
+        mtp_plain.extend_from_slice(&123u32.to_be_bytes()); // legacy user id
+        mtp_plain.extend_from_slice(&2u32.to_be_bytes()); // legacy dc id
+        mtp_plain.extend_from_slice(&1u32.to_be_bytes()); // key count
+        mtp_plain.extend_from_slice(&2u32.to_be_bytes()); // dc id
+        mtp_plain.extend_from_slice(&[0x55u8; 256]); // authorization key
+        let mtp_encrypted = encrypt_local(&mtp_plain, &local_key);
+
+        let dir = std::env::temp_dir().join(format!("rtd-tdesktop-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        std::fs::write(dir.join("key_datas"), tdf_file(&key_body)).expect("write key_data");
+        std::fs::write(dir.join("datas"), tdf_file(&put_array(&mtp_encrypted)))
+            .expect("write data");
+
+        let accounts = read(&dir, passcode).expect("read tdata");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(accounts.len(), 1);
+        let account = &accounts[0];
+        assert_eq!(account.idx, 0);
+        assert_eq!(account.user_id, 123);
+        assert_eq!(account.main_dc, 2);
+        assert_eq!(account.keys.get(&2).copied(), Some([0x55u8; 256]));
     }
 }
