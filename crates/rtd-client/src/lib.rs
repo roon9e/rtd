@@ -45,7 +45,9 @@ pub use calls::{
     CallControl, CallError, CallState, DhConfig, accept_call, confirm_call, default_protocol,
     fetch_dh_config, g_a_hash, request_call,
 };
-pub use cdn::{HashCache, HashWindow, VerifiedWindows, decrypt_in_place, verify_window};
+pub use cdn::{
+    CdnRedirect, CdnState, HashCache, HashWindow, VerifiedWindows, decrypt_in_place, verify_window,
+};
 pub use client::{Client, InitParams};
 pub use dcs::{
     DataCenter, DnsConfig, DnsError, Endpoint, Protocol, Resolver, StaticResolver, migrate_target,

@@ -161,6 +161,121 @@ pub fn decrypt_in_place(key: &[u8], iv: &[u8], offset: i64, data: &mut [u8]) -> 
     Ok(())
 }
 
+/// A parsed `upload.fileCdnRedirect`.
+#[derive(Debug, Clone)]
+pub struct CdnRedirect {
+    /// The CDN datacenter to fetch from.
+    pub dc_id: i32,
+    /// The opaque file token, refreshed when it becomes invalid.
+    pub file_token: Vec<u8>,
+    /// The AES-256 encryption key.
+    pub encryption_key: Vec<u8>,
+    /// The 16-byte CTR initialization vector.
+    pub encryption_iv: Vec<u8>,
+    /// The hash windows for the redirected file.
+    pub hashes: HashCache,
+}
+
+impl CdnRedirect {
+    /// Creates a redirect from its wire fields and hash windows.
+    #[must_use]
+    pub fn new(
+        dc_id: i32,
+        file_token: Vec<u8>,
+        encryption_key: Vec<u8>,
+        encryption_iv: Vec<u8>,
+        hashes: impl IntoIterator<Item = HashWindow>,
+    ) -> Self {
+        let mut cache = HashCache::new();
+        cache.extend(hashes);
+        Self {
+            dc_id,
+            file_token,
+            encryption_key,
+            encryption_iv,
+            hashes: cache,
+        }
+    }
+
+    /// Decrypts a CDN chunk in place, selecting the counter from `offset`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] when the key or IV are the wrong size.
+    pub fn decrypt(&self, offset: i64, data: &mut [u8]) -> Result<()> {
+        decrypt_in_place(&self.encryption_key, &self.encryption_iv, offset, data)
+    }
+
+    /// Verifies a chunk that exactly covers one hash window.
+    ///
+    /// Chunks that only partially cover a window (custom part sizes) are not
+    /// checked here; the downloader loads and verifies the full window first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] when the chunk covers a whole window whose
+    /// digest does not match.
+    pub fn verify_chunk(&self, offset: i64, data: &[u8]) -> Result<()> {
+        if let Some(window) = self.hashes.get(offset) {
+            let exact = window.offset == offset
+                && usize::try_from(window.limit).unwrap_or(usize::MAX) == data.len();
+            if exact {
+                return verify_window(window, data);
+            }
+        }
+        Ok(())
+    }
+
+    /// Refreshes the file token and hash windows in place.
+    pub fn refresh(&mut self, file_token: Vec<u8>, hashes: impl IntoIterator<Item = HashWindow>) {
+        self.file_token = file_token;
+        self.hashes.clear();
+        self.hashes.extend(hashes);
+    }
+}
+
+/// The master/CDN mode state machine, including token refresh.
+#[derive(Debug, Default)]
+pub struct CdnState {
+    redirect: Option<CdnRedirect>,
+}
+
+impl CdnState {
+    /// Creates a state in master mode.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Enters CDN mode with `redirect`.
+    pub fn on_redirect(&mut self, redirect: CdnRedirect) {
+        self.redirect = Some(redirect);
+    }
+
+    /// Handles a `FILE_TOKEN_INVALID` response by returning to master mode so
+    /// the downloader re-requests the redirect.
+    pub fn on_token_invalid(&mut self) {
+        self.redirect = None;
+    }
+
+    /// Returns whether the state is in CDN mode.
+    #[must_use]
+    pub fn is_cdn(&self) -> bool {
+        self.redirect.is_some()
+    }
+
+    /// Returns the active redirect, if in CDN mode.
+    #[must_use]
+    pub fn redirect(&self) -> Option<&CdnRedirect> {
+        self.redirect.as_ref()
+    }
+
+    /// Returns the active redirect mutably, if in CDN mode.
+    pub fn redirect_mut(&mut self) -> Option<&mut CdnRedirect> {
+        self.redirect.as_mut()
+    }
+}
+
 /// A bounded FIFO cache of verified CDN windows.
 #[derive(Debug)]
 pub struct VerifiedWindows {
@@ -297,5 +412,63 @@ mod tests {
         assert_eq!(cache.get(200).unwrap(), 200i64.to_le_bytes().to_vec());
         cache.clear();
         assert!(cache.is_empty());
+    }
+
+    #[test]
+    fn cdn_state_switches_and_refreshes() {
+        use super::{CdnRedirect, CdnState};
+
+        let mut state = CdnState::new();
+        assert!(!state.is_cdn());
+        assert!(state.redirect().is_none());
+
+        let data = b"cdn chunk".to_vec();
+        let window = HashWindow::new(0, data.len() as i32, Sha256::digest(&data).to_vec());
+        state.on_redirect(CdnRedirect::new(
+            4,
+            b"token".to_vec(),
+            [0x11u8; 32].to_vec(),
+            [0x22u8; 16].to_vec(),
+            [window],
+        ));
+        assert!(state.is_cdn());
+
+        // A window-aligned chunk verifies; a tampered one does not.
+        assert!(state.redirect().unwrap().verify_chunk(0, &data).is_ok());
+        let tampered = b"bad chunk".to_vec();
+        assert!(
+            state
+                .redirect()
+                .unwrap()
+                .verify_chunk(0, &tampered)
+                .is_err()
+        );
+
+        // Decryption is reversible.
+        let mut encrypted = data.clone();
+        state
+            .redirect()
+            .unwrap()
+            .decrypt(0, &mut encrypted)
+            .unwrap();
+        assert_ne!(encrypted, data);
+        state
+            .redirect()
+            .unwrap()
+            .decrypt(0, &mut encrypted)
+            .unwrap();
+        assert_eq!(encrypted, data);
+
+        // A token refresh keeps CDN mode but replaces the token/hashes.
+        let window = HashWindow::new(0, data.len() as i32, Sha256::digest(&data).to_vec());
+        state
+            .redirect_mut()
+            .unwrap()
+            .refresh(b"token2".to_vec(), [window]);
+        assert!(state.is_cdn());
+        assert_eq!(state.redirect().unwrap().file_token, b"token2".to_vec());
+
+        state.on_token_invalid();
+        assert!(!state.is_cdn());
     }
 }
