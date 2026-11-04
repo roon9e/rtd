@@ -57,8 +57,8 @@ need to mirror.
 | `telegram/query/*` | `rtd-client::pagination` | partial |
 | `telegram/tljson` | `rtd-client::json` | done |
 | `telegram/message` | `rtd-client::message` | partial |
-| `telegram/message/entity` | `rtd-client::entity` (parse only) | partial |
-| `telegram/message/styling` | — | missing |
+| `telegram/message/entity` | `rtd-client::entity` | done |
+| `telegram/message/styling` | `rtd-client::entity` | done |
 | `telegram/message/rich` | — | missing |
 | `telegram/message/markup` | `rtd-client::markup` | done |
 | `telegram/message/inline` | `rtd-client::inline` | done |
@@ -73,7 +73,8 @@ need to mirror.
 3. **Rich messages** (`telegram/message/rich`): `PageBlock`/`RichText` builders and
    HTML/Markdown parsing; `message.rs` currently sets `rich_message: None`. *Effort: L, no new deps.*
 4. **Styling / entity builder** (`telegram/message/styling`, `entity`): programmatic styled-text
-   composition into entities; only parsing exists. *Effort: M, no new deps.*
+   composition into entities. *Effort: M, no new deps.* — **done**, see `rtd-client::entity`
+   (`EntityBuilder`/`EntityKind`; parse and build).
 5. **OpenTelemetry** (`oteltg`): only an abstract `Tracer` trait exists; no OTel integration.
    *Effort: S–M, new deps.*
 6. **Constants** (`constant`): TDLib peer-id encoding and well-known IDs/limits. *Effort: S.*

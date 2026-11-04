@@ -295,6 +295,153 @@ fn decode_entity(input: &str) -> Option<(&'static str, usize)> {
     None
 }
 
+/// A style applied to a span of text by [`EntityBuilder`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EntityKind {
+    /// Bold text.
+    Bold,
+    /// Italic text.
+    Italic,
+    /// Underlined text.
+    Underline,
+    /// Struck-through text.
+    Strike,
+    /// Spoiler text.
+    Spoiler,
+    /// Monospaced inline code.
+    Code,
+    /// A preformatted block with an optional language.
+    Pre {
+        /// The language of the block.
+        language: String,
+    },
+    /// A link whose text differs from its target.
+    TextUrl {
+        /// The link target.
+        url: String,
+    },
+    /// A bare URL.
+    Url,
+    /// An email address.
+    Email,
+    /// A `@mention`.
+    Mention,
+    /// A `#hashtag`.
+    Hashtag,
+    /// A `$cashtag`.
+    Cashtag,
+    /// A `/botcommand`.
+    BotCommand,
+    /// A block quote.
+    Blockquote {
+        /// Whether the quote is collapsed by default.
+        collapsed: bool,
+    },
+}
+
+impl EntityKind {
+    /// Builds the wire entity for a span.
+    fn at(&self, offset: i32, length: i32) -> MessageEntity {
+        match self {
+            Self::Bold => MessageEntity::MessageEntityBold { offset, length },
+            Self::Italic => MessageEntity::MessageEntityItalic { offset, length },
+            Self::Underline => MessageEntity::MessageEntityUnderline { offset, length },
+            Self::Strike => MessageEntity::MessageEntityStrike { offset, length },
+            Self::Spoiler => MessageEntity::MessageEntitySpoiler { offset, length },
+            Self::Code => MessageEntity::MessageEntityCode { offset, length },
+            Self::Pre { language } => MessageEntity::MessageEntityPre {
+                offset,
+                length,
+                language: language.clone(),
+            },
+            Self::TextUrl { url } => MessageEntity::MessageEntityTextUrl {
+                offset,
+                length,
+                url: url.clone(),
+            },
+            Self::Url => MessageEntity::MessageEntityUrl { offset, length },
+            Self::Email => MessageEntity::MessageEntityEmail { offset, length },
+            Self::Mention => MessageEntity::MessageEntityMention { offset, length },
+            Self::Hashtag => MessageEntity::MessageEntityHashtag { offset, length },
+            Self::Cashtag => MessageEntity::MessageEntityCashtag { offset, length },
+            Self::BotCommand => MessageEntity::MessageEntityBotCommand { offset, length },
+            Self::Blockquote { collapsed } => MessageEntity::MessageEntityBlockquote {
+                flags: if *collapsed { 1 } else { 0 },
+                collapsed: *collapsed,
+                offset,
+                length,
+            },
+        }
+    }
+}
+
+/// Builds a message and its styled spans, tracking UTF-16 offsets.
+///
+/// Telegram measures entity offsets and lengths in UTF-16 code units, which
+/// [`Self::styled`] handles automatically.
+#[derive(Debug, Default, Clone)]
+pub struct EntityBuilder {
+    text: String,
+    entities: Vec<MessageEntity>,
+    utf16_len: i32,
+}
+
+impl EntityBuilder {
+    /// Creates an empty builder.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Appends unstyled text.
+    pub fn plain(&mut self, text: &str) -> &mut Self {
+        self.text.push_str(text);
+        self.utf16_len += utf16_len(text);
+        self
+    }
+
+    /// Appends `text` under one entity style.
+    pub fn styled(&mut self, text: &str, kind: &EntityKind) -> &mut Self {
+        self.styled_with(text, std::slice::from_ref(kind))
+    }
+
+    /// Appends `text` under several entity styles at once.
+    pub fn styled_with(&mut self, text: &str, kinds: &[EntityKind]) -> &mut Self {
+        let offset = self.utf16_len;
+        let length = utf16_len(text);
+        for kind in kinds {
+            self.entities.push(kind.at(offset, length));
+        }
+        self.text.push_str(text);
+        self.utf16_len += length;
+        self
+    }
+
+    /// Returns the message text built so far.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Returns the entities built so far.
+    #[must_use]
+    pub fn entities(&self) -> &[MessageEntity] {
+        &self.entities
+    }
+
+    /// Consumes the builder, returning the text and its entities.
+    #[must_use]
+    pub fn complete(self) -> (String, Vec<MessageEntity>) {
+        (self.text, self.entities)
+    }
+}
+
+/// Returns the length of `text` in UTF-16 code units.
+#[must_use]
+pub fn utf16_len(text: &str) -> i32 {
+    text.chars().map(|ch| ch.len_utf16() as i32).sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::parse_html;
@@ -355,6 +502,52 @@ mod tests {
                 offset: 2,
                 length: 2,
             }]
+        );
+    }
+
+    #[test]
+    fn entity_builder_tracks_utf16_offsets() {
+        use super::{EntityBuilder, EntityKind, utf16_len};
+
+        assert_eq!(utf16_len("\u{1F600}"), 2);
+
+        let mut builder = EntityBuilder::new();
+        builder
+            .plain("\u{1F600} ")
+            .styled("bold", &EntityKind::Bold);
+        assert_eq!(builder.text(), "\u{1F600} bold");
+        assert_eq!(
+            builder.entities(),
+            &[MessageEntity::MessageEntityBold {
+                offset: 3,
+                length: 4,
+            }]
+        );
+    }
+
+    #[test]
+    fn entity_builder_applies_several_styles() {
+        use super::{EntityBuilder, EntityKind};
+
+        let mut builder = EntityBuilder::new();
+        builder.plain("hi ").styled_with(
+            "link",
+            &[
+                EntityKind::Bold,
+                EntityKind::TextUrl {
+                    url: "https://x".to_owned(),
+                },
+            ],
+        );
+        let (text, entities) = builder.complete();
+        assert_eq!(text, "hi link");
+        assert_eq!(entities.len(), 2);
+        assert_eq!(
+            entities[0],
+            MessageEntity::MessageEntityBold {
+                offset: 3,
+                length: 4
+            }
         );
     }
 }

@@ -61,7 +61,7 @@ pub use dcs::{
 };
 pub use deeplink::{Deeplink, DeeplinkError};
 pub use downloader::Downloader;
-pub use entity::{parse_html, parse_markdown};
+pub use entity::{EntityBuilder, EntityKind, parse_html, parse_markdown, utf16_len};
 pub use error::{Error, Result};
 pub use fileid::{FileId, PhotoSizeSource, Type as FileType, from_document, from_photo};
 pub use inline::{article, set_inline_bot_results};
