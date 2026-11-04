@@ -3,7 +3,7 @@
 ## 1. Split the transport
 
 - [x] 1.1 Add `ReadTransport`/`WriteTransport` and `DuplexStream::split` (`transport.rs`)
-- [ ] 1.2 Move `ClientSession` behind a lock or actor and expose frame read/write separately (`session.rs`, `client.rs`)
+- [x] 1.2 Move `ClientSession` behind a lock or actor and expose frame read/write separately (`session.rs`, `client.rs`)
 
 ## 2. Reader and events
 

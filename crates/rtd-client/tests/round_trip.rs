@@ -161,6 +161,30 @@ fn spawn_server_with_update(
             };
             let reply = encrypt(&auth_key, &header, &result, Side::Server, &mut random).encode();
             stream.0.send_frame(&reply).expect("send reply");
+
+            // A second update arrives after the call has returned, for `poll`.
+            let mut extra = Writer::new();
+            Updates::UpdateShort {
+                update: Box::new(Update::UpdatePtsChanged),
+                date: 1,
+            }
+            .encode(&mut extra);
+            server_msg_id += 1;
+            let header = MessageHeader {
+                salt: server_salt,
+                session_id,
+                msg_id: server_msg_id,
+                seq_no,
+            };
+            let extra = encrypt(
+                &auth_key,
+                &header,
+                &extra.into_vec(),
+                Side::Server,
+                &mut random,
+            )
+            .encode();
+            let _ = stream.0.send_frame(&extra);
             replied = true;
         }
     })
@@ -257,6 +281,29 @@ fn async_client_receives_updates() {
 
     let received = block_on(updates.recv()).expect("update delivered");
     assert!(matches!(received, Updates::UpdateShort { .. }));
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn async_client_polls_for_updates() {
+    let (private, public) = keypair(37);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server_with_update(private, server_stream);
+
+    let client = AsyncClient::spawn(client_stream, config(public), clock()).expect("spawn");
+    let mut updates = client.subscribe();
+    block_on(client.initialize(params())).expect("async initialize");
+    // The first update was delivered while the call was pending.
+    assert!(matches!(
+        block_on(updates.recv()).expect("update"),
+        Updates::UpdateShort { .. }
+    ));
+
+    // The second is read on demand between calls.
+    let polled = block_on(client.poll()).expect("poll");
+    assert!(matches!(polled, Some(Updates::UpdateShort { .. })));
 
     drop(client);
     server.join().expect("server thread");

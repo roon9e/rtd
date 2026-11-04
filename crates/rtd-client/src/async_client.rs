@@ -23,6 +23,8 @@ enum Command {
     Initialize(InitParams, oneshot::Sender<Result<Object>>),
     /// Invoke a canonical-layer method.
     Invoke(Method, oneshot::Sender<Result<Object>>),
+    /// Read one inbound frame without a pending call.
+    Poll(oneshot::Sender<Result<Option<Updates>>>),
 }
 
 /// An asynchronous MTProto 2.0 client.
@@ -73,6 +75,9 @@ impl AsyncClient {
                     }
                     Command::Invoke(method, reply) => {
                         let _ = reply.send(client.invoke(method));
+                    }
+                    Command::Poll(reply) => {
+                        let _ = reply.send(client.poll());
                     }
                 }
             }
@@ -144,6 +149,21 @@ impl AsyncClient {
     #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<Updates> {
         self.updates.subscribe()
+    }
+
+    /// Reads one inbound frame without a pending call, returning any update it
+    /// carried. See [`Client::poll`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto or decode error.
+    pub async fn poll(&self) -> Result<Option<Updates>> {
+        let (reply, rx) = oneshot::channel();
+        self.sender()?
+            .send(Command::Poll(reply))
+            .await
+            .map_err(|_| Error::Closed)?;
+        rx.await.map_err(|_| Error::Closed)?
     }
 
     fn sender(&self) -> Result<&mpsc::Sender<Command>> {

@@ -8,7 +8,7 @@
 ## 2. Reconnect and retry
 
 - [x] 2.1 Reconnect with capped exponential backoff, reusing `SessionData` (`client.rs`, `async_client.rs`)
-- [ ] 2.2 Resend requests that were never acknowledged; fail acknowledged-but-unanswered calls
+- [x] 2.2 Resend requests that were never acknowledged; fail acknowledged-but-unanswered calls
 
 ## 3. Verification
 
