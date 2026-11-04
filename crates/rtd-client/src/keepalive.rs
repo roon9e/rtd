@@ -137,6 +137,40 @@ impl Backoff {
     }
 }
 
+/// A reconnect plan that reuses an existing session with capped backoff.
+#[derive(Debug, Clone)]
+pub struct Reconnect {
+    session: crate::session::SessionData,
+    backoff: Backoff,
+}
+
+impl Reconnect {
+    /// Creates a plan resuming `session`, backing off from `initial` to `max`.
+    #[must_use]
+    pub fn new(session: crate::session::SessionData, initial: Duration, max: Duration) -> Self {
+        Self {
+            session,
+            backoff: Backoff::new(initial, max),
+        }
+    }
+
+    /// Returns the session to resume, preserving the authorization key and salt.
+    #[must_use]
+    pub fn session(&self) -> &crate::session::SessionData {
+        &self.session
+    }
+
+    /// Returns the next reconnect delay and advances the backoff.
+    pub fn next_delay(&mut self) -> Duration {
+        self.backoff.next_delay()
+    }
+
+    /// Resets the backoff after a successful reconnect.
+    pub fn reset(&mut self) {
+        self.backoff.reset();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -189,5 +223,31 @@ mod tests {
         assert_eq!(backoff.next_delay(), Duration::from_millis(800));
         backoff.reset();
         assert_eq!(backoff.next_delay(), Duration::from_millis(100));
+    }
+
+    #[test]
+    fn reconnect_reuses_the_session_with_backoff() {
+        use super::Reconnect;
+        use crate::session::SessionData;
+
+        let session = SessionData {
+            auth_key: [7u8; 256],
+            session_id: 5,
+            salt: 9,
+        };
+        let mut reconnect = Reconnect::new(
+            session,
+            Duration::from_millis(100),
+            Duration::from_millis(400),
+        );
+        assert_eq!(reconnect.session().session_id, 5);
+        assert_eq!(reconnect.session().salt, 9);
+        assert_eq!(reconnect.next_delay(), Duration::from_millis(100));
+        assert_eq!(reconnect.next_delay(), Duration::from_millis(200));
+        assert_eq!(reconnect.next_delay(), Duration::from_millis(400));
+        // Capped at the maximum.
+        assert_eq!(reconnect.next_delay(), Duration::from_millis(400));
+        reconnect.reset();
+        assert_eq!(reconnect.next_delay(), Duration::from_millis(100));
     }
 }

@@ -60,7 +60,7 @@ pub use error::{Error, Result};
 pub use fileid::{FileId, PhotoSizeSource, Type as FileType, from_document, from_photo};
 pub use inline::{article, set_inline_bot_results};
 pub use json::{JsonValue, describe, type_name};
-pub use keepalive::{Backoff, Keepalive};
+pub use keepalive::{Backoff, Keepalive, Reconnect};
 pub use markup::{InlineButton, inline_keyboard};
 pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
