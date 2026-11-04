@@ -11,4 +11,10 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+rtd-client = { path = "../rtd-client", default-features = false }
+rtd-error = { path = "../rtd-error" }
+rtd-tg = { path = "../rtd-tg" }
 
+[features]
+default = ["media-webrtc"]
+media-webrtc = ["rtd-client/media-webrtc"]

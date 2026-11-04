@@ -1831,6 +1831,11 @@ dependencies = [
 [[package]]
 name = "rtd"
 version = "0.1.1"
+dependencies = [
+ "rtd-client",
+ "rtd-error",
+ "rtd-tg",
+]
 
 [[package]]
 name = "rtd-bin"
