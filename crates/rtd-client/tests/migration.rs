@@ -208,3 +208,51 @@ fn reconnecting_client_recovers_after_a_missed_pong() {
     server_a.join().expect("server a");
     server_b.join().expect("server b");
 }
+
+#[test]
+fn request_call_returns_the_phone_call() {
+    use rtd_client::default_protocol;
+    use rtd_tg::{InputUser, PhoneCall, PhonePhoneCall};
+
+    let call = PhoneCall::PhoneCallRequested {
+        flags: 0,
+        video: false,
+        id: 5,
+        access_hash: 6,
+        date: 0,
+        admin_id: 1,
+        participant_id: 2,
+        g_a_hash: vec![1, 2, 3],
+        protocol: Box::new(default_protocol()),
+    };
+    let mut writer = Writer::new();
+    Object::PhonePhoneCall(Box::new(PhonePhoneCall {
+        phone_call: Box::new(call),
+        users: Vec::new(),
+    }))
+    .encode(&mut writer);
+
+    let (private, public) = keypair(113);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server(private, server_stream, writer.into_vec());
+
+    let mut client =
+        Client::connect(client_stream, &config(2, public), clock()).expect("client exchange");
+    let result = rtd_client::request_call(
+        &mut client,
+        InputUser::InputUser {
+            user_id: 7,
+            access_hash: 8,
+        },
+        1,
+        vec![9, 9],
+        false,
+    )
+    .expect("request call");
+    assert!(matches!(
+        result.phone_call.as_ref(),
+        PhoneCall::PhoneCallRequested { id, .. } if *id == 5
+    ));
+    drop(client);
+    server.join().expect("server thread");
+}
