@@ -303,16 +303,16 @@ impl Write for WsStream {
 }
 
 /// A synchronous, encrypted session over a completed key exchange.
-struct TestClient<S> {
-    stream: ClientStream<S>,
+struct TestClient<S: ExchangeStream> {
+    stream: S,
     key: AuthKey,
     session: Session,
     random: SystemRandom,
 }
 
-impl<S: Read + Write> TestClient<S> {
+impl<S: ExchangeStream> TestClient<S> {
     /// Opens a session with the exchanged key and salt.
-    fn connect(stream: ClientStream<S>, result: rtd_exchange::ClientExchangeResult) -> Self {
+    fn connect(stream: S, result: rtd_exchange::ClientExchangeResult) -> Self {
         let mut session = Session::with_id(Arc::new(SystemClock), result.session_id);
         session.set_salt(result.server_salt);
         Self {
@@ -366,7 +366,7 @@ fn peek_id(body: &[u8]) -> u32 {
 }
 
 /// Completes an exchange and one RPC over `stream`, returning the decoded result.
-fn run_session<S: Read + Write>(mut stream: ClientStream<S>, method: &Method) -> Object {
+fn run_session<S: ExchangeStream>(mut stream: S, method: &Method) -> Object {
     let config = ClientConfig {
         dc: DC,
         temporary: false,
@@ -479,5 +479,29 @@ fn websocket_full_session() {
         tokio_tungstenite::tungstenite::client(request, tcp).expect("websocket handshake");
     let stream = ClientStream::new(WsStream::new(socket), CodecKind::Abridged.build(), true);
     let object = run_session(stream, &get_config());
+    assert_config(&object);
+}
+
+/// Adapts the `rtd-client` WebSocket transport to the exchange stream interface.
+struct TransportStream(rtd_client::TcpTransport);
+
+impl ExchangeStream for TransportStream {
+    fn send(&mut self, frame: &[u8]) -> rtd_exchange::Result<()> {
+        rtd_client::WriteTransport::send_frame(&mut self.0, frame).map_err(stream_error)
+    }
+
+    fn recv(&mut self) -> rtd_exchange::Result<Vec<u8>> {
+        rtd_client::ReadTransport::recv_frame(&mut self.0).map_err(stream_error)
+    }
+}
+
+/// Drives the *client's own* WebSocket transport through the full session.
+#[test]
+fn websocket_client_transport_full_session() {
+    let server = TestServer::start(IngressConfig::new().with_websocket(true));
+    let address = format!("127.0.0.1:{}", server.addr.port());
+    let transport =
+        rtd_client::connect_websocket(&address, &address, "/apiws").expect("websocket dial");
+    let object = run_session(TransportStream(transport), &get_config());
     assert_config(&object);
 }

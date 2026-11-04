@@ -39,4 +39,5 @@ tonic = "0.12"
 [dev-dependencies]
 rand = "0.8"
 rsa = "0.9"
+rtd-client = { path = "../rtd-client" }
 tokio = { version = "1", features = ["rt-multi-thread", "test-util"] }

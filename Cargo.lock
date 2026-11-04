@@ -1121,6 +1121,7 @@ dependencies = [
  "rand",
  "rsa",
  "rtd-bin",
+ "rtd-client",
  "rtd-crypto",
  "rtd-error",
  "rtd-exchange",
