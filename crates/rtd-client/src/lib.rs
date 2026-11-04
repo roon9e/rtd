@@ -95,5 +95,5 @@ pub use updates::{
     PushResult, SequenceBox, State, StateStorage, fetch_channel_difference, fetch_difference,
     pts_update, qts_update, sort_by_pts,
 };
-pub use uploader::{NoProgress, Progress, Source, Uploader};
+pub use uploader::{ConcurrentUploader, NoProgress, Progress, Source, Uploader};
 pub use ws::{WebSocketIo, connect_websocket};

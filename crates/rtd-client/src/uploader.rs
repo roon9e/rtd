@@ -237,6 +237,117 @@ impl Uploader {
     }
 }
 
+/// Uploads a file's parts concurrently across several clients.
+///
+/// The number of clients bounds the number of workers: each client owns one
+/// worker thread and uploads its share of the file's parts.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ConcurrentUploader {
+    part_size: Option<usize>,
+}
+
+impl ConcurrentUploader {
+    /// Creates a concurrent uploader with the default part size.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Overrides the part size (rounded up to the TL alignment).
+    #[must_use]
+    pub fn with_part_size(mut self, part_size: usize) -> Self {
+        self.part_size = Some(part_size);
+        self
+    }
+
+    /// Returns the part size used for a file of `len` bytes.
+    #[must_use]
+    pub fn part_size(&self, len: usize) -> usize {
+        let base = self
+            .part_size
+            .unwrap_or_else(|| len.div_ceil(MAX_PARTS).max(DEFAULT_PART));
+        base.max(MIN_PART).div_ceil(MIN_PART) * MIN_PART
+    }
+
+    /// Uploads `data` under `name`, splitting the parts across `clients`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] when `clients` is empty or a worker fails.
+    pub fn upload<T: Transport + Send>(
+        &self,
+        clients: &mut [Client<T>],
+        name: &str,
+        data: &[u8],
+    ) -> Result<InputFile> {
+        if clients.is_empty() {
+            return Err(Error::Unexpected("no upload clients".to_owned()));
+        }
+        let part_size = self.part_size(data.len());
+        let chunks: Vec<Vec<u8>> = data.chunks(part_size).map(<[u8]>::to_vec).collect();
+        let parts = i32::try_from(chunks.len())
+            .map_err(|_| Error::Unexpected("file has more parts than fit in an i32".to_owned()))?;
+        let file_id = random_id();
+        let small = data.len() <= SMALL_MAX;
+
+        // Round-robin each part onto a worker.
+        let mut assigned: Vec<Vec<(usize, Vec<u8>)>> =
+            (0..clients.len()).map(|_| Vec::new()).collect();
+        for (index, chunk) in chunks.into_iter().enumerate() {
+            assigned[index % clients.len()].push((index, chunk));
+        }
+
+        std::thread::scope(|scope| -> Result<()> {
+            let mut handles = Vec::with_capacity(clients.len());
+            for (client, work) in clients.iter_mut().zip(assigned) {
+                handles.push(scope.spawn(move || -> Result<()> {
+                    for (index, chunk) in work {
+                        let part = i32::try_from(index)
+                            .map_err(|_| Error::Unexpected("part index overflow".to_owned()))?;
+                        let query = if small {
+                            Method::UploadSaveFilePart(Box::new(UploadSaveFilePart {
+                                file_id,
+                                file_part: part,
+                                bytes: chunk,
+                            }))
+                        } else {
+                            Method::UploadSaveBigFilePart(Box::new(UploadSaveBigFilePart {
+                                file_id,
+                                file_part: part,
+                                file_total_parts: parts,
+                                bytes: chunk,
+                            }))
+                        };
+                        expect_bool(client.invoke(query)?)?;
+                    }
+                    Ok(())
+                }));
+            }
+            for handle in handles {
+                handle
+                    .join()
+                    .map_err(|_| Error::Unexpected("upload worker panicked".to_owned()))??;
+            }
+            Ok(())
+        })?;
+
+        Ok(if small {
+            InputFile::InputFile {
+                id: file_id,
+                parts,
+                name: name.to_owned(),
+                md5_checksum: hex(&md5(data)),
+            }
+        } else {
+            InputFile::InputFileBig {
+                id: file_id,
+                parts,
+                name: name.to_owned(),
+            }
+        })
+    }
+}
+
 /// Returns a random non-zero file identifier.
 fn random_id() -> i64 {
     let mut bytes = [0u8; 8];

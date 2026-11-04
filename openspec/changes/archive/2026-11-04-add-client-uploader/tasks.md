@@ -7,7 +7,7 @@
 
 ## 2. Concurrency
 
-- [ ] 2.1 Upload big-file parts concurrently through the pool with a bounded worker count
+- [x] 2.1 Upload big-file parts concurrently through the pool with a bounded worker count
 
 ## 3. Verification
 

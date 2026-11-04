@@ -185,3 +185,34 @@ fn cancellation_stops_the_upload() {
     drop(client);
     server.join().expect("server thread");
 }
+
+#[test]
+fn concurrent_upload_splits_parts_across_clients() {
+    use rtd_client::ConcurrentUploader;
+
+    let mut clients = Vec::new();
+    let mut servers = Vec::new();
+    for seed in [89u64, 97] {
+        let (private, public) = keypair(seed);
+        let (client_stream, server_stream) = DuplexStream::pair();
+        servers.push(spawn_server(private, server_stream));
+        clients.push(
+            Client::connect(client_stream, &config(public), clock()).expect("client exchange"),
+        );
+    }
+
+    let data = vec![5u8; 20 * 1024];
+    let uploader = ConcurrentUploader::new().with_part_size(4096);
+    let file = uploader
+        .upload(&mut clients, "file.bin", &data)
+        .expect("concurrent upload");
+    match file {
+        rtd_tg::InputFile::InputFile { parts, .. } => assert_eq!(parts, 5),
+        other => panic!("unexpected input file: {other:?}"),
+    }
+
+    drop(clients);
+    for server in servers {
+        server.join().expect("server thread");
+    }
+}
