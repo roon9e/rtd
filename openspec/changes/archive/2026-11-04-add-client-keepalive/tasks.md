@@ -12,6 +12,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify a missed pong triggers a reconnect and a queued call completes over the new connection (`tests/keepalive.rs`)
+- [x] 3.1 Verify a missed pong triggers a reconnect and a queued call completes over the new connection (`tests/keepalive.rs`)
 - [x] 3.2 Verify backoff grows and is capped using `ManualClock`
 - [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

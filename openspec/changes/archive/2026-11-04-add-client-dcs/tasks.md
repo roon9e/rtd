@@ -13,6 +13,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify a `PHONE_MIGRATE_2` response switches the target DC and the call succeeds (`tests/dcs.rs`)
+- [x] 3.1 Verify a `PHONE_MIGRATE_2` response switches the target DC and the call succeeds (`tests/dcs.rs`)
 - [x] 3.2 Verify DNS config decode against a known vector
 - [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

@@ -19,6 +19,7 @@ pub mod fileid;
 pub mod inline;
 pub mod json;
 pub mod keepalive;
+pub mod manager;
 pub mod markup;
 pub mod md5;
 pub mod members;
@@ -62,6 +63,7 @@ pub use fileid::{FileId, PhotoSizeSource, Type as FileType, from_document, from_
 pub use inline::{article, set_inline_bot_results};
 pub use json::{JsonValue, describe, type_name};
 pub use keepalive::{Backoff, Keepalive, Reconnect};
+pub use manager::{DcRouter, ReconnectingClient};
 pub use markup::{InlineButton, inline_keyboard};
 pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
