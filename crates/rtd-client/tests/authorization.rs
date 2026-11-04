@@ -14,8 +14,9 @@ use rtd_exchange::{
     ClientConfig, ServerConfig, Stream as ExchangeStream, TestServerRng, server_exchange,
 };
 use rtd_tg::{
-    AuthAuthorization, AuthSendCode, AuthSentCode, AuthSentCodeType, AuthSignIn, Bool,
-    CodeSettings, DecodeLimits, Decoder, Method, Object,
+    AuthAuthorization, AuthExportLoginToken, AuthImportLoginToken, AuthLoginToken, AuthSendCode,
+    AuthSentCode, AuthSentCodeType, AuthSignIn, Bool, CodeSettings, DecodeLimits, Decoder, Method,
+    Object,
 };
 use rtd_util::{Clock, SystemClock};
 
@@ -82,6 +83,34 @@ fn reply_bool(body: &[u8]) -> Option<Vec<u8>> {
     let mut decoder = Decoder::new(body, DecodeLimits::default());
     Method::decode(&mut decoder).ok()?;
     Some(encode(&Object::Bool(Box::new(Bool::BoolTrue))))
+}
+
+/// Answers `auth.*` bot and QR methods with their expected result types.
+fn reply_auth_extras(body: &[u8]) -> Option<Vec<u8>> {
+    let mut decoder = Decoder::new(body, DecodeLimits::default());
+    let method = Method::decode(&mut decoder).ok()?;
+    Some(match unwrap_method(&method).type_id() {
+        AuthExportLoginToken::TYPE_ID => encode(&Object::AuthLoginToken(Box::new(
+            AuthLoginToken::LoginToken {
+                expires: 42,
+                token: b"tok".to_vec(),
+            },
+        ))),
+        AuthImportLoginToken::TYPE_ID => encode(&Object::AuthLoginToken(Box::new(
+            AuthLoginToken::LoginTokenSuccess {
+                authorization: Box::new(AuthAuthorization::AuthorizationSignUpRequired {
+                    flags: 0,
+                    terms_of_service: None,
+                }),
+            },
+        ))),
+        _ => encode(&Object::AuthAuthorization(Box::new(
+            AuthAuthorization::AuthorizationSignUpRequired {
+                flags: 0,
+                terms_of_service: None,
+            },
+        ))),
+    })
 }
 
 /// Runs the server exchange, then answers every client request with `reply`.
@@ -252,6 +281,59 @@ fn authorization_is_reachable_through_the_async_facade() {
         panic!("expected auth.sentCode");
     };
     assert!(matches!(*code, AuthSentCode::SentCode { .. }));
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn bot_sign_in_returns_authorization() {
+    let (mut client, server) = start(47, reply_auth_extras);
+    client.initialize(params()).expect("initialize");
+    let authorization = client
+        .bot_sign_in("123456:token", 2040, "api-hash")
+        .expect("bot sign in");
+    assert!(matches!(
+        authorization,
+        AuthAuthorization::AuthorizationSignUpRequired { .. }
+    ));
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn bot_sign_in_invalid_token_fails_closed() {
+    let (mut client, server) = start(53, reply_bool);
+    client.initialize(params()).expect("initialize");
+    let error = client
+        .bot_sign_in("not-a-token", 2040, "api-hash")
+        .expect_err("a Bool result is not auth.Authorization");
+    assert!(matches!(error, Error::Unexpected(_)), "{error:?}");
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn qr_login_exports_then_imports() {
+    let (mut client, server) = start(59, reply_auth_extras);
+    client.initialize(params()).expect("initialize");
+
+    let token = client
+        .export_login_token(2040, "api-hash", vec![])
+        .expect("export token");
+    assert_eq!(token.expires, 42);
+    assert_eq!(token.token, b"tok".to_vec());
+    assert_eq!(token.url, "tg://login?token=dG9r");
+
+    let authorization = client
+        .import_login_token(token.token.clone())
+        .expect("import token");
+    assert!(matches!(
+        authorization,
+        AuthAuthorization::AuthorizationSignUpRequired { .. }
+    ));
 
     drop(client);
     server.join().expect("server thread");

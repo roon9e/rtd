@@ -11,5 +11,5 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify a mock server drives export -> import -> authorization and emits the token callback (`tests/qr_login.rs`)
+- [x] 3.1 Verify a mock server drives export -> import -> authorization and emits the token callback (`tests/qr_login.rs`)
 - [ ] 3.2 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green

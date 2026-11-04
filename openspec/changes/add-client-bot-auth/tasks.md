@@ -7,6 +7,6 @@
 
 ## 2. Verification
 
-- [ ] 2.1 Verify a mock server drives `initialize` -> `bot_sign_in` and returns the typed authorization (`tests/authorization.rs`)
-- [ ] 2.2 Verify an invalid token surfaces a typed error
+- [x] 2.1 Verify a mock server drives `initialize` -> `bot_sign_in` and returns the typed authorization (`tests/authorization.rs`)
+- [x] 2.2 Verify an invalid token surfaces a typed error
 - [ ] 2.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
