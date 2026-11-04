@@ -1,9 +1,11 @@
-//! A WebRTC-backed media connection (available with the `media-webrtc` feature).
+//! A WebRTC-backed media connection.
 //!
-//! This is the concrete backend behind [`crate::calls::MediaConnection`]: it
-//! owns a `webrtc` peer connection with a single Opus audio track and reports
-//! lifecycle events through [`crate::calls::MediaEvents`]. Signaling and the DH
-//! exchange stay in [`crate::calls`]; this module only carries media.
+//! Enabled by default through the `media-webrtc` feature (disable it with
+//! `default-features = false`). This is the concrete backend behind
+//! [`crate::calls::MediaConnection`]: it owns a `webrtc` peer connection with a
+//! single Opus audio track and reports lifecycle events through
+//! [`crate::calls::MediaEvents`]. Signaling and the DH exchange stay in
+//! [`crate::calls`]; this module only carries media.
 
 use std::sync::Arc;
 use std::time::Duration;

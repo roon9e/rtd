@@ -45,18 +45,16 @@ jobs:
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
 
-  # The WebRTC media backend is an optional, non-default feature, so the standard
-  # clippy and test jobs never compile it. Check it explicitly so it cannot rot.
+  # The WebRTC media backend is enabled by default (mirroring the reference
+  # implementation) but can be disabled; check the crate still builds without it.
   feature-check:
     name: optional features
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy -p rtd-client --features media-webrtc --all-targets --locked -- -D warnings
+      - run: cargo check -p rtd-client --no-default-features --locked
 
   # Independent check that committed generated sources match what the
   # generator produces: regenerate and fail if anything changed.

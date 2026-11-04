@@ -29,7 +29,7 @@ webrtc = { version = "0.11", optional = true }
 bytes = { version = "1", optional = true }
 
 [features]
-default = []
+default = ["media-webrtc"]
 media-webrtc = ["dep:webrtc", "dep:bytes", "tokio/rt-multi-thread", "tokio/time"]
 
 [dev-dependencies]
