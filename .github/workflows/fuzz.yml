@@ -1,0 +1,38 @@
+name: fuzz
+
+# Bounded fuzzing is deliberately *not* a required check: it runs on a nightly
+# toolchain for a fixed wall-clock budget and never blocks a merge. It lives
+# outside `ci.yml` so a fuzz failure cannot mask the required gates.
+on:
+  workflow_dispatch:
+  schedule:
+    # Nightly at 04:00 UTC.
+    - cron: "0 4 * * *"
+
+jobs:
+  fuzz:
+    name: fuzz ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [decode_message, admit_tl]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Seed the corpus
+        working-directory: fuzz
+        run: |
+          mkdir -p corpus/${{ matrix.target }}
+          if [ -d seeds/${{ matrix.target }} ]; then
+            cp -n seeds/${{ matrix.target }}/* corpus/${{ matrix.target }}/ || true
+          fi
+      - name: Run ${{ matrix.target }} for a bounded time
+        working-directory: fuzz
+        run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=90 -rss_limit_mb=2048
