@@ -71,7 +71,10 @@ pub use json::{
 };
 pub use keepalive::{Backoff, Keepalive, Reconnect};
 pub use manager::{DcRouter, ReconnectingClient};
-pub use markup::{InlineButton, inline_keyboard};
+pub use markup::{
+    InlineButton, ReplyButton, ReplyButtonKind, ReplyKeyboardOptions, inline_keyboard,
+    reply_keyboard, reply_keyboard_force_reply, reply_keyboard_hide,
+};
 #[cfg(feature = "media-webrtc")]
 pub use media::WebRtcMedia;
 pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};

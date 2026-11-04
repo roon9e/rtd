@@ -60,7 +60,7 @@ need to mirror.
 | `telegram/message/entity` | `rtd-client::entity` (parse only) | partial |
 | `telegram/message/styling` | — | missing |
 | `telegram/message/rich` | — | missing |
-| `telegram/message/markup` | `rtd-client::markup` | partial |
+| `telegram/message/markup` | `rtd-client::markup` | done |
 | `telegram/message/inline` | `rtd-client::inline` | done |
 | `telegram/message/peer` | `rtd-client::peers` | done |
 | `telegram/message/unpack` | `rtd-client::unpack` | done |
@@ -86,7 +86,8 @@ need to mirror.
 11. **Query/pagination extras**: featured-stickers iterator and `query/cached` helpers.
     *Effort: S–M, no new deps.*
 12. **Markup richness** (`telegram/message/markup`): reply keyboards, force-reply, richer
-    buttons; only inline keyboards exist. *Effort: S, no new deps.*
+    buttons. *Effort: S, no new deps.* — **done**, see `rtd-client::markup`
+    (`reply_keyboard`/`reply_keyboard_hide`/`reply_keyboard_force_reply`).
 13. **Client ergonomics** (`telegram` root): `Self`, environment-based construction,
     `InvokeRawJSON`. *Effort: S–M.* This also needs **bare-vector RPC results** (e.g.
     `users.getUsers` returns `Vector<User>`), which `Client::invoke` cannot currently decode.
