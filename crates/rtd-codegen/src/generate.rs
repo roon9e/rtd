@@ -120,30 +120,30 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
 ///
 /// Returns a message when a schema cannot be read, parsed, modelled or emitted.
 fn emit_aux_crates(root: &Path) -> Result<Vec<(PathBuf, String)>, String> {
-    let mut files = Vec::new();
-    for (name, file) in [("rtd-tg-e2e", "schema/e2e/encrypted.tl")] {
-        let path = root.join(file);
-        let bytes = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
-        let text = String::from_utf8(bytes.clone())
-            .map_err(|_| format!("{}: not UTF-8", path.display()))?;
-        let parsed = crate::parse::parse_schema(&text)
-            .map_err(|error| format!("{}: {error}", path.display()))?;
-        let source = crate::model::SourceRef {
-            layer: 0,
-            repository: "github.com/tdlib/td".to_owned(),
-            commit: String::new(),
-            blob: String::new(),
-            path: file.to_owned(),
-            file: file.to_owned(),
-            sha256: crate::digest::sha256(&bytes),
-        };
-        let model = crate::model::build_schema(&parsed, source)
-            .map_err(|error| format!("{}: {error}", path.display()))?;
-        let emitted = crate::emit_tg::emit(&model).map_err(|error| error.0)?;
-        let formatted = crate::format::rustfmt(&emitted)?;
-        files.push((root.join(format!("crates/{name}/src/lib.rs")), formatted));
-    }
-    Ok(files)
+    let (name, file) = ("rtd-tg-e2e", "schema/e2e/encrypted.tl");
+    let path = root.join(file);
+    let bytes = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let text =
+        String::from_utf8(bytes.clone()).map_err(|_| format!("{}: not UTF-8", path.display()))?;
+    let parsed = crate::parse::parse_schema(&text)
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    let source = crate::model::SourceRef {
+        layer: 0,
+        repository: "github.com/tdlib/td".to_owned(),
+        commit: String::new(),
+        blob: String::new(),
+        path: file.to_owned(),
+        file: file.to_owned(),
+        sha256: crate::digest::sha256(&bytes),
+    };
+    let model = crate::model::build_schema(&parsed, source)
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    let emitted = crate::emit_tg::emit(&model).map_err(|error| error.0)?;
+    let formatted = crate::format::rustfmt(&emitted)?;
+    Ok(vec![(
+        root.join(format!("crates/{name}/src/lib.rs")),
+        formatted,
+    )])
 }
 
 /// Enforces the hook coverage gate over the reviewed hook-backed obligations.
