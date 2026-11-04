@@ -310,6 +310,21 @@ mod tests {
     }
 
     #[test]
+    fn reader_reports_closed_when_the_peer_drops() {
+        use super::Reader;
+
+        let (a, b) = super::DuplexStream::pair();
+        let (b_read, _) = b.split();
+        let (_, a_write) = a.split();
+        let reader = Reader::spawn(b_read);
+        // Dropping the writer closes the peer, so the reader stops.
+        drop(a_write);
+        assert!(reader.recv().is_err());
+        assert!(reader.recv().is_err());
+        reader.join().unwrap();
+    }
+
+    #[test]
     fn split_duplex_moves_frames_both_ways() {
         use super::{ReadTransport, WriteTransport};
 

@@ -13,5 +13,5 @@
 ## 3. Verification
 
 - [x] 3.1 Verify an update sent between calls is delivered without a pending call (`tests/updates.rs`)
-- [ ] 3.2 Verify a dropped peer surfaces `Closed` once and the reader stops (`tests/round_trip.rs`)
+- [x] 3.2 Verify a dropped peer surfaces `Closed` once and the reader stops (`tests/round_trip.rs`)
 - [x] 3.3 Run the full workspace gate (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
