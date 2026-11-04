@@ -48,6 +48,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+      - name: Check out the Go reference (module replace target)
+        run: git clone --depth 1 https://github.com/iamxvbaba/td "$GITHUB_WORKSPACE/../td"
       - name: Regenerate the Go cross-check vectors
         working-directory: interop/vectors
         run: go run . > ../vectors.json
