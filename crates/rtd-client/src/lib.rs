@@ -42,8 +42,9 @@ pub mod ws;
 pub use async_client::AsyncClient;
 pub use auth::{BotToken, ConstantPassword, PasswordProvider};
 pub use calls::{
-    CallControl, CallError, CallState, DhConfig, accept_call, confirm_call, default_protocol,
-    fetch_dh_config, g_a_hash, request_call,
+    CallControl, CallError, CallState, DhConfig, GroupCall, MediaConnection, MediaEvents,
+    SenderReport, TrackKind, accept_call, confirm_call, default_protocol, fetch_dh_config,
+    g_a_hash, request_call,
 };
 pub use cdn::{
     CdnRedirect, CdnState, HashCache, HashWindow, VerifiedWindows, decrypt_in_place, verify_window,

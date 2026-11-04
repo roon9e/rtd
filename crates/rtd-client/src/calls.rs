@@ -323,6 +323,129 @@ impl CallControl {
     }
 }
 
+/// A media track kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrackKind {
+    /// An audio track.
+    Audio,
+    /// A video track.
+    Video,
+}
+
+/// Callbacks a media backend raises for connection lifecycle events.
+pub trait MediaEvents: Send {
+    /// Called once a remote track is available.
+    fn on_track(&self, kind: TrackKind);
+    /// Called when the media connection is established.
+    fn on_connected(&self);
+    /// Called when the media connection is lost.
+    fn on_disconnected(&self);
+}
+
+/// A real-time media connection.
+///
+/// The WebRTC/SFU backend implements this trait; a group-call participant only
+/// depends on the abstraction, so the media path can be swapped or mocked.
+pub trait MediaConnection: Send {
+    /// Writes interleaved 16-bit PCM audio samples to the local audio track.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backend cannot accept the samples.
+    fn write_audio(&mut self, samples: &[i16]) -> crate::error::Result<()>;
+
+    /// Returns the local audio synchronisation source, if the track is ready.
+    fn audio_ssrc(&self) -> Option<u32>;
+}
+
+/// An RTCP sender report for a synchronized source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SenderReport {
+    /// The synchronized source.
+    pub ssrc: u32,
+    /// The number of RTP packets sent.
+    pub packet_count: u32,
+    /// The number of payload octets sent.
+    pub octet_count: u32,
+}
+
+/// A group-call participant bound to a [`MediaConnection`].
+pub struct GroupCall<M: MediaConnection> {
+    media: M,
+    joined: bool,
+}
+
+impl<M: MediaConnection> GroupCall<M> {
+    /// Wraps a media connection.
+    #[must_use]
+    pub fn new(media: M) -> Self {
+        Self {
+            media,
+            joined: false,
+        }
+    }
+
+    /// Joins the group call.
+    ///
+    /// # Errors
+    ///
+    /// Reserved for backend-specific failures.
+    pub fn join(&mut self) -> crate::error::Result<()> {
+        self.joined = true;
+        Ok(())
+    }
+
+    /// Leaves the group call.
+    ///
+    /// # Errors
+    ///
+    /// Reserved for backend-specific failures.
+    pub fn leave(&mut self) -> crate::error::Result<()> {
+        self.joined = false;
+        Ok(())
+    }
+
+    /// Returns whether the participant has joined.
+    #[must_use]
+    pub fn is_joined(&self) -> bool {
+        self.joined
+    }
+
+    /// Writes audio samples to the local track.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] when not joined, or the backend's error.
+    pub fn write_audio(&mut self, samples: &[i16]) -> crate::error::Result<()> {
+        if !self.joined {
+            return Err(Error::Unexpected("not joined to the group call".to_owned()));
+        }
+        self.media.write_audio(samples)
+    }
+
+    /// Returns the local audio track's SSRC, if joined and ready.
+    #[must_use]
+    pub fn audio_track(&self) -> Option<u32> {
+        self.joined.then(|| self.media.audio_ssrc()).flatten()
+    }
+
+    /// Returns the local audio SSRC; an alias of [`GroupCall::audio_track`].
+    #[must_use]
+    pub fn audio_ssrc(&self) -> Option<u32> {
+        self.audio_track()
+    }
+
+    /// Builds an RTCP sender report from the current counters.
+    #[must_use]
+    pub fn sender_report(&self, packet_count: u32, octet_count: u32) -> Option<SenderReport> {
+        self.audio_ssrc().map(|ssrc| SenderReport {
+            ssrc,
+            packet_count,
+            octet_count,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{CallControl, CallError, CallState};
@@ -347,5 +470,48 @@ mod tests {
     #[test]
     fn call_states_are_distinct() {
         assert_ne!(CallState::Requested, CallState::Accepted);
+    }
+
+    #[test]
+    fn group_call_joins_writes_audio_and_reports() {
+        use super::{GroupCall, MediaConnection};
+
+        struct MockMedia {
+            ssrc: u32,
+            written: Vec<i16>,
+        }
+        impl MediaConnection for MockMedia {
+            fn write_audio(&mut self, samples: &[i16]) -> crate::error::Result<()> {
+                self.written.extend_from_slice(samples);
+                Ok(())
+            }
+            fn audio_ssrc(&self) -> Option<u32> {
+                Some(self.ssrc)
+            }
+        }
+
+        let mut call = GroupCall::new(MockMedia {
+            ssrc: 7,
+            written: Vec::new(),
+        });
+        // Before joining, no track and writes are rejected.
+        assert!(call.audio_track().is_none());
+        assert!(call.write_audio(&[1, 2]).is_err());
+
+        call.join().unwrap();
+        assert!(call.is_joined());
+        assert_eq!(call.audio_ssrc(), Some(7));
+        call.write_audio(&[1, 2, 3]).unwrap();
+        assert_eq!(call.media.written, vec![1, 2, 3]);
+
+        let report = call.sender_report(5, 100).unwrap();
+        assert_eq!(report.ssrc, 7);
+        assert_eq!(report.packet_count, 5);
+        assert_eq!(report.octet_count, 100);
+
+        call.leave().unwrap();
+        assert!(!call.is_joined());
+        assert!(call.audio_track().is_none());
+        assert!(call.sender_report(0, 0).is_none());
     }
 }
