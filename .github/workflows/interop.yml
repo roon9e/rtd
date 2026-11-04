@@ -6,6 +6,15 @@ name: Interop
 # (`gh workflow run Interop`) or before a release.
 on:
   workflow_dispatch:
+    inputs:
+      edge_image:
+        description: rtd-edge image to smoke (proven tag)
+        required: false
+        default: ghcr.io/roon9e/rtd-edge:v0.1.1
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   # Build the official Rust MTProto engine's test server and run the rtd peer
@@ -43,3 +52,84 @@ jobs:
         working-directory: interop/vectors
         run: go run . > ../vectors.json
       - run: git diff --exit-code
+
+  # Drive the rtd client through the *published* rtd-edge image in front of the
+  # pinned gramsrv v2 core, without building the edge from source. The edge
+  # repository is moving to its own project, so this manual smoke pins the
+  # proven image tag rather than the rtd-edge source tree.
+  drop-in:
+    name: drop-in smoke (proven images)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check out the gramsrv v2 stack
+        run: git clone --depth 1 --branch v2 https://github.com/iamxvbaba/gramsrv "$RUNNER_TEMP/gramsrv"
+
+      - name: Pin the rtd-edge image
+        env:
+          EDGE_IMAGE: ${{ inputs.edge_image }}
+        run: |
+          cd "$RUNNER_TEMP/gramsrv"
+          sed -i -E "s#image: ghcr.io/roon9e/rtd-edge:[^ ]+#image: ${EDGE_IMAGE}#" \
+            deploy/docker/compose.rtd-edge.yaml
+          grep -n 'rtd-edge' deploy/docker/compose.rtd-edge.yaml
+
+      - name: Generate the stack .env
+        run: |
+          cd "$RUNNER_TEMP/gramsrv"
+          ./scripts/new-docker-env.sh --advertise-ip 127.0.0.1 --output deploy/docker/.env
+
+      - name: Pull the pinned images
+        run: |
+          cd "$RUNNER_TEMP/gramsrv/deploy/docker"
+          docker compose --env-file .env -f compose.yaml -f compose.rtd-edge.yaml \
+            pull postgres redis migrate file core edge
+
+      - name: Bring up the stack
+        run: |
+          cd "$RUNNER_TEMP/gramsrv/deploy/docker"
+          docker compose --env-file .env -f compose.yaml -f compose.rtd-edge.yaml \
+            up -d --no-build postgres redis migrate file core edge
+          for _ in $(seq 1 60); do
+            if bash -c 'exec 3<>/dev/tcp/127.0.0.1/2398' 2>/dev/null; then
+              echo "edge is listening on 2398"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "edge did not start listening" >&2
+          exit 1
+
+      - name: Run the client drop-in smoke
+        env:
+          RTD_EDGE_ADDR: 127.0.0.1:2398
+          RTD_EDGE_LAYER: "229"
+          RTD_EDGE_CODEC: abridged
+          RTD_EDGE_OBFUSCATED: "1"
+          RTD_EDGE_PUBLIC_KEY: ${{ runner.temp }}/gramsrv/deploy/docker/assets/test-server-rsa.pub
+        run: cargo run -p rtd-client --example edge_e2e
+
+      - name: Dump stack logs on failure
+        if: failure()
+        run: |
+          cd "$RUNNER_TEMP/gramsrv/deploy/docker"
+          docker compose --env-file .env -f compose.yaml -f compose.rtd-edge.yaml \
+            logs --no-color --tail 200
+
+      - name: Tear down
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/gramsrv/deploy/docker"
+          docker compose --env-file .env -f compose.yaml -f compose.rtd-edge.yaml down -v

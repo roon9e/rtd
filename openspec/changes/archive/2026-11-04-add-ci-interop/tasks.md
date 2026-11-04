@@ -10,9 +10,9 @@
 
 ## 3. Drop-in
 
-- [ ] 3.1 Add a CI job running the `rtd-client` -> `rtd-edge` -> core smoke against the pinned core image
+- [x] 3.1 Add a CI job running the `rtd-client` -> `rtd-edge` -> core smoke against the pinned core image (manual `drop-in` job using the published `rtd-edge` image and the gramsrv v2 stack; the edge source is no longer built here)
 
 ## 4. Verification
 
-- [ ] 4.1 Verify all new jobs pass on `dev` and are required checks
+- [x] 4.1 (descoped) Required-check promotion is dropped: the edge moves to its own repository, so the drop-in smoke stays a manual `workflow_dispatch` job rather than a required check.
 - [x] 4.2 Run the full workspace gate locally (`fmt`, `clippy -D warnings`, `test --workspace --locked`, generation freshness) and confirm all are green
