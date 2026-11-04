@@ -54,6 +54,11 @@ impl From<Vec<u8>> for Source {
 pub trait Progress: Send {
     /// Reports `uploaded` of `total` bytes.
     fn progress(&self, uploaded: usize, total: usize);
+
+    /// Returns whether the upload should stop before the next part.
+    fn is_cancelled(&self) -> bool {
+        false
+    }
 }
 
 /// A [`Progress`] that does nothing.
@@ -154,6 +159,9 @@ impl Uploader {
 
         if data.len() <= SMALL_MAX {
             for (index, chunk) in chunks.iter().enumerate() {
+                if progress.is_cancelled() {
+                    return Err(Error::Unexpected("upload cancelled".to_owned()));
+                }
                 let part = i32::try_from(index)
                     .map_err(|_| Error::Unexpected("part index overflow".to_owned()))?;
                 let query = Method::UploadSaveFilePart(Box::new(UploadSaveFilePart {
@@ -173,6 +181,9 @@ impl Uploader {
             })
         } else {
             for (index, chunk) in chunks.iter().enumerate() {
+                if progress.is_cancelled() {
+                    return Err(Error::Unexpected("upload cancelled".to_owned()));
+                }
                 let part = i32::try_from(index)
                     .map_err(|_| Error::Unexpected("part index overflow".to_owned()))?;
                 let query = Method::UploadSaveBigFilePart(Box::new(UploadSaveBigFilePart {
