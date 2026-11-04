@@ -1,0 +1,15 @@
+[package]
+name = "rtd-tgtrace"
+description = "Trace-context wrapper over the canonical Telegram API"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rtd-bin = { path = "../rtd-bin" }
+rtd-tg = { path = "../rtd-tg" }

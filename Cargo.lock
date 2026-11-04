@@ -1144,6 +1144,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rtd-tg-e2e"
+version = "0.0.0"
+dependencies = [
+ "rtd-bin",
+]
+
+[[package]]
+name = "rtd-tgtrace"
+version = "0.0.0"
+dependencies = [
+ "rtd-bin",
+ "rtd-tg",
+]
+
+[[package]]
 name = "rtd-tlprofile"
 version = "0.0.0"
 dependencies = [

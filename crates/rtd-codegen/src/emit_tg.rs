@@ -994,6 +994,7 @@ fn emit_object(
         .map(|definition| ident_for_qname(&definition.key.qname))
         .collect();
     object_names.sort();
+    let empty = class_names.is_empty() && object_names.is_empty();
     code.line("#[derive(Debug, Clone, PartialEq)]");
     code.open("pub enum Object {");
     for class_qname in &class_names {
@@ -1007,45 +1008,57 @@ fn emit_object(
     code.open("impl Object {");
     code.open("/// Returns the wire constructor identifier of the contained value.");
     code.open("pub fn type_id(&self) -> u32 {");
-    code.open("match self {");
-    for class_qname in &class_names {
-        let ident = ident_for_qname(class_qname);
-        code.line(&format!("Object::{ident}(value) => value.type_id(),"));
+    if empty {
+        code.line("match *self {}");
+    } else {
+        code.open("match self {");
+        for class_qname in &class_names {
+            let ident = ident_for_qname(class_qname);
+            code.line(&format!("Object::{ident}(value) => value.type_id(),"));
+        }
+        for ident in &object_names {
+            code.line(&format!("Object::{ident}(value) => value.type_id(),"));
+        }
+        code.close("}");
     }
-    for ident in &object_names {
-        code.line(&format!("Object::{ident}(value) => value.type_id(),"));
-    }
-    code.close("}");
     code.close("}");
     code.close("");
     code.open("/// Encodes the contained value.");
     code.open("pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {");
-    code.open("match self {");
-    for class_qname in &class_names {
-        let ident = ident_for_qname(class_qname);
-        code.line(&format!("Object::{ident}(value) => value.encode(__w),"));
+    if empty {
+        code.line("match *self {}");
+    } else {
+        code.open("match self {");
+        for class_qname in &class_names {
+            let ident = ident_for_qname(class_qname);
+            code.line(&format!("Object::{ident}(value) => value.encode(__w),"));
+        }
+        for ident in &object_names {
+            code.line(&format!("Object::{ident}(value) => value.encode(__w),"));
+        }
+        code.close("}");
     }
-    for ident in &object_names {
-        code.line(&format!("Object::{ident}(value) => value.encode(__w),"));
-    }
-    code.close("}");
     code.close("}");
     code.close("");
     code.open("/// Encodes the contained value without its constructor identifier.");
     code.open("pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {");
-    code.open("match self {");
-    for class_qname in &class_names {
-        let ident = ident_for_qname(class_qname);
-        code.line(&format!(
-            "Object::{ident}(value) => value.encode_body(__w),"
-        ));
+    if empty {
+        code.line("match *self {}");
+    } else {
+        code.open("match self {");
+        for class_qname in &class_names {
+            let ident = ident_for_qname(class_qname);
+            code.line(&format!(
+                "Object::{ident}(value) => value.encode_body(__w),"
+            ));
+        }
+        for ident in &object_names {
+            code.line(&format!(
+                "Object::{ident}(value) => value.encode_body(__w),"
+            ));
+        }
+        code.close("}");
     }
-    for ident in &object_names {
-        code.line(&format!(
-            "Object::{ident}(value) => value.encode_body(__w),"
-        ));
-    }
-    code.close("}");
     code.close("}");
     code.close("");
     code.open("/// Decodes a boxed value, reading and dispatching on its identifier.");
@@ -1056,7 +1069,6 @@ fn emit_object(
     code.close("");
     code.open("/// Decodes a boxed value whose identifier has already been read.");
     code.open("pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {");
-    code.open("match id {");
     let mut entries: Vec<(u32, String)> = Vec::new();
     for definition in class_map.values().flatten() {
         let ident = ident_for_qname(&definition.result.qname);
@@ -1068,19 +1080,25 @@ fn emit_object(
     }
     entries.sort();
     entry_guard(&entries);
-    let mut expected = 0;
-    for (wire_id, ident) in &entries {
-        if expected == 0 {
-            expected = *wire_id;
+    if entries.is_empty() {
+        code.line("let _ = __d;");
+        code.line("Err(::rtd_bin::Error::UnexpectedId { id, expected: 0x00000000 })");
+    } else {
+        code.open("match id {");
+        let mut expected = 0;
+        for (wire_id, ident) in &entries {
+            if expected == 0 {
+                expected = *wire_id;
+            }
+            code.line(&format!(
+                "{wire_id:#010x} => Ok(Object::{ident}(::std::boxed::Box::new({ident}::decode_with_id(__d, id)?))),"
+            ));
         }
         code.line(&format!(
-            "{wire_id:#010x} => Ok(Object::{ident}(::std::boxed::Box::new({ident}::decode_with_id(__d, id)?))),"
+            "other => Err(::rtd_bin::Error::UnexpectedId {{ id: other, expected: {expected:#010x} }}),"
         ));
+        code.close("}");
     }
-    code.line(&format!(
-        "other => Err(::rtd_bin::Error::UnexpectedId {{ id: other, expected: {expected:#010x} }}),"
-    ));
-    code.close("}");
     code.close("}");
     code.close("");
     code.close("}");
