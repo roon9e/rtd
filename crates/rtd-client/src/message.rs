@@ -4,10 +4,12 @@
 //! text and options; [`send`] invokes it through a client.
 
 use rtd_tg::{
-    DocumentAttribute, InputFile, InputGame, InputGeoPoint, InputMedia, InputPeer,
-    InputSingleMedia, InputUser, MessageEntity, MessagesDeleteMessages, MessagesEditMessage,
-    MessagesForwardMessages, MessagesSendMedia, MessagesSendMessage, MessagesSendMultiMedia,
-    Method, Object, Poll, PollAnswer, ReplyMarkup, TextWithEntities,
+    ChannelsJoinChannel, DocumentAttribute, InputChannel, InputDocument, InputFile, InputGame,
+    InputGeoPoint, InputMedia, InputPeer, InputReplyTo, InputSingleMedia, InputUser, MessageEntity,
+    MessagesDeleteMessages, MessagesEditMessage, MessagesForwardMessages, MessagesReport,
+    MessagesSaveDraft, MessagesSendMedia, MessagesSendMessage, MessagesSendMultiMedia,
+    MessagesSetTyping, Method, Object, Poll, PollAnswer, ReplyMarkup, SendMessageAction,
+    TextWithEntities,
 };
 
 use crate::client::Client;
@@ -27,6 +29,8 @@ pub struct RequestBuilder {
     no_webpage: bool,
     noforwards: bool,
     invert_media: bool,
+    reply_to: Option<Box<InputReplyTo>>,
+    schedule_date: Option<i32>,
 }
 
 impl RequestBuilder {
@@ -44,6 +48,8 @@ impl RequestBuilder {
             no_webpage: false,
             noforwards: false,
             invert_media: false,
+            reply_to: None,
+            schedule_date: None,
         }
     }
 
@@ -113,6 +119,20 @@ impl RequestBuilder {
         self
     }
 
+    /// Replies to a specific message.
+    #[must_use]
+    pub fn reply_to(mut self, reply_to: InputReplyTo) -> Self {
+        self.reply_to = Some(Box::new(reply_to));
+        self
+    }
+
+    /// Schedules the message for `date` (a Unix timestamp).
+    #[must_use]
+    pub fn schedule_date(mut self, date: i32) -> Self {
+        self.schedule_date = Some(date);
+        self
+    }
+
     /// Attaches message entities.
     #[must_use]
     pub fn entities(mut self, entities: Vec<MessageEntity>) -> Self {
@@ -148,12 +168,12 @@ impl RequestBuilder {
             invert_media: self.invert_media,
             allow_paid_floodskip: false,
             peer: Box::new(self.peer),
-            reply_to: None,
+            reply_to: self.reply_to,
             message: self.message,
             random_id: random_id(),
             reply_markup: self.reply_markup,
             entities: self.entities,
-            schedule_date: None,
+            schedule_date: self.schedule_date,
             schedule_repeat_period: None,
             send_as: None,
             quick_reply_shortcut: None,
@@ -742,6 +762,111 @@ pub fn send_webpage<T: Transport>(
     client.invoke(build_send_media(peer, media, caption))
 }
 
+/// Builds an already-uploaded sticker media value.
+#[must_use]
+pub fn sticker_media(document: InputDocument, spoiler: bool) -> InputMedia {
+    InputMedia::InputMediaDocument {
+        flags: 0,
+        spoiler,
+        id: Box::new(document),
+        video_cover: None,
+        video_timestamp: None,
+        ttl_seconds: None,
+        query: None,
+    }
+}
+
+/// Sends an already-uploaded sticker (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_sticker<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    document: InputDocument,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, sticker_media(document, false), ""))
+}
+
+/// Sets the typing action for `peer` (`messages.setTyping`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn set_typing<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    action: SendMessageAction,
+) -> Result<Object> {
+    let query = Method::MessagesSetTyping(Box::new(MessagesSetTyping {
+        flags: 0,
+        peer: Box::new(peer),
+        top_msg_id: None,
+        action: Box::new(action),
+    }));
+    client.invoke(query)
+}
+
+/// Saves a text draft for `peer` (`messages.saveDraft`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn save_draft<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    text: &str,
+) -> Result<Object> {
+    let query = Method::MessagesSaveDraft(Box::new(MessagesSaveDraft {
+        flags: 0,
+        no_webpage: false,
+        invert_media: false,
+        reply_to: None,
+        peer: Box::new(peer),
+        message: text.to_owned(),
+        entities: None,
+        media: None,
+        effect: None,
+        suggested_post: None,
+        rich_message: None,
+    }));
+    client.invoke(query)
+}
+
+/// Reports messages `ids` in `peer` (`messages.report`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn report<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    ids: Vec<i32>,
+    option: Vec<u8>,
+    message: &str,
+) -> Result<Object> {
+    let query = Method::MessagesReport(Box::new(MessagesReport {
+        peer: Box::new(peer),
+        id: ids,
+        option,
+        message: message.to_owned(),
+    }));
+    client.invoke(query)
+}
+
+/// Joins a channel (`channels.joinChannel`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn join_channel<T: Transport>(client: &mut Client<T>, channel: InputChannel) -> Result<Object> {
+    let query = Method::ChannelsJoinChannel(Box::new(ChannelsJoinChannel {
+        channel: Box::new(channel),
+    }));
+    client.invoke(query)
+}
+
 /// Edits message `id` in `peer` to the given `text` and entities.
 ///
 /// # Errors
@@ -1034,6 +1159,33 @@ mod tests {
         assert!(matches!(
             super::webpage_media("https://x", true, false, false),
             InputMedia::InputMediaWebPage { .. }
+        ));
+    }
+
+    #[test]
+    fn builder_carries_reply_and_schedule() {
+        use rtd_tg::InputReplyTo;
+
+        let method = RequestBuilder::new(InputPeer::InputPeerEmpty, "hi")
+            .reply_to(InputReplyTo::InputReplyToEphemeralMessage { id: 5 })
+            .schedule_date(1_700_000_000)
+            .build();
+        match method {
+            Method::MessagesSendMessage(request) => {
+                assert_eq!(request.schedule_date, Some(1_700_000_000));
+                assert!(request.reply_to.is_some());
+            }
+            _ => panic!("expected messages.sendMessage"),
+        }
+    }
+
+    #[test]
+    fn builds_sticker_media() {
+        use rtd_tg::{InputDocument, InputMedia};
+
+        assert!(matches!(
+            super::sticker_media(InputDocument::InputDocumentEmpty, false),
+            InputMedia::InputMediaDocument { .. }
         ));
     }
 }

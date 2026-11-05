@@ -85,7 +85,9 @@ need to mirror.
 10. **Staged message senders** (`telegram/message`): audio/video/gif/dice/game/venue/webpage
     helpers. *Effort: M, no new deps.* — **done**, see `rtd-client::message`
     (`send_audio`/`send_video`/`send_gif`/`send_dice`/`send_venue`/`send_game`/`send_webpage`).
-    Sticker/typing/draft/report/join and schedule options remain.
+    Sticker/typing/draft/report/join and schedule/reply options are also done
+    (`send_sticker`/`set_typing`/`save_draft`/`report`/`join_channel`,
+    `RequestBuilder::reply_to`/`schedule_date`).
 11. **Query/pagination extras**: featured-stickers iterator and `query/cached` helpers.
     *Effort: S–M, no new deps.*
 12. **Markup richness** (`telegram/message/markup`): reply keyboards, force-reply, richer
