@@ -53,7 +53,7 @@ pub use calls::{
 pub use cdn::{
     CdnRedirect, CdnState, HashCache, HashWindow, VerifiedWindows, decrypt_in_place, verify_window,
 };
-pub use client::{Client, InitParams};
+pub use client::{Client, InitParams, InvokeResult};
 pub use constant::TdlibPeerId;
 pub use dcs::{
     DataCenter, DnsConfig, DnsError, Endpoint, Migration, Protocol, Resolver, StaticResolver,

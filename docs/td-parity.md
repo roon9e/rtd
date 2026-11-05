@@ -95,7 +95,8 @@ need to mirror.
     `InvokeRawJSON`. *Effort: S–M.* This also needs **bare-vector RPC results** (e.g.
     `users.getUsers` returns `Vector<User>`), which `Client::invoke` cannot currently decode.
 14. **Bare-vector results**: `Client::invoke` decodes only `Object`; methods that return a bare
-    `Vector<T>` are unusable. *Effort: M, architectural.*
+    `Vector<T>` are unusable. *Effort: M, architectural.* — **done**, see `Client::invoke_raw`
+    / `InvokeResult`.
 
 ## Out of scope
 

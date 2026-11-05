@@ -7,8 +7,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rtd_tg::{Method, Object};
+use rtd_tg::Method;
 
+use crate::client::InvokeResult;
 use crate::error::{Error, Result};
 
 /// A decorator around one method invocation.
@@ -21,8 +22,8 @@ pub trait Middleware: Send {
     fn invoke(
         &self,
         method: Method,
-        next: &mut dyn FnMut(Method) -> Result<Object>,
-    ) -> Result<Object>;
+        next: &mut dyn FnMut(Method) -> Result<InvokeResult>,
+    ) -> Result<InvokeResult>;
 }
 
 /// A blocking delay, injectable so `FLOOD_WAIT` retries are testable.
@@ -60,8 +61,8 @@ impl Middleware for FloodWait {
     fn invoke(
         &self,
         method: Method,
-        next: &mut dyn FnMut(Method) -> Result<Object>,
-    ) -> Result<Object> {
+        next: &mut dyn FnMut(Method) -> Result<InvokeResult>,
+    ) -> Result<InvokeResult> {
         let mut attempt = 0;
         loop {
             match next(method.clone()) {
@@ -105,8 +106,8 @@ impl Middleware for Trace {
     fn invoke(
         &self,
         method: Method,
-        next: &mut dyn FnMut(Method) -> Result<Object>,
-    ) -> Result<Object> {
+        next: &mut dyn FnMut(Method) -> Result<InvokeResult>,
+    ) -> Result<InvokeResult> {
         let name = crate::json::type_name(method.type_id()).unwrap_or("unknown");
         let result = next(method);
         self.tracer.record(name, result.is_ok());
@@ -137,8 +138,8 @@ impl Middleware for RateLimit {
     fn invoke(
         &self,
         method: Method,
-        next: &mut dyn FnMut(Method) -> Result<Object>,
-    ) -> Result<Object> {
+        next: &mut dyn FnMut(Method) -> Result<InvokeResult>,
+    ) -> Result<InvokeResult> {
         {
             let mut last = self
                 .last
@@ -161,8 +162,8 @@ impl Middleware for RateLimit {
 pub(crate) fn run_chain(
     chain: &[Box<dyn Middleware + Send>],
     method: Method,
-    next: &mut dyn FnMut(Method) -> Result<Object>,
-) -> Result<Object> {
+    next: &mut dyn FnMut(Method) -> Result<InvokeResult>,
+) -> Result<InvokeResult> {
     match chain.split_first() {
         None => next(method),
         Some((head, tail)) => {

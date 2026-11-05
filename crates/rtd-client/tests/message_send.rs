@@ -12,7 +12,7 @@ use rtd_crypto::{EncryptedMessage, MessageHeader, Side, SystemRandom, decrypt, e
 use rtd_exchange::{
     ClientConfig, ServerConfig, Stream as ExchangeStream, TestServerRng, server_exchange,
 };
-use rtd_tg::{DecodeLimits, Decoder, InputPeer, Method, Object, Updates};
+use rtd_tg::{DecodeLimits, Decoder, InputPeer, Method, Object, Updates, UsersGetUsers};
 use rtd_util::{Clock, SystemClock};
 
 struct ServerStream(DuplexStream);
@@ -59,6 +59,13 @@ fn reply(body: &[u8]) -> Option<Vec<u8>> {
                 date: 0,
                 seq: 0,
             })))
+        }
+        UsersGetUsers::TYPE_ID => {
+            let mut writer = Writer::new();
+            writer.put_u32(0x1cb5_c415);
+            writer.put_u32(1);
+            Object::Bool(Box::new(rtd_tg::Bool::BoolTrue)).encode(&mut writer);
+            writer.into_vec()
         }
         _ => encode(&Object::Bool(Box::new(rtd_tg::Bool::BoolTrue))),
     })
@@ -169,6 +176,30 @@ fn invoke_json_round_trips() {
             Some(&JsonValue::String("boolTrue".to_owned()))
         ),
         other => panic!("unexpected response: {other:?}"),
+    }
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn invoke_raw_decodes_a_vector() {
+    use rtd_client::InvokeResult;
+    use rtd_tg::{InputUser, UsersGetUsers};
+
+    let (private, public) = keypair(131);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server(private, server_stream);
+
+    let mut client =
+        Client::connect(client_stream, &config(public), clock()).expect("client exchange");
+
+    let method = Method::UsersGetUsers(Box::new(UsersGetUsers {
+        id: vec![InputUser::InputUserSelf],
+    }));
+    match client.invoke_raw(method).expect("invoke_raw") {
+        InvokeResult::Vector(items) => assert_eq!(items.len(), 1),
+        other => panic!("expected a vector, got {other:?}"),
     }
 
     drop(client);

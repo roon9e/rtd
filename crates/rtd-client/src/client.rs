@@ -39,6 +39,8 @@ const BAD_SERVER_SALT_ID: u32 = 0xedab_447b;
 const BAD_MSG_NOTIFICATION_ID: u32 = 0xa7ef_f811;
 /// `future_salts` constructor id.
 const FUTURE_SALTS_ID: u32 = 0xae50_0895;
+/// The bare-vector constructor magic.
+const VECTOR_TYPE_ID: u32 = 0x1cb5_c415;
 /// Maximum receive rounds while awaiting one result.
 const MAX_ROUNDS: usize = 64;
 /// Maximum send attempts (initial plus retry).
@@ -76,10 +78,39 @@ pub struct Client<T: Transport> {
     middlewares: Vec<Box<dyn Middleware + Send>>,
 }
 
+/// The result of a raw invocation.
+///
+/// Most methods return a single [`Object`]; a few return a bare `Vector<T>`,
+/// which [`Client::invoke`] rejects and [`Client::invoke_raw`] surfaces.
+#[derive(Debug, Clone, PartialEq)]
+pub enum InvokeResult {
+    /// A single constructor result.
+    Object(Object),
+    /// A bare `Vector<T>` result.
+    Vector(Vec<Object>),
+}
+
+impl InvokeResult {
+    /// Returns the single object, or an error when the result is a vector.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unexpected`] for a bare-vector result.
+    pub fn into_object(self) -> Result<Object> {
+        match self {
+            Self::Object(object) => Ok(object),
+            Self::Vector(items) => Err(Error::Unexpected(format!(
+                "method returned a vector of {} items",
+                items.len()
+            ))),
+        }
+    }
+}
+
 /// One inbound message, reduced to what the caller cares about.
 enum Reply {
     /// The awaited result arrived.
-    Result(Object),
+    Result(InvokeResult),
     /// The server reported a stale salt; resend with the refreshed one.
     BadSalt,
     /// A message that did not answer this request.
@@ -206,7 +237,7 @@ impl<T: Transport> Client<T> {
             query: Box::new(Method::HelpGetConfig(Box::new(HelpGetConfig))),
         }));
         let body = self.wrap_layer(init);
-        let result = self.call(body)?;
+        let result = self.call(body)?.into_object()?;
         self.initialized = true;
         Ok(result)
     }
@@ -220,6 +251,19 @@ impl<T: Transport> Client<T> {
     ///
     /// Returns a transport, crypto, decode or RPC error.
     pub fn invoke(&mut self, query: Method) -> Result<Object> {
+        self.invoke_raw(query).map(InvokeResult::into_object)?
+    }
+
+    /// Invokes one canonical-layer method and returns its raw result, which may
+    /// be a single object or a bare vector.
+    ///
+    /// Every call is wrapped in `invokeWithLayer` at the canonical layer, like
+    /// `td`; [`Client::initialize`] must run first for a fresh session.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error.
+    pub fn invoke_raw(&mut self, query: Method) -> Result<InvokeResult> {
         // Move the chain out so the inner closure can borrow `self` mutably.
         let middlewares = core::mem::take(&mut self.middlewares);
         let result = run_chain(&middlewares, query, &mut |method| {
@@ -706,7 +750,7 @@ impl<T: Transport> Client<T> {
         self.transport.send_frame(&frame)
     }
 
-    fn call(&mut self, body: Vec<u8>) -> Result<Object> {
+    fn call(&mut self, body: Vec<u8>) -> Result<InvokeResult> {
         let mut last = 0;
         for _ in 0..MAX_ATTEMPTS {
             let message = self.session.allocate_content();
@@ -719,7 +763,7 @@ impl<T: Transport> Client<T> {
         Err(Error::NoResult { message_id: last })
     }
 
-    fn await_result(&mut self, request_id: i64) -> Result<Option<Object>> {
+    fn await_result(&mut self, request_id: i64) -> Result<Option<InvokeResult>> {
         for _ in 0..MAX_ROUNDS {
             let frame = self.transport.recv_frame()?;
             let decrypted = self.session.decode(&frame)?;
@@ -833,10 +877,14 @@ impl<T: Transport> Client<T> {
         }
     }
 
-    fn decode_result(&self, payload: &[u8]) -> Result<Object> {
+    fn decode_result(&self, payload: &[u8]) -> Result<InvokeResult> {
+        // A bare `Vector<T>` result uses the vector magic.
+        if Reader::new(payload).peek_id().ok() == Some(VECTOR_TYPE_ID) {
+            return self.decode_vector(payload).map(InvokeResult::Vector);
+        }
         let mut decoder = Decoder::new(payload, DecodeLimits::default());
         if let Ok(object) = Object::decode(&mut decoder) {
-            return Ok(object);
+            return Ok(InvokeResult::Object(object));
         }
         // Otherwise it is an MTProto `rpc_error`.
         let mut service = ServiceDecoder::new(payload, ServiceDecodeLimits::default());
@@ -849,6 +897,20 @@ impl<T: Transport> Client<T> {
             },
             _ => Err(Error::Decode("unrecognised RPC result".to_owned())),
         }
+    }
+
+    fn decode_vector(&self, payload: &[u8]) -> Result<Vec<Object>> {
+        let mut decoder = Decoder::new(payload, DecodeLimits::default());
+        let count = decoder
+            .take_vector_header()
+            .map_err(|error| Error::Decode(error.to_string()))?;
+        let mut items = Vec::with_capacity(count);
+        for _ in 0..count {
+            items.push(
+                Object::decode(&mut decoder).map_err(|error| Error::Decode(error.to_string()))?,
+            );
+        }
+        Ok(items)
     }
 }
 
