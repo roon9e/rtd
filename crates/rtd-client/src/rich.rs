@@ -5,7 +5,7 @@
 //! (`inputRichMessageHTML`/`inputRichMessageMarkdown`), which [`RichMessage`]
 //! exposes directly.
 
-use rtd_tg::{InputRichMessage, PageBlock, RichText};
+use rtd_tg::{InputRichMessage, PageBlock, PageListItem, RichText};
 
 /// Builds a plain rich-text node.
 #[must_use]
@@ -51,6 +51,125 @@ pub fn link(value: RichText, url: impl Into<String>) -> RichText {
 #[must_use]
 pub fn concat(nodes: Vec<RichText>) -> RichText {
     RichText::TextConcat { texts: nodes }
+}
+
+/// Builds a paragraph page block.
+#[must_use]
+pub fn paragraph(value: RichText) -> PageBlock {
+    PageBlock::PageBlockParagraph {
+        text: Box::new(value),
+    }
+}
+
+/// Builds a heading page block of level `1..=6` (clamped).
+#[must_use]
+pub fn heading(level: u8, value: RichText) -> PageBlock {
+    match level.clamp(1, 6) {
+        1 => PageBlock::PageBlockHeading1 {
+            text: Box::new(value),
+        },
+        2 => PageBlock::PageBlockHeading2 {
+            text: Box::new(value),
+        },
+        3 => PageBlock::PageBlockHeading3 {
+            text: Box::new(value),
+        },
+        4 => PageBlock::PageBlockHeading4 {
+            text: Box::new(value),
+        },
+        5 => PageBlock::PageBlockHeading5 {
+            text: Box::new(value),
+        },
+        _ => PageBlock::PageBlockHeading6 {
+            text: Box::new(value),
+        },
+    }
+}
+
+/// Builds a preformatted (code) page block.
+#[must_use]
+pub fn preformatted(value: RichText, language: impl Into<String>) -> PageBlock {
+    PageBlock::PageBlockPreformatted {
+        text: Box::new(value),
+        language: language.into(),
+    }
+}
+
+/// Builds a block-quote page block.
+#[must_use]
+pub fn quote(value: RichText) -> PageBlock {
+    PageBlock::PageBlockBlockquote {
+        flags: 0,
+        collapsed: false,
+        text: Box::new(value),
+        caption: Box::new(RichText::TextEmpty),
+    }
+}
+
+/// Builds a divider page block.
+#[must_use]
+pub fn divider() -> PageBlock {
+    PageBlock::PageBlockDivider
+}
+
+/// Builds a collapsible details block.
+#[must_use]
+pub fn details(title: RichText, blocks: Vec<PageBlock>, open: bool) -> PageBlock {
+    PageBlock::PageBlockDetails {
+        flags: 0,
+        open,
+        blocks,
+        title: Box::new(title),
+    }
+}
+
+/// Builds a list page block from items.
+#[must_use]
+pub fn list(items: Vec<PageListItem>) -> PageBlock {
+    PageBlock::PageBlockList { items }
+}
+
+/// Builds a text list item.
+#[must_use]
+pub fn list_item(value: RichText) -> PageListItem {
+    PageListItem::PageListItemText {
+        flags: 0,
+        checkbox: false,
+        checked: false,
+        text: Box::new(value),
+    }
+}
+
+/// Builds a footer page block.
+#[must_use]
+pub fn footer(value: RichText) -> PageBlock {
+    PageBlock::PageBlockFooter {
+        text: Box::new(value),
+    }
+}
+
+/// Builds a header page block.
+#[must_use]
+pub fn header(value: RichText) -> PageBlock {
+    PageBlock::PageBlockHeader {
+        text: Box::new(value),
+    }
+}
+
+/// Builds a subheader page block.
+#[must_use]
+pub fn subheader(value: RichText) -> PageBlock {
+    PageBlock::PageBlockSubheader {
+        text: Box::new(value),
+    }
+}
+
+/// Builds a subtitle page block.
+#[must_use]
+pub fn subtitle(value: RichText) -> PageBlock {
+    PageBlock::PageBlockSubtitle {
+        text: Box::new(value),
+    }
 }
 
 /// A rich message to attach to a send or edit.
@@ -190,6 +309,31 @@ mod tests {
         match &blocks[0] {
             PageBlock::PageBlockParagraph { text } => {
                 assert!(matches!(**text, RichText::TextBold { .. }));
+            }
+            other => panic!("unexpected block: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn builds_block_kinds() {
+        use super::{divider, list, list_item, preformatted, quote, subheader};
+
+        assert!(matches!(divider(), PageBlock::PageBlockDivider));
+        assert!(matches!(
+            preformatted(text("x"), "rust"),
+            PageBlock::PageBlockPreformatted { .. }
+        ));
+        assert!(matches!(
+            quote(text("q")),
+            PageBlock::PageBlockBlockquote { .. }
+        ));
+        assert!(matches!(
+            subheader(text("s")),
+            PageBlock::PageBlockSubheader { .. }
+        ));
+        match list(vec![list_item(text("a"))]) {
+            PageBlock::PageBlockList { items } => {
+                assert_eq!(items.len(), 1);
             }
             other => panic!("unexpected block: {other:?}"),
         }

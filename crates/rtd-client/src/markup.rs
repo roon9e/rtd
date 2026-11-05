@@ -3,8 +3,8 @@
 //! [`inline_keyboard`] builds a `replyInlineMarkup` from rows of buttons.
 
 use rtd_tg::{
-    ButtonType, InlineButtonType, KeyboardButton, KeyboardButtonRow, KeyboardInlineButton,
-    KeyboardInlineButtonRow, ReplyMarkup,
+    BotMenuButton, ButtonType, InlineButtonType, KeyboardButton, KeyboardButtonRow,
+    KeyboardInlineButton, KeyboardInlineButtonRow, ReplyMarkup, RequestPeerType,
 };
 
 /// An inline keyboard button.
@@ -24,6 +24,51 @@ pub enum InlineButton {
         /// The URL to open.
         url: String,
     },
+    /// A button that opens a URL in the in-app web view.
+    WebView {
+        /// The button text.
+        text: String,
+        /// The URL to open.
+        url: String,
+    },
+    /// A button that copies text to the clipboard.
+    Copy {
+        /// The button text.
+        text: String,
+        /// The text to copy.
+        copy_text: String,
+    },
+    /// A button that opens the inline query composer.
+    SwitchInline {
+        /// The button text.
+        text: String,
+        /// The query to prefill.
+        query: String,
+        /// Whether to switch in the same peer.
+        same_peer: bool,
+    },
+    /// A button that opens a user's profile.
+    UserProfile {
+        /// The button text.
+        text: String,
+        /// The user id.
+        user_id: i64,
+    },
+    /// A "buy" button.
+    Buy {
+        /// The button text.
+        text: String,
+    },
+    /// A game button.
+    Game {
+        /// The button text.
+        text: String,
+    },
+    /// A disabled (non-actionable) button.
+    Disabled {
+        /// The button text.
+        text: String,
+    },
 }
 
 impl InlineButton {
@@ -40,6 +85,32 @@ impl InlineButton {
                 },
             ),
             Self::Url { text, url } => (text, InlineButtonType::InlineButtonTypeUrl { url }),
+            Self::WebView { text, url } => {
+                (text, InlineButtonType::InlineButtonTypeWebView { url })
+            }
+            Self::Copy { text, copy_text } => {
+                (text, InlineButtonType::InlineButtonTypeCopy { copy_text })
+            }
+            Self::SwitchInline {
+                text,
+                query,
+                same_peer,
+            } => (
+                text,
+                InlineButtonType::InlineButtonTypeSwitchInline {
+                    flags: 0,
+                    same_peer,
+                    query,
+                    peer_types: None,
+                },
+            ),
+            Self::UserProfile { text, user_id } => (
+                text,
+                InlineButtonType::InlineButtonTypeUserProfile { user_id },
+            ),
+            Self::Buy { text } => (text, InlineButtonType::InlineButtonTypeBuy),
+            Self::Game { text } => (text, InlineButtonType::InlineButtonTypeGame),
+            Self::Disabled { text } => (text, InlineButtonType::InlineButtonTypeDisabled),
         };
         KeyboardInlineButton {
             flags: 0,
@@ -67,7 +138,7 @@ pub fn inline_keyboard(rows: Vec<Vec<InlineButton>>) -> ReplyMarkup {
 }
 
 /// The action a reply-keyboard button performs.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ReplyButtonKind {
     /// A plain text button.
     #[default]
@@ -86,10 +157,19 @@ pub enum ReplyButtonKind {
         /// The URL to open.
         url: String,
     },
+    /// Requests the user to pick a peer.
+    RequestPeer {
+        /// The button id echoed back with the chosen peer.
+        button_id: i32,
+        /// The type of peers that may be chosen.
+        peer_type: Box<RequestPeerType>,
+        /// The maximum number of peers to choose.
+        max_quantity: i32,
+    },
 }
 
 /// A reply-keyboard button.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReplyButton {
     /// The button label.
     pub text: String,
@@ -128,6 +208,16 @@ impl ReplyButton {
                 quiz,
             },
             ReplyButtonKind::SimpleWebView { url } => ButtonType::ButtonTypeSimpleWebView { url },
+            ReplyButtonKind::RequestPeer {
+                button_id,
+                peer_type,
+                max_quantity,
+            } => ButtonType::ButtonTypeRequestPeer {
+                flags: 0,
+                button_id,
+                peer_type,
+                max_quantity,
+            },
         };
         KeyboardButton {
             flags: 0,
@@ -197,6 +287,27 @@ pub fn reply_keyboard_force_reply(
         single_use,
         selective,
         placeholder,
+    }
+}
+
+/// Builds the "commands" bot menu button.
+#[must_use]
+pub fn bot_menu_commands() -> BotMenuButton {
+    BotMenuButton::BotMenuButtonCommands
+}
+
+/// Builds the "default" bot menu button.
+#[must_use]
+pub fn bot_menu_default() -> BotMenuButton {
+    BotMenuButton::BotMenuButtonDefault
+}
+
+/// Builds a URL bot menu button.
+#[must_use]
+pub fn bot_menu_url(text: impl Into<String>, url: impl Into<String>) -> BotMenuButton {
+    BotMenuButton::BotMenuButton {
+        text: text.into(),
+        url: url.into(),
     }
 }
 
@@ -272,6 +383,42 @@ mod tests {
         assert!(matches!(
             reply_keyboard_force_reply(false, false, None),
             ReplyMarkup::ReplyKeyboardForceReply { .. }
+        ));
+    }
+
+    #[test]
+    fn builds_rich_inline_buttons_and_bot_menu() {
+        use rtd_tg::{BotMenuButton, InlineButtonType};
+
+        use super::{InlineButton, bot_menu_commands, bot_menu_url};
+
+        let web = InlineButton::WebView {
+            text: "open".to_owned(),
+            url: "https://x".to_owned(),
+        }
+        .into_button();
+        assert!(matches!(
+            *web.type_,
+            InlineButtonType::InlineButtonTypeWebView { .. }
+        ));
+
+        let copy = InlineButton::Copy {
+            text: "copy".to_owned(),
+            copy_text: "x".to_owned(),
+        }
+        .into_button();
+        assert!(matches!(
+            *copy.type_,
+            InlineButtonType::InlineButtonTypeCopy { .. }
+        ));
+
+        assert!(matches!(
+            bot_menu_commands(),
+            BotMenuButton::BotMenuButtonCommands
+        ));
+        assert!(matches!(
+            bot_menu_url("t", "https://x"),
+            BotMenuButton::BotMenuButton { .. }
         ));
     }
 }

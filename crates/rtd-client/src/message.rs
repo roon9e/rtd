@@ -303,6 +303,135 @@ pub fn send_media<T: Transport>(
     client.invoke(build_send_media(peer, media, caption))
 }
 
+/// Options for a media send.
+#[derive(Debug, Clone, Default)]
+pub struct MediaOptions {
+    /// Replies to a specific message.
+    pub reply_to: Option<InputReplyTo>,
+    /// Schedules the send for a Unix timestamp.
+    pub schedule_date: Option<i32>,
+    /// Sends without a notification sound.
+    pub silent: bool,
+    /// Sends in the background.
+    pub background: bool,
+    /// Disallows forwarding.
+    pub noforwards: bool,
+    /// Inverts media above the caption.
+    pub invert_media: bool,
+}
+
+/// Builds a `messages.sendMedia` request with explicit options.
+#[must_use]
+pub fn build_send_media_with(
+    peer: InputPeer,
+    media: InputMedia,
+    caption: &str,
+    options: MediaOptions,
+) -> Method {
+    Method::MessagesSendMedia(Box::new(MessagesSendMedia {
+        flags: 0,
+        silent: options.silent,
+        background: options.background,
+        clear_draft: false,
+        noforwards: options.noforwards,
+        update_stickersets_order: false,
+        invert_media: options.invert_media,
+        allow_paid_floodskip: false,
+        peer: Box::new(peer),
+        reply_to: options.reply_to.map(Box::new),
+        media: Box::new(media),
+        message: caption.to_owned(),
+        random_id: random_id(),
+        reply_markup: None,
+        entities: None,
+        schedule_date: options.schedule_date,
+        schedule_repeat_period: None,
+        send_as: None,
+        quick_reply_shortcut: None,
+        effect: None,
+        allow_paid_stars: None,
+        suggested_post: None,
+    }))
+}
+
+/// Sends already-uploaded `media` with explicit options.
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_media_with<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    media: InputMedia,
+    options: MediaOptions,
+) -> Result<Object> {
+    client.invoke(build_send_media_with(peer, media, caption, options))
+}
+
+/// Builds an already-uploaded story media value.
+#[must_use]
+pub fn story_media(peer: InputPeer, id: i32) -> InputMedia {
+    InputMedia::InputMediaStory {
+        peer: Box::new(peer),
+        id,
+    }
+}
+
+/// Builds a paid-media value.
+#[must_use]
+pub fn paid_media(
+    stars_amount: i64,
+    media: Vec<InputMedia>,
+    payload: Option<String>,
+) -> InputMedia {
+    InputMedia::InputMediaPaidMedia {
+        flags: 0,
+        stars_amount,
+        extended_media: media,
+        payload,
+    }
+}
+
+/// Sends a story by reference (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_story<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    story_peer: InputPeer,
+    story_id: i32,
+) -> Result<Object> {
+    client.invoke(build_send_media(
+        peer,
+        story_media(story_peer, story_id),
+        caption,
+    ))
+}
+
+/// Sends paid media (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_paid_media<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    stars_amount: i64,
+    media: Vec<InputMedia>,
+    payload: Option<String>,
+) -> Result<Object> {
+    client.invoke(build_send_media(
+        peer,
+        paid_media(stars_amount, media, payload),
+        caption,
+    ))
+}
+
 /// Builds a `messages.sendMultiMedia` (album) request from `(media, caption)`
 /// pairs.
 #[must_use]
@@ -1236,5 +1365,40 @@ mod tests {
             Method::MessagesSendMessage(request) => assert!(request.rich_message.is_some()),
             _ => panic!("expected messages.sendMessage"),
         }
+    }
+
+    #[test]
+    fn media_options_are_carried() {
+        let method = super::build_send_media_with(
+            InputPeer::InputPeerEmpty,
+            super::dice_media("\u{1F3B2}"),
+            "cap",
+            super::MediaOptions {
+                schedule_date: Some(123),
+                silent: true,
+                ..super::MediaOptions::default()
+            },
+        );
+        match method {
+            Method::MessagesSendMedia(request) => {
+                assert_eq!(request.schedule_date, Some(123));
+                assert!(request.silent);
+            }
+            _ => panic!("expected messages.sendMedia"),
+        }
+    }
+
+    #[test]
+    fn builds_story_and_paid_media() {
+        use rtd_tg::InputMedia;
+
+        assert!(matches!(
+            super::story_media(InputPeer::InputPeerEmpty, 1),
+            InputMedia::InputMediaStory { .. }
+        ));
+        assert!(matches!(
+            super::paid_media(10, Vec::new(), None),
+            InputMedia::InputMediaPaidMedia { .. }
+        ));
     }
 }

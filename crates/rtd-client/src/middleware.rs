@@ -147,6 +147,41 @@ impl Tracer for OtelTracer {
     }
 }
 
+/// A [`Tracer`] that counts invocations as an OpenTelemetry counter.
+///
+/// Available with the `otel` feature. It uses the process-global OpenTelemetry
+/// meter provider; without one the counter is a no-op.
+#[cfg(feature = "otel")]
+pub struct OtelMetrics {
+    calls: opentelemetry::metrics::Counter<u64>,
+}
+
+#[cfg(feature = "otel")]
+impl OtelMetrics {
+    /// Creates a metrics recorder under instrumentation `name`.
+    #[must_use]
+    pub fn new(name: &'static str) -> Self {
+        let meter = opentelemetry::global::meter(name);
+        let calls = meter.u64_counter("rpc.calls").build();
+        Self { calls }
+    }
+}
+
+#[cfg(feature = "otel")]
+impl Tracer for OtelMetrics {
+    fn record(&self, method: &str, ok: bool) {
+        use opentelemetry::KeyValue;
+
+        self.calls.add(
+            1,
+            &[
+                KeyValue::new("rpc.method", method.to_owned()),
+                KeyValue::new("rpc.ok", ok),
+            ],
+        );
+    }
+}
+
 /// Enforces a minimum interval between invocations.
 pub struct RateLimit {
     interval: Duration,
@@ -295,5 +330,13 @@ mod tests {
         // the call path is safe.
         OtelTracer::new("rtd-test").record("help.getConfig", true);
         OtelTracer::new("rtd-test").record("help.getConfig", false);
+    }
+
+    #[cfg(feature = "otel")]
+    #[test]
+    fn otel_metrics_records_without_a_provider() {
+        use super::{OtelMetrics, Tracer};
+
+        OtelMetrics::new("rtd-test").record("help.getConfig", true);
     }
 }

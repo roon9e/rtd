@@ -78,24 +78,26 @@ pub use json::{
 pub use keepalive::{Backoff, Keepalive, Reconnect};
 pub use manager::{DcRouter, ReconnectingClient};
 pub use markup::{
-    InlineButton, ReplyButton, ReplyButtonKind, ReplyKeyboardOptions, inline_keyboard,
-    reply_keyboard, reply_keyboard_force_reply, reply_keyboard_hide,
+    InlineButton, ReplyButton, ReplyButtonKind, ReplyKeyboardOptions, bot_menu_commands,
+    bot_menu_default, bot_menu_url, inline_keyboard, reply_keyboard, reply_keyboard_force_reply,
+    reply_keyboard_hide,
 };
 #[cfg(feature = "media-webrtc")]
 pub use media::WebRtcMedia;
 pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
-    AudioSpec, PollSpec, RequestBuilder, VenueSpec, VideoSpec, audio_media, build_send_media,
-    build_send_media_group, delete_messages, dice_media, document_media, edit_message,
-    edit_message_html, edit_message_with, edit_rich_message, forward_messages, game_media,
-    gif_media, join_channel, report, save_draft, send, send_audio, send_contact, send_dice,
-    send_document, send_game, send_geo, send_gif, send_media, send_media_group, send_photo,
-    send_poll, send_sticker, send_venue, send_video, send_webpage, set_typing, sticker_media,
+    AudioSpec, MediaOptions, PollSpec, RequestBuilder, VenueSpec, VideoSpec, audio_media,
+    build_send_media, build_send_media_group, build_send_media_with, delete_messages, dice_media,
+    document_media, edit_message, edit_message_html, edit_message_with, edit_rich_message,
+    forward_messages, game_media, gif_media, join_channel, paid_media, report, save_draft, send,
+    send_audio, send_contact, send_dice, send_document, send_game, send_geo, send_gif, send_media,
+    send_media_group, send_media_with, send_paid_media, send_photo, send_poll, send_sticker,
+    send_story, send_venue, send_video, send_webpage, set_typing, sticker_media, story_media,
     venue_media, video_media, webpage_media,
 };
-#[cfg(feature = "otel")]
-pub use middleware::OtelTracer;
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
+#[cfg(feature = "otel")]
+pub use middleware::{OtelMetrics, OtelTracer};
 pub use pagination::{
     BlockedIter, DialogsIter, Hasher, HistoryIter, ParticipantsIter, PhotosIter, Query, QueryCache,
     cached, fetch_all, fetch_dialogs, fetch_featured_stickers, fetch_history, fetch_participants,
