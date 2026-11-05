@@ -8,18 +8,19 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rtd_client::dcs::{Resolver as _, StaticResolver, migrate_target};
 use rtd_client::storage::{FileStorage, MemoryStorage, Storage};
-use rtd_client::{Client, Downloader, Framed, InitParams, ReadWrite, TcpTransport, connect_tcp};
+use rtd_client::{Client, Framed, InitParams, ReadWrite, TcpTransport, connect_tcp};
 use rtd_crypto::parse_rsa_public_keys;
 use rtd_crypto::rsa::RsaPublicKey;
 use rtd_crypto::{Key, random_bytes};
 use rtd_exchange::ClientConfig;
 use rtd_proto::CodecKind;
 use rtd_tg::{
-    AuthAuthorization, AuthSentCode, CodeSettings, InputFileLocation, Method, Object, User,
+    AuthAuthorization, AuthSentCode, CodeSettings, InputFileLocation, Method, Object, UploadFile,
+    UploadGetFile, User,
 };
 use rtd_util::{Clock, SystemClock};
 
@@ -29,6 +30,10 @@ use crate::proxy::Proxy;
 
 /// The default authorization datacenter.
 pub const DEFAULT_DC: i32 = 2;
+
+/// Serializes session-file access so concurrent worker connects cannot race on
+/// the same storage file (loaded by many threads, written by the main one).
+static STORAGE_LOCK: Mutex<()> = Mutex::new(());
 
 /// The bundled official Telegram production RSA public keys.
 ///
@@ -95,7 +100,7 @@ impl Tg {
     ) -> Result<Self> {
         let path = session_path.into();
         let storage: Box<dyn Storage> = Box::new(FileStorage::new(&path));
-        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc, None)
+        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc, None, true)
     }
 
     /// Connects to a specific home datacenter through an optional SOCKS5 proxy.
@@ -112,7 +117,7 @@ impl Tg {
     ) -> Result<Self> {
         let path = session_path.into();
         let storage: Box<dyn Storage> = Box::new(FileStorage::new(&path));
-        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc, proxy)
+        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc, proxy, true)
     }
 
     /// Connects with an in-memory session, mirroring Go's session-less client.
@@ -125,7 +130,27 @@ impl Tg {
     /// As [`Tg::connect_to`].
     pub fn ephemeral(api_id: i32, api_hash: &str, home_dc: i32) -> Result<Self> {
         let storage: Box<dyn Storage> = Box::new(MemoryStorage::new());
-        Self::with_storage(api_id, api_hash, storage, None, home_dc, None)
+        Self::with_storage(api_id, api_hash, storage, None, home_dc, None, false)
+    }
+
+    /// Connects a worker that shares an existing session without writing it.
+    ///
+    /// Used by the concurrent download pool so several connections can reuse the
+    /// authorized key while only the main client persists the session file.
+    ///
+    /// # Errors
+    ///
+    /// As [`Tg::connect_proxied`].
+    pub fn connect_worker(
+        api_id: i32,
+        api_hash: &str,
+        session_path: impl Into<PathBuf>,
+        home_dc: i32,
+        proxy: Option<Proxy>,
+    ) -> Result<Self> {
+        let path = session_path.into();
+        let storage: Box<dyn Storage> = Box::new(FileStorage::new(&path));
+        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc, proxy, false)
     }
 
     fn with_storage(
@@ -135,11 +160,12 @@ impl Tg {
         session_path: Option<PathBuf>,
         home_dc: i32,
         proxy: Option<Proxy>,
+        persist: bool,
     ) -> Result<Self> {
         let keys = parse_rsa_public_keys(PROD_PUBLIC_KEYS)
             .map_err(|error| format!("parse production public keys: {error}"))?;
         let clock: Arc<dyn Clock + Send + Sync> = Arc::new(SystemClock);
-        let existing = storage.load()?;
+        let existing = with_storage_lock(|| storage.load())?;
         let mut home = open_client(
             home_dc,
             &keys,
@@ -148,7 +174,9 @@ impl Tg {
             proxy.as_ref(),
         )?;
         home.initialize(init_params(api_id))?;
-        storage.store(&home.session_data())?;
+        if persist {
+            with_storage_lock(|| storage.store(&home.session_data()))?;
+        }
         Ok(Self {
             api_id,
             api_hash: api_hash.to_owned(),
@@ -187,7 +215,7 @@ impl Tg {
     ///
     /// Returns an error when the file cannot be written.
     pub fn save(&self) -> Result<()> {
-        self.storage.store(&self.home.session_data())?;
+        with_storage_lock(|| self.storage.store(&self.home.session_data()))?;
         Ok(())
     }
 
@@ -277,6 +305,11 @@ impl Tg {
 
     /// Downloads `size` bytes of `location` from the datacenter `dc`.
     ///
+    /// Requests are made in the client-compatible chunk ladder
+    /// (4 KiB … 512 KiB) because Telegram rejects an unaligned `limit` with
+    /// `LIMIT_INVALID`. The final chunk may return fewer bytes; the result is
+    /// truncated to `size`.
+    ///
     /// # Errors
     ///
     /// Returns a transport, RPC or decode error.
@@ -286,21 +319,67 @@ impl Tg {
         size: usize,
         dc: i32,
     ) -> Result<Vec<u8>> {
-        let downloader = Downloader::new();
+        if size == 0 {
+            return Ok(Vec::new());
+        }
+        let part = chunk_size(size);
         let mut dc = dc;
-        loop {
+        'route: loop {
             let client = self.client_for(dc)?;
-            match downloader.download(client, location.clone(), size) {
-                Ok(bytes) => return Ok(bytes),
-                Err(rtd_client::Error::Rpc(error)) => {
-                    if let Some(target) = migrate_target(&error) {
-                        dc = target;
-                        continue;
+            let mut out: Vec<u8> = Vec::with_capacity(size.min(64 << 20));
+            let mut offset: i64 = 0;
+            while out.len() < size {
+                let query = Method::UploadGetFile(Box::new(UploadGetFile {
+                    flags: 0,
+                    precise: false,
+                    cdn_supported: false,
+                    location: Box::new(location.clone()),
+                    offset,
+                    limit: part,
+                }));
+                match client.invoke(query) {
+                    Ok(Object::UploadFile(file)) => match *file {
+                        UploadFile::File { bytes, .. } => {
+                            if bytes.is_empty() {
+                                break;
+                            }
+                            offset += bytes.len() as i64;
+                            out.extend_from_slice(&bytes);
+                        }
+                        UploadFile::FileCdnRedirect { .. } => {
+                            return Err(
+                                "upload.getFile returned a CDN redirect, which is unsupported"
+                                    .into(),
+                            );
+                        }
+                    },
+                    Err(rtd_client::Error::Rpc(error)) => {
+                        if let Some(target) = migrate_target(&error) {
+                            dc = target;
+                            continue 'route;
+                        }
+                        return Err(rtd_client::Error::Rpc(error).into());
                     }
-                    return Err(rtd_client::Error::Rpc(error).into());
+                    Err(error) => return Err(error.into()),
+                    Ok(other) => {
+                        return Err(format!(
+                            "upload.getFile returned unexpected constructor {:#010x}",
+                            other.type_id()
+                        )
+                        .into());
+                    }
                 }
-                Err(error) => return Err(error.into()),
             }
+            out.truncate(size);
+            return Ok(out);
+        }
+    }
+
+    /// Drops a cached non-home datacenter connection so the next call reconnects
+    /// and re-imports authorization. Used to recover a stale file-DC connection.
+    pub fn reset_dc(&mut self, dc: i32) {
+        if dc != self.home_dc {
+            self.others.remove(&dc);
         }
     }
 
@@ -346,6 +425,14 @@ impl Tg {
         }
         self.others.get_mut(&dc).ok_or(rtd_client::Error::Closed)
     }
+}
+
+/// Runs `op` while holding the process-wide session-storage lock.
+fn with_storage_lock<T>(op: impl FnOnce() -> rtd_client::Result<T>) -> rtd_client::Result<T> {
+    let _guard = STORAGE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    op()
 }
 
 /// Builds a client for `dc`, resuming `existing` when present.
@@ -442,6 +529,17 @@ fn default_settings() -> CodeSettings {
 #[must_use]
 pub fn default_session_path() -> String {
     creds::session_path("/tmp/appearance.session")
+}
+
+/// Returns the largest valid chunk size not exceeding `size` (4 KiB … 512 KiB).
+fn chunk_size(size: usize) -> i32 {
+    const UNIT: usize = 4 << 10;
+    const MAX: usize = 512 << 10;
+    let mut part = UNIT;
+    while part < MAX && part < size {
+        part <<= 1;
+    }
+    i32::try_from(part).unwrap_or(MAX as i32)
 }
 
 /// Reports whether a crate error is the RPC `SESSION_PASSWORD_NEEDED`.

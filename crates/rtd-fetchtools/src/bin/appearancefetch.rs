@@ -74,14 +74,13 @@ fn send_code(tg: &mut Tg) -> Result<()> {
 
 /// `fetch <out>`: signs in if needed, then snapshots wallpapers and themes.
 fn fetch(tg: &mut Tg, out: &Path) -> Result<()> {
-    let phone = env_nonempty("PHONE").ok_or("PHONE env required")?;
-    let code = env_nonempty("CODE").unwrap_or_default();
-    let code_hash = env_nonempty("CODE_HASH").unwrap_or_default();
-    let password = env_nonempty("PASSWORD").unwrap_or_default();
-
     if tg.is_authorized()? {
         println!("[already authorized]");
     } else {
+        let phone = env_nonempty("PHONE").ok_or("PHONE env required")?;
+        let code = env_nonempty("CODE").unwrap_or_default();
+        let code_hash = env_nonempty("CODE_HASH").ok_or("CODE_HASH env required")?;
+        let password = env_nonempty("PASSWORD").unwrap_or_default();
         match tg.sign_in(&phone, &code_hash, &code) {
             Ok(_) => {}
             Err(error) if is_password_needed(&error) => {

@@ -441,8 +441,11 @@ impl Collector {
 fn fetch_catalog(tg: &mut Tg, opts: &Options, session: &str, account: &Account) -> Result<()> {
     let out = PathBuf::from(&opts.out);
     std::fs::create_dir_all(&out)?;
+    // Reuse the raw TL artifacts when they already exist, unless the caller
+    // explicitly asked to refetch; this keeps re-runs from burning rate limits.
+    let reuse_metadata = opts.reuse_metadata || out.join("catalog.tl").exists();
 
-    let (catalog, raw_artifact) = if opts.reuse_metadata {
+    let (catalog, raw_artifact) = if reuse_metadata {
         let (catalog, artifact) = read_catalog_tl(&out)?;
         println!("[metadata reused] path={}", artifact.path);
         (catalog, artifact)
@@ -494,8 +497,7 @@ fn fetch_catalog(tg: &mut Tg, opts: &Options, session: &str, account: &Account) 
     let upgradeable = collect_upgradeable_gift_ids(gifts);
     manifest.upgradeable_gift_count = upgradeable.len() as i32;
     for gift_id in &upgradeable {
-        let set =
-            fetch_upgrade_attribute_set(tg, &out, *gift_id, &mut collector, opts.reuse_metadata)?;
+        let set = fetch_upgrade_attribute_set(tg, &out, *gift_id, &mut collector, reuse_metadata)?;
         manifest.upgrade_attribute_count += set.attribute_count;
         manifest.upgrade_model_count += set.models.len() as i32;
         manifest.upgrade_pattern_count += set.patterns.len() as i32;
@@ -583,7 +585,7 @@ fn download_documents(
             let results = &results;
             let proxy = proxy.clone();
             handles.push(scope.spawn(move || -> Result<()> {
-                let mut worker = Tg::connect_proxied(account.id, &account.hash, session, 2, proxy)?;
+                let mut worker = Tg::connect_worker(account.id, &account.hash, session, 2, proxy)?;
                 loop {
                     let index = next.fetch_add(1, Ordering::SeqCst);
                     if index >= ids.len() {
@@ -591,10 +593,16 @@ fn download_documents(
                     }
                     let id = ids[index];
                     let source = documents.get(&id).expect("document source");
-                    let result = fetch_document(&mut worker, out, source, opts)?;
-                    let mut guard = results.lock().expect("results");
-                    if let Some(slot) = guard.get_mut(index) {
-                        *slot = Some(result);
+                    // A single document failure must not abort the whole run; the
+                    // next run retries it while reusing everything already written.
+                    match fetch_document(&mut worker, out, source, opts) {
+                        Ok(result) => {
+                            let mut guard = results.lock().expect("results");
+                            if let Some(slot) = guard.get_mut(index) {
+                                *slot = Some(result);
+                            }
+                        }
+                        Err(error) => eprintln!("[skip document {id}] {error}"),
                     }
                 }
                 Ok(())
@@ -787,7 +795,7 @@ fn fetch_upgrade_attribute_set(
     reuse_metadata: bool,
 ) -> Result<UpgradeAttributeSet> {
     let rel = format!("upgrade-attributes/{gift_id}.tl");
-    let (result, artifact) = if reuse_metadata {
+    let (result, artifact) = if reuse_metadata || root.join(&rel).exists() {
         read_upgrade_tl(root, &rel)?
     } else {
         let request = Method::PaymentsGetStarGiftUpgradeAttributes(Box::new(
@@ -965,7 +973,7 @@ fn fetch_document(
         Some(data) => data,
         None => {
             println!(
-                "[network fetch] document={id} resource=document expected_size={size} part_size={}",
+                "[network fetch] document={id} resource=document dc={dc_id} expected_size={size} part_size={}",
                 part_size(*size)
             );
             let location = InputFileLocation::InputDocumentFileLocation {
@@ -1201,7 +1209,8 @@ fn doc_location(
     }
 }
 
-/// Downloads with the Go retry/backoff policy.
+/// Downloads with the Go retry/backoff policy, reconnecting the datacenter on
+/// each retry so a stale file-DC connection is replaced.
 fn download_retry(
     tg: &mut Tg,
     location: InputFileLocation,
@@ -1209,8 +1218,9 @@ fn download_retry(
     dc_id: i32,
     max: i64,
 ) -> Result<Vec<u8>> {
+    const ATTEMPTS: u32 = 8;
     let mut last = String::new();
-    for attempt in 1..=6 {
+    for attempt in 1..=ATTEMPTS {
         match tg.download(
             location.clone(),
             usize::try_from(expected).unwrap_or(0),
@@ -1227,13 +1237,14 @@ fn download_retry(
                 if !is_retryable(&last) {
                     return Err(error);
                 }
-                let backoff = Duration::from_secs(attempt * 2);
-                println!("[retry {attempt}/6] {last} (waiting {backoff:?})");
+                tg.reset_dc(dc_id);
+                let backoff = Duration::from_secs(u64::from(attempt) * 2);
+                println!("[retry {attempt}/{ATTEMPTS}] {last} (waiting {backoff:?})");
                 std::thread::sleep(backoff);
             }
         }
     }
-    Err(format!("failed after 6 attempts: {last}").into())
+    Err(format!("failed after {ATTEMPTS} attempts: {last}").into())
 }
 
 /// Returns whether a download error is worth retrying.
