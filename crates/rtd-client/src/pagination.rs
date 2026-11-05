@@ -9,9 +9,10 @@ use std::collections::HashMap;
 use rtd_tg::{
     ChannelParticipant, ChannelParticipantsFilter, ChannelsChannelParticipants,
     ChannelsGetParticipants, Chat, ContactsBlocked, ContactsGetBlocked, Dialog, InputChannel,
-    InputPeer, InputUser, Message, MessagesDialogs, MessagesFeaturedStickers, MessagesGetDialogs,
-    MessagesGetFeaturedStickers, MessagesGetHistory, MessagesMessages, Method, Object, Peer,
-    PeerBlocked, Photo, PhotosGetUserPhotos, PhotosPhotos, StickerSetCovered, User,
+    InputPeer, InputUser, Message, MessagesDialogs, MessagesFeaturedStickers, MessagesFilter,
+    MessagesGetDialogs, MessagesGetFeaturedStickers, MessagesGetHistory, MessagesMessages,
+    MessagesSearch, Method, Object, Peer, PeerBlocked, Photo, PhotosGetUserPhotos, PhotosPhotos,
+    StickerSetCovered, User,
 };
 
 use crate::client::Client;
@@ -126,6 +127,120 @@ pub fn fetch_history<T: Transport>(
     limit: i32,
 ) -> Result<Vec<Message>> {
     let mut iter = HistoryIter::new(peer).with_limit(limit);
+    let mut all = Vec::new();
+    while let Some(page) = iter.next(client)? {
+        all.extend(page);
+    }
+    Ok(all)
+}
+
+/// An iterator over `messages.search`.
+#[derive(Debug, Clone)]
+pub struct SearchIter {
+    peer: InputPeer,
+    query: String,
+    filter: MessagesFilter,
+    offset_id: i32,
+    remaining: i32,
+    batch: i32,
+    done: bool,
+}
+
+impl SearchIter {
+    /// Creates an iterator searching `peer` for `query` with `filter`.
+    #[must_use]
+    pub fn new(peer: InputPeer, query: impl Into<String>, filter: MessagesFilter) -> Self {
+        Self {
+            peer,
+            query: query.into(),
+            filter,
+            offset_id: 0,
+            remaining: i32::MAX,
+            batch: DEFAULT_BATCH,
+            done: false,
+        }
+    }
+
+    /// Bounds the total number of messages returned.
+    #[must_use]
+    pub fn with_limit(mut self, limit: i32) -> Self {
+        self.remaining = limit;
+        self
+    }
+
+    /// Overrides the page size.
+    #[must_use]
+    pub fn with_batch(mut self, batch: i32) -> Self {
+        self.batch = batch.max(1);
+        self
+    }
+
+    /// Fetches the next page, or `None` when the search is exhausted.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with an unexpected constructor.
+    pub fn next<T: Transport>(&mut self, client: &mut Client<T>) -> Result<Option<Vec<Message>>> {
+        if self.done || self.remaining <= 0 {
+            return Ok(None);
+        }
+        let limit = self.batch.min(self.remaining);
+        let query = Method::MessagesSearch(Box::new(MessagesSearch {
+            flags: 0,
+            peer: Box::new(self.peer.clone()),
+            q: self.query.clone(),
+            from_id: None,
+            saved_peer_id: None,
+            saved_reaction: None,
+            top_msg_id: None,
+            filter: Box::new(self.filter.clone()),
+            min_date: 0,
+            max_date: 0,
+            offset_id: self.offset_id,
+            add_offset: 0,
+            limit,
+            max_id: 0,
+            min_id: 0,
+            hash: 0,
+        }));
+        let messages = match client.invoke(query)? {
+            Object::MessagesMessages(page) => extract_messages(*page),
+            other => {
+                return Err(Error::Unexpected(format!(
+                    "messages.search returned unexpected constructor {:#010x}",
+                    other.type_id()
+                )));
+            }
+        };
+        if messages.is_empty() {
+            self.done = true;
+            return Ok(None);
+        }
+        if let Some(last) = messages.last() {
+            self.offset_id = message_id(last);
+        }
+        self.remaining -= messages.len() as i32;
+        if messages.len() < limit as usize {
+            self.done = true;
+        }
+        Ok(Some(messages))
+    }
+}
+
+/// Drains a search iterator into one vector.
+///
+/// # Errors
+///
+/// Returns the iterator's error.
+pub fn fetch_search<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    query: &str,
+    filter: MessagesFilter,
+    limit: i32,
+) -> Result<Vec<Message>> {
+    let mut iter = SearchIter::new(peer, query, filter).with_limit(limit);
     let mut all = Vec::new();
     while let Some(page) = iter.next(client)? {
         all.extend(page);

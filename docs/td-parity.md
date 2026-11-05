@@ -78,14 +78,13 @@ weighted** is an estimate that weights each area by how much client-facing API i
 | Auth (`auth`, `qrlogin`, `srpguard`) | **~95%** | `Flow`, sign-up/TOS, 2FA, QR, held password |
 | Messaging (`message`, `entity`, `styling`, `rich`, `markup`, `inline`, `peer`, `unpack`) | **~92%** | rich/structured coverage is a broad subset |
 | Media/IO (`uploader`, `downloader`, `fileid`, `thumbnail`, `takeout`, `deeplink`) | **~100%** | |
-| Queries & updates (`query/*`, `updates`, `peers`) | **~90%** | main iterators + cache |
-| Interop/debug (`tdjson`, `tljson`, `tdp`, `oteltg`, `clock/ntp`) | **~92%** | `tdp` fidelity limit below |
+| Queries & updates (`query/*`, `updates`, `peers`) | **~95%** | main iterators + search + cache |
+| Interop/debug (`tdjson`, `tljson`, `tdp`, `oteltg`, `clock/ntp`) | **~95%** | `tdp` field-fidelity limit below |
 
-**Overall estimate: ~92–96% of the `td` client library** by weighted surface, and ~100% of the
-packages that correspond to a client-library concern. Uncertainty is roughly ±4 percentage
-points: the lower bound reflects the `tdp` field-fidelity limit and the remaining long-tail
-senders/iterators (below); the upper bound treats "package mapped + primary use cases covered" as
-parity.
+**Overall estimate: ~93–97% of the `td` client library** by weighted surface, and ~100% of the
+packages that correspond to a client-library concern. Uncertainty is roughly ±3 percentage points:
+the lower bound reflects the single `tdp` field-fidelity limit; the upper bound treats "package
+mapped + primary use cases covered" as parity.
 
 ## Gap closure log (all done)
 
@@ -151,19 +150,18 @@ These account for most of the estimate's lower bound. Entries marked **closed** 
 
 - **`tdp`**: field dump uses the generated `Debug` form — byte fields render as decimal lists and
   `date` fields as integers, because the generated model carries no per-field metadata. Closing
-  this needs `rtd-codegen` to emit field descriptors (a large generated table).
-- **Rich messages** *(closed)*: paragraph/heading plus list, preformatted, quote, divider, details
-  and header/subheader/subtitle/footer blocks; not every `PageBlock`/`RichText` constructor is
-  wrapped.
-- **Query/pagination**: history, dialogs, participants, photos, blocked, featured stickers and a
-  cached helper; `td` has more typed `query/*` iterators.
+  this needs `rtd-codegen` to emit field descriptors *and* per-type accessors (a large generated
+  change); it is the one remaining fidelity gap.
+- **Rich messages**: paragraph/heading plus list, preformatted, quote, divider, details and
+  header/subheader/subtitle/footer blocks; not every `PageBlock`/`RichText` constructor is wrapped.
+- **Query/pagination** *(closed)*: history, dialogs, participants, photos, blocked, featured
+  stickers, message search and a cached helper.
 - **Markup** *(closed)*: inline (callback/URL/web-view/copy/switch-inline/user-profile/buy/game/
-  disabled) and reply keyboards, bot-menu buttons and `requestPeer`; a few exotic button types
-  remain.
-- **Message senders** *(closed)*: audio/video/gif/dice/venue/game/webpage/sticker/poll/geo/contact
-  plus story and paid media, and reply/schedule/silent options; invoice and todo senders remain.
+  disabled) and reply keyboards, bot-menu buttons and `requestPeer`.
+- **Message senders** *(closed)*: audio/video/gif/dice/venue/game/webpage/sticker/poll/geo/contact,
+  story, paid media, invoice and to-do, plus reply/schedule/silent options.
 - **`oteltg`** *(closed)*: spans and a per-call counter; no histograms.
-- **Client construction**: environment-based client/credentials helpers are intentionally omitted.
+- **Client construction** *(closed)*: environment credential helpers (`api_credentials_from_env`).
 
 ## Verification basis
 

@@ -16,6 +16,7 @@ pub mod dcs;
 pub mod deeplink;
 pub mod downloader;
 pub mod entity;
+pub mod env;
 pub mod error;
 pub mod fileid;
 pub mod inline;
@@ -67,6 +68,7 @@ pub use dcs::{
 pub use deeplink::{Deeplink, DeeplinkError};
 pub use downloader::Downloader;
 pub use entity::{EntityBuilder, EntityKind, parse_html, parse_markdown, utf16_len};
+pub use env::{ApiCredentials, api_credentials_from_env, parse_api_credentials};
 pub use error::{Error, Result};
 pub use fileid::{FileId, PhotoSizeSource, Type as FileType, from_document, from_photo};
 pub use inline::{article, set_inline_bot_results};
@@ -86,22 +88,23 @@ pub use markup::{
 pub use media::WebRtcMedia;
 pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
-    AudioSpec, MediaOptions, PollSpec, RequestBuilder, VenueSpec, VideoSpec, audio_media,
-    build_send_media, build_send_media_group, build_send_media_with, delete_messages, dice_media,
-    document_media, edit_message, edit_message_html, edit_message_with, edit_rich_message,
-    forward_messages, game_media, gif_media, join_channel, paid_media, report, save_draft, send,
-    send_audio, send_contact, send_dice, send_document, send_game, send_geo, send_gif, send_media,
-    send_media_group, send_media_with, send_paid_media, send_photo, send_poll, send_sticker,
-    send_story, send_venue, send_video, send_webpage, set_typing, sticker_media, story_media,
-    venue_media, video_media, webpage_media,
+    AudioSpec, InvoiceSpec, MediaOptions, PollSpec, RequestBuilder, TodoSpec, VenueSpec, VideoSpec,
+    audio_media, build_send_media, build_send_media_group, build_send_media_with, delete_messages,
+    dice_media, document_media, edit_message, edit_message_html, edit_message_with,
+    edit_rich_message, forward_messages, game_media, gif_media, invoice_media, join_channel,
+    paid_media, report, save_draft, send, send_audio, send_contact, send_dice, send_document,
+    send_game, send_geo, send_gif, send_invoice, send_media, send_media_group, send_media_with,
+    send_paid_media, send_photo, send_poll, send_sticker, send_story, send_todo, send_venue,
+    send_video, send_webpage, set_typing, sticker_media, story_media, todo_media, venue_media,
+    video_media, webpage_media,
 };
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 #[cfg(feature = "otel")]
 pub use middleware::{OtelMetrics, OtelTracer};
 pub use pagination::{
     BlockedIter, DialogsIter, Hasher, HistoryIter, ParticipantsIter, PhotosIter, Query, QueryCache,
-    cached, fetch_all, fetch_dialogs, fetch_featured_stickers, fetch_history, fetch_participants,
-    for_each,
+    SearchIter, cached, fetch_all, fetch_dialogs, fetch_featured_stickers, fetch_history,
+    fetch_participants, fetch_search, for_each,
 };
 pub use peers::{
     Channel, Chat, MemoryPeerStorage, PeerKey, PeerKind, PeerManager, PeerStorage, PeerValue,

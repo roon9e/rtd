@@ -4,12 +4,12 @@
 //! text and options; [`send`] invokes it through a client.
 
 use rtd_tg::{
-    ChannelsJoinChannel, DocumentAttribute, InputChannel, InputDocument, InputFile, InputGame,
-    InputGeoPoint, InputMedia, InputPeer, InputReplyTo, InputRichMessage, InputSingleMedia,
-    InputUser, MessageEntity, MessagesDeleteMessages, MessagesEditMessage, MessagesForwardMessages,
-    MessagesReport, MessagesSaveDraft, MessagesSendMedia, MessagesSendMessage,
-    MessagesSendMultiMedia, MessagesSetTyping, Method, Object, Poll, PollAnswer, ReplyMarkup,
-    SendMessageAction, TextWithEntities,
+    ChannelsJoinChannel, DataJSON, DocumentAttribute, InputChannel, InputDocument, InputFile,
+    InputGame, InputGeoPoint, InputMedia, InputPeer, InputReplyTo, InputRichMessage,
+    InputSingleMedia, InputUser, Invoice, LabeledPrice, MessageEntity, MessagesDeleteMessages,
+    MessagesEditMessage, MessagesForwardMessages, MessagesReport, MessagesSaveDraft,
+    MessagesSendMedia, MessagesSendMessage, MessagesSendMultiMedia, MessagesSetTyping, Method,
+    Object, Poll, PollAnswer, ReplyMarkup, SendMessageAction, TextWithEntities, TodoItem, TodoList,
 };
 
 use crate::client::Client;
@@ -430,6 +430,130 @@ pub fn send_paid_media<T: Transport>(
         paid_media(stars_amount, media, payload),
         caption,
     ))
+}
+
+/// Parameters for an invoice.
+#[derive(Debug, Clone)]
+pub struct InvoiceSpec {
+    /// The product title.
+    pub title: String,
+    /// The product description.
+    pub description: String,
+    /// The bot-defined invoice payload.
+    pub payload: Vec<u8>,
+    /// The provider-defined JSON data.
+    pub provider_data: String,
+    /// The currency (e.g. `USD`).
+    pub currency: String,
+    /// The price breakdown.
+    pub prices: Vec<LabeledPrice>,
+    /// Whether this is a test invoice.
+    pub test: bool,
+}
+
+/// Builds an invoice media value.
+#[must_use]
+pub fn invoice_media(spec: InvoiceSpec) -> InputMedia {
+    let invoice = Invoice {
+        flags: 0,
+        test: spec.test,
+        name_requested: false,
+        phone_requested: false,
+        email_requested: false,
+        shipping_address_requested: false,
+        flexible: false,
+        phone_to_provider: false,
+        email_to_provider: false,
+        recurring: false,
+        currency: spec.currency,
+        prices: spec.prices,
+        max_tip_amount: None,
+        suggested_tip_amounts: None,
+        terms_url: None,
+        subscription_period: None,
+    };
+    InputMedia::InputMediaInvoice {
+        flags: 0,
+        title: spec.title,
+        description: spec.description,
+        photo: None,
+        invoice: Box::new(invoice),
+        payload: spec.payload,
+        provider: None,
+        provider_data: Box::new(DataJSON {
+            data: spec.provider_data,
+        }),
+        start_param: None,
+        extended_media: None,
+    }
+}
+
+/// Sends an invoice (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_invoice<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    caption: &str,
+    spec: InvoiceSpec,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, invoice_media(spec), caption))
+}
+
+/// Parameters for a to-do list.
+#[derive(Debug, Clone)]
+pub struct TodoSpec {
+    /// The list title.
+    pub title: String,
+    /// The items as `(id, title)` pairs.
+    pub items: Vec<(i32, String)>,
+    /// Whether others may append items.
+    pub others_can_append: bool,
+    /// Whether others may complete items.
+    pub others_can_complete: bool,
+}
+
+/// Builds a to-do media value.
+#[must_use]
+pub fn todo_media(spec: TodoSpec) -> InputMedia {
+    let list = spec
+        .items
+        .into_iter()
+        .map(|(id, title)| TodoItem {
+            id,
+            title: Box::new(TextWithEntities {
+                text: title,
+                entities: Vec::new(),
+            }),
+        })
+        .collect();
+    InputMedia::InputMediaTodo {
+        todo: Box::new(TodoList {
+            flags: 0,
+            others_can_append: spec.others_can_append,
+            others_can_complete: spec.others_can_complete,
+            title: Box::new(TextWithEntities {
+                text: spec.title,
+                entities: Vec::new(),
+            }),
+            list,
+        }),
+    }
+}
+
+/// Sends a to-do list (`messages.sendMedia`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn send_todo<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    spec: TodoSpec,
+) -> Result<Object> {
+    client.invoke(build_send_media(peer, todo_media(spec), ""))
 }
 
 /// Builds a `messages.sendMultiMedia` (album) request from `(media, caption)`
@@ -1400,5 +1524,32 @@ mod tests {
             super::paid_media(10, Vec::new(), None),
             InputMedia::InputMediaPaidMedia { .. }
         ));
+    }
+
+    #[test]
+    fn builds_invoice_and_todo_media() {
+        use rtd_tg::{InputMedia, LabeledPrice};
+
+        let invoice = super::invoice_media(super::InvoiceSpec {
+            title: "t".to_owned(),
+            description: "d".to_owned(),
+            payload: vec![1],
+            provider_data: "{}".to_owned(),
+            currency: "USD".to_owned(),
+            prices: vec![LabeledPrice {
+                label: "x".to_owned(),
+                amount: 100,
+            }],
+            test: true,
+        });
+        assert!(matches!(invoice, InputMedia::InputMediaInvoice { .. }));
+
+        let todo = super::todo_media(super::TodoSpec {
+            title: "t".to_owned(),
+            items: vec![(1, "a".to_owned())],
+            others_can_append: false,
+            others_can_complete: false,
+        });
+        assert!(matches!(todo, InputMedia::InputMediaTodo { .. }));
     }
 }
