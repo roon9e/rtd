@@ -59,7 +59,7 @@ need to mirror.
 | `telegram/message` | `rtd-client::message` | partial |
 | `telegram/message/entity` | `rtd-client::entity` | done |
 | `telegram/message/styling` | `rtd-client::entity` | done |
-| `telegram/message/rich` | — | missing |
+| `telegram/message/rich` | `rtd-client::rich` | done |
 | `telegram/message/markup` | `rtd-client::markup` | done |
 | `telegram/message/inline` | `rtd-client::inline` | done |
 | `telegram/message/peer` | `rtd-client::peers` | done |
@@ -75,7 +75,10 @@ need to mirror.
 2. **`srpguard`**: locked/zeroizing buffer for the 2FA password. *Effort: S, optional dep.* —
    **done**, see `rtd-client::auth::HeldPassword` (zeroized on drop).
 3. **Rich messages** (`telegram/message/rich`): `PageBlock`/`RichText` builders and
-   HTML/Markdown parsing; `message.rs` currently sets `rich_message: None`. *Effort: L, no new deps.*
+   HTML/Markdown; `message.rs` currently sets `rich_message: None`. *Effort: L, no new deps.* —
+   **done**, see `rtd-client::rich` (`RichMessage`, `text`/`bold`/`italic`/`fixed`/`link`/`concat`,
+   paragraphs/headings) plumbed through `RequestBuilder::rich_message` and `edit_rich_message`.
+   Raw HTML/Markdown is parsed server-side (`inputRichMessageHTML`/`Markdown`).
 4. **Styling / entity builder** (`telegram/message/styling`, `entity`): programmatic styled-text
    composition into entities. *Effort: M, no new deps.* — **done**, see `rtd-client::entity`
    (`EntityBuilder`/`EntityKind`; parse and build).

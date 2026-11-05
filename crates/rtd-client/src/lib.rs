@@ -33,6 +33,7 @@ pub mod pagination;
 pub mod peers;
 pub mod pool;
 pub mod qr;
+pub mod rich;
 pub mod session;
 pub mod storage;
 pub mod takeout;
@@ -85,11 +86,11 @@ pub use members::{ChannelMembers, Member, MemberStatus, fetch_members};
 pub use message::{
     AudioSpec, PollSpec, RequestBuilder, VenueSpec, VideoSpec, audio_media, build_send_media,
     build_send_media_group, delete_messages, dice_media, document_media, edit_message,
-    edit_message_html, edit_message_with, forward_messages, game_media, gif_media, join_channel,
-    report, save_draft, send, send_audio, send_contact, send_dice, send_document, send_game,
-    send_geo, send_gif, send_media, send_media_group, send_photo, send_poll, send_sticker,
-    send_venue, send_video, send_webpage, set_typing, sticker_media, venue_media, video_media,
-    webpage_media,
+    edit_message_html, edit_message_with, edit_rich_message, forward_messages, game_media,
+    gif_media, join_channel, report, save_draft, send, send_audio, send_contact, send_dice,
+    send_document, send_game, send_geo, send_gif, send_media, send_media_group, send_photo,
+    send_poll, send_sticker, send_venue, send_video, send_webpage, set_typing, sticker_media,
+    venue_media, video_media, webpage_media,
 };
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{
@@ -103,6 +104,7 @@ pub use peers::{
 };
 pub use pool::{Connection, Pool, Router, SelectedKey, SessionOptions};
 pub use qr::{LoginToken, drive_login, login_url};
+pub use rich::RichMessage;
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};
 pub use takeout::TakeoutConfig;

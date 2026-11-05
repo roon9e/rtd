@@ -5,11 +5,11 @@
 
 use rtd_tg::{
     ChannelsJoinChannel, DocumentAttribute, InputChannel, InputDocument, InputFile, InputGame,
-    InputGeoPoint, InputMedia, InputPeer, InputReplyTo, InputSingleMedia, InputUser, MessageEntity,
-    MessagesDeleteMessages, MessagesEditMessage, MessagesForwardMessages, MessagesReport,
-    MessagesSaveDraft, MessagesSendMedia, MessagesSendMessage, MessagesSendMultiMedia,
-    MessagesSetTyping, Method, Object, Poll, PollAnswer, ReplyMarkup, SendMessageAction,
-    TextWithEntities,
+    InputGeoPoint, InputMedia, InputPeer, InputReplyTo, InputRichMessage, InputSingleMedia,
+    InputUser, MessageEntity, MessagesDeleteMessages, MessagesEditMessage, MessagesForwardMessages,
+    MessagesReport, MessagesSaveDraft, MessagesSendMedia, MessagesSendMessage,
+    MessagesSendMultiMedia, MessagesSetTyping, Method, Object, Poll, PollAnswer, ReplyMarkup,
+    SendMessageAction, TextWithEntities,
 };
 
 use crate::client::Client;
@@ -31,6 +31,7 @@ pub struct RequestBuilder {
     invert_media: bool,
     reply_to: Option<Box<InputReplyTo>>,
     schedule_date: Option<i32>,
+    rich_message: Option<Box<InputRichMessage>>,
 }
 
 impl RequestBuilder {
@@ -50,6 +51,7 @@ impl RequestBuilder {
             invert_media: false,
             reply_to: None,
             schedule_date: None,
+            rich_message: None,
         }
     }
 
@@ -133,6 +135,13 @@ impl RequestBuilder {
         self
     }
 
+    /// Attaches a rich message.
+    #[must_use]
+    pub fn rich_message(mut self, message: crate::rich::RichMessage) -> Self {
+        self.rich_message = Some(Box::new(message.into_input()));
+        self
+    }
+
     /// Attaches message entities.
     #[must_use]
     pub fn entities(mut self, entities: Vec<MessageEntity>) -> Self {
@@ -180,7 +189,7 @@ impl RequestBuilder {
             effect: None,
             allow_paid_stars: None,
             suggested_post: None,
-            rich_message: None,
+            rich_message: self.rich_message,
         }))
     }
 }
@@ -927,6 +936,35 @@ pub fn edit_message_html<T: Transport>(
     edit_message_with(client, peer, id, text, entities)
 }
 
+/// Edits message `id` in `peer` to a rich message (`messages.editMessage`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error.
+pub fn edit_rich_message<T: Transport>(
+    client: &mut Client<T>,
+    peer: InputPeer,
+    id: i32,
+    message: crate::rich::RichMessage,
+) -> Result<Object> {
+    let query = Method::MessagesEditMessage(Box::new(MessagesEditMessage {
+        flags: 0,
+        no_webpage: false,
+        invert_media: false,
+        peer: Box::new(peer),
+        id,
+        message: None,
+        media: None,
+        reply_markup: None,
+        entities: None,
+        schedule_date: None,
+        schedule_repeat_period: None,
+        quick_reply_shortcut_id: None,
+        rich_message: Some(Box::new(message.into_input())),
+    }));
+    client.invoke(query)
+}
+
 /// Forwards messages `ids` from `from` to `to`.
 ///
 /// # Errors
@@ -1187,5 +1225,16 @@ mod tests {
             super::sticker_media(InputDocument::InputDocumentEmpty, false),
             InputMedia::InputMediaDocument { .. }
         ));
+    }
+
+    #[test]
+    fn builder_carries_a_rich_message() {
+        let method = RequestBuilder::new(InputPeer::InputPeerEmpty, "")
+            .rich_message(crate::rich::RichMessage::markdown("**x**"))
+            .build();
+        match method {
+            Method::MessagesSendMessage(request) => assert!(request.rich_message.is_some()),
+            _ => panic!("expected messages.sendMessage"),
+        }
     }
 }
