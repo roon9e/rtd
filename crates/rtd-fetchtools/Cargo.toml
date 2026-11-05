@@ -24,6 +24,10 @@ hex = "0.4"
 sha2 = "0.10"
 
 [[bin]]
+name = "appearancefetch"
+path = "src/bin/appearancefetch.rs"
+
+[[bin]]
 name = "catalogfetch"
 path = "src/bin/catalogfetch.rs"
 

@@ -381,3 +381,12 @@ fn default_settings() -> CodeSettings {
 pub fn default_session_path() -> String {
     creds::session_path("/tmp/appearance.session")
 }
+
+/// Reports whether a crate error is the RPC `SESSION_PASSWORD_NEEDED`.
+#[must_use]
+pub fn is_password_needed(error: &crate::Error) -> bool {
+    if let Some(rtd_client::Error::Rpc(rpc)) = error.downcast_ref::<rtd_client::Error>() {
+        return rpc.is_type("SESSION_PASSWORD_NEEDED");
+    }
+    false
+}

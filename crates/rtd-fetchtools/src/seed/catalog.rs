@@ -10,11 +10,20 @@ use rtd_tg::{
 
 use crate::gojson::Value;
 
+/// Renders an append-built slice: `null` when empty (Go marshals nil as null).
+fn array_or_null(values: Vec<Value>) -> Value {
+    if values.is_empty() {
+        Value::Null
+    } else {
+        Value::Array(values)
+    }
+}
+
 /// Builds `countries.json` from `help.getCountriesList`.
 #[must_use]
 pub fn countries(list: &HelpCountriesList) -> Value {
     let HelpCountriesList::CountriesList { countries, .. } = list else {
-        return Value::object(vec![("countries", Value::Array(Vec::new()))]);
+        return Value::object(vec![("countries", Value::Null)]);
     };
     let entries = countries
         .iter()
@@ -42,21 +51,21 @@ pub fn countries(list: &HelpCountriesList) -> Value {
             if country.hidden {
                 fields.push(("hidden", Value::Bool(true)));
             }
-            fields.push(("country_codes", Value::Array(codes)));
+            fields.push(("country_codes", array_or_null(codes)));
             Value::object(fields)
         })
         .collect();
-    Value::object(vec![("countries", Value::Array(entries))])
+    Value::object(vec![("countries", array_or_null(entries))])
 }
 
 /// Builds `timezones.json` from `help.getTimezonesList`.
 #[must_use]
 pub fn timezones(list: &HelpTimezonesList) -> Value {
     let HelpTimezonesList::TimezonesList { timezones, .. } = list else {
-        return Value::object(vec![("timezones", Value::Array(Vec::new()))]);
+        return Value::object(vec![("timezones", Value::Null)]);
     };
     let entries = timezones.iter().map(timezone_value).collect();
-    Value::object(vec![("timezones", Value::Array(entries))])
+    Value::object(vec![("timezones", array_or_null(entries))])
 }
 
 /// Converts one [`Timezone`].
@@ -86,7 +95,7 @@ pub fn emoji_groups(groups: &[EmojiGroup]) -> Value {
             _ => None,
         })
         .collect();
-    Value::object(vec![("groups", Value::Array(entries))])
+    Value::object(vec![("groups", array_or_null(entries))])
 }
 
 /// Builds `emoji_keywords_<lang>.json` from `messages.getEmojiKeywords`.
@@ -106,7 +115,7 @@ pub fn emoji_keywords(difference: &EmojiKeywordsDifference) -> Value {
     Value::object(vec![
         ("lang_code", Value::Str(difference.lang_code.clone())),
         ("version", Value::Int(i64::from(difference.version))),
-        ("keywords", Value::Array(entries)),
+        ("keywords", array_or_null(entries)),
     ])
 }
 

@@ -145,17 +145,14 @@ impl PackManifest {
     /// Renders the pack entry.
     #[must_use]
     pub fn to_value(&self) -> Value {
+        let languages: Vec<Value> = self
+            .languages
+            .iter()
+            .map(LanguageManifest::to_value)
+            .collect();
         Value::object(vec![
             ("name", Value::Str(self.name.clone())),
-            (
-                "languages",
-                Value::Array(
-                    self.languages
-                        .iter()
-                        .map(LanguageManifest::to_value)
-                        .collect(),
-                ),
-            ),
+            ("languages", array_or_null(languages)),
         ])
     }
 }
@@ -177,12 +174,10 @@ impl Manifest {
     /// Renders the manifest.
     #[must_use]
     pub fn to_value(&self) -> Value {
+        let packs: Vec<Value> = self.packs.iter().map(PackManifest::to_value).collect();
         Value::object(vec![
             ("schema", Value::Int(1)),
-            (
-                "packs",
-                Value::Array(self.packs.iter().map(PackManifest::to_value).collect()),
-            ),
+            ("packs", array_or_null(packs)),
         ])
     }
 }
@@ -190,5 +185,14 @@ impl Manifest {
 impl Default for Manifest {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Renders an append-built slice: `null` when empty (Go marshals nil as null).
+fn array_or_null(values: Vec<Value>) -> Value {
+    if values.is_empty() {
+        Value::Null
+    } else {
+        Value::Array(values)
     }
 }

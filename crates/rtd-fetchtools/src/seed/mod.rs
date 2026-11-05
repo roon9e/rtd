@@ -4,6 +4,7 @@
 //! text seed format `telesrv` consumes, so the Rust fetchers are drop-in
 //! replacements for the Go ones.
 
+pub mod appearance;
 pub mod catalog;
 pub mod langpack;
 
