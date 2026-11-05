@@ -38,6 +38,7 @@ pub mod session;
 pub mod storage;
 pub mod takeout;
 pub mod tdesktop;
+pub mod tdp;
 pub mod thumbnail;
 pub mod transport;
 pub mod unpack;

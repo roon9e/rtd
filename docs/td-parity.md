@@ -86,7 +86,10 @@ need to mirror.
    *Effort: S–M, new deps.*
 6. **Constants** (`constant`): TDLib peer-id encoding and well-known IDs/limits. *Effort: S.*
    — **done**, see `rtd-client::constant`.
-7. **TL pretty-printing** (`tdp`): a reflection-style field dump of any object. *Effort: M.*
+7. **TL pretty-printing** (`tdp`): a reflection-style field dump of any object. *Effort: M.* —
+   **done**, see `rtd-client::tdp` (`format`/`compact`/`label`), using the generated `Debug`
+   representation. Byte fields render as decimal lists (base64 remains available via
+   `json::encode_object`).
 8. **NTP clock** (`clock/ntp`): an NTP-calibrated clock. *Effort: M, new dep.*
 9. **ASCII predicates** (`ascii`). *Effort: S.* — **done**, see `rtd-client::ascii`.
 10. **Staged message senders** (`telegram/message`): audio/video/gif/dice/game/venue/webpage
