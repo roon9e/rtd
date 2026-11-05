@@ -411,19 +411,34 @@ impl Tg {
             return Ok(&mut self.home);
         }
         if !self.others.contains_key(&dc) {
-            let exported = self.home.export_authorization(dc)?;
-            let mut fresh = open_client(
-                dc,
-                &self.keys,
-                None,
-                self.clock.clone(),
-                self.proxy.as_ref(),
-            )?;
-            fresh.initialize(init_params(self.api_id))?;
-            fresh.import_authorization(exported.id, exported.bytes)?;
-            self.others.insert(dc, fresh);
+            // The export/import handshake is occasionally rejected
+            // (AUTH_BYTES_INVALID) even when it is correct; retry once with a
+            // fresh connection before giving up.
+            let client = match self.connect_other(dc) {
+                Ok(client) => client,
+                Err(_) => {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    self.connect_other(dc)?
+                }
+            };
+            self.others.insert(dc, client);
         }
         self.others.get_mut(&dc).ok_or(rtd_client::Error::Closed)
+    }
+
+    /// Opens a fresh connection to `dc` and imports this session's authorization.
+    fn connect_other(&mut self, dc: i32) -> rtd_client::Result<Client<TcpTransport>> {
+        let exported = self.home.export_authorization(dc)?;
+        let mut fresh = open_client(
+            dc,
+            &self.keys,
+            None,
+            self.clock.clone(),
+            self.proxy.as_ref(),
+        )?;
+        fresh.initialize(init_params(self.api_id))?;
+        fresh.import_authorization(exported.id, exported.bytes)?;
+        Ok(fresh)
     }
 }
 

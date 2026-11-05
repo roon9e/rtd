@@ -602,7 +602,13 @@ fn download_documents(
                                 *slot = Some(result);
                             }
                         }
-                        Err(error) => eprintln!("[skip document {id}] {error}"),
+                        Err(error) => {
+                            let dc = match &source.document {
+                                TgDocument::Document { dc_id, .. } => *dc_id,
+                                _ => 0,
+                            };
+                            eprintln!("[skip document {id} dc={dc}] {error}");
+                        }
                     }
                 }
                 Ok(())
