@@ -82,9 +82,9 @@ weighted** is an estimate that weights each area by how much client-facing API i
 | Interop/debug (`tdjson`, `tljson`, `tdp`, `oteltg`, `clock/ntp`) | **~95%** | `tdp` field-fidelity limit below |
 
 **Overall estimate: ~93–97% of the `td` client library** by weighted surface, and ~100% of the
-packages that correspond to a client-library concern. Uncertainty is roughly ±3 percentage points:
-the lower bound reflects the single `tdp` field-fidelity limit; the upper bound treats "package
-mapped + primary use cases covered" as parity.
+packages that correspond to a client-library concern. Uncertainty is roughly ±3 percentage points;
+the lower bound reflects the one accepted `tdp` divergence, the upper bound treats "package mapped
++ primary use cases covered" as parity.
 
 ## Gap closure log (all done)
 
@@ -148,10 +148,11 @@ mapped + primary use cases covered" as parity.
 These account for most of the estimate's lower bound. Entries marked **closed** were narrowed by
 `add-client-parity-fidelity`.
 
-- **`tdp`**: field dump uses the generated `Debug` form — byte fields render as decimal lists and
-  `date` fields as integers, because the generated model carries no per-field metadata. Closing
-  this needs `rtd-codegen` to emit field descriptors *and* per-type accessors (a large generated
-  change); it is the one remaining fidelity gap.
+- **`tdp`** (accepted divergence): the field dump uses the generated `Debug` form — byte fields
+  render as decimal lists and `date` fields as integers. The alternative (generated per-field
+  metadata and accessors) is deliberately **omitted**: it would drastically increase compile time,
+  enlarge the binary, and complicate the generator, for a debug-only convenience. Base64 bodies
+  remain available through `json::format`/`encode_object`.
 - **Rich messages**: paragraph/heading plus list, preformatted, quote, divider, details and
   header/subheader/subtitle/footer blocks; not every `PageBlock`/`RichText` constructor is wrapped.
 - **Query/pagination** *(closed)*: history, dialogs, participants, photos, blocked, featured

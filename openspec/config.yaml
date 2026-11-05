@@ -74,6 +74,10 @@ context: |
     cross-implementation tests. Never automatic.
   - Persistence: rtd defines storage traits and ships in-memory implementations now; a
     first-party PostgreSQL backend is added at the multi-DC/outbox stage.
+  - Debug pretty-printing (`tdp`): full field fidelity (base64 bytes, formatted dates) is OUT OF
+    SCOPE. Generating per-field metadata/accessors would drastically affect compile time, generator
+    quality and binary size for a debug-only convenience; `rtd-client::tdp` uses the generated
+    `Debug` form instead, and `json::format`/`encode_object` provide base64 bodies.
   - Multi-DC placement: one fixed primary DC handles login; other DCs return
     PHONE_MIGRATE_<primary>. The Core (business logic) runs centrally and datacenters are
     edge-only. Authorization transfer is signed with a shared deployment secret (HMAC over
