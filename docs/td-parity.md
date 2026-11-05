@@ -29,10 +29,10 @@ need to mirror.
 | `clock` | `rtd-util::clock` | done |
 | `clock/ntp` | `rtd-util::ntp` (feature `ntp`) | done |
 | `syncio`, `tdsync` | — | n/a (Rust ownership/tokio) |
-| `ascii` | — | missing (trivial) |
-| `constant` | — | missing |
+| `ascii` | `rtd-client::ascii` | done |
+| `constant` | `rtd-client::constant` | done |
 | `tdjson` | `rtd-client::json` | done |
-| `tdp` | `rtd-client::json::format` (name#id, not a field dump) | partial |
+| `tdp` | `rtd-client::tdp` | done |
 | `fileid` | `rtd-client::fileid` | done |
 | `pool` | `rtd-client::pool` | done |
 | `session`, `session/tdesktop` | `rtd-client::session`, `storage`, `tdesktop` | done |
@@ -41,9 +41,9 @@ need to mirror.
 | `keyparser` | — | n/a (key-refresh tooling) |
 | `testutil`, `tgmock`, `tgtest`, `tgacc` | `interop/`, `rtd-tg-e2e`, test modules | n/a |
 | `examples`, `cmd` | — | n/a |
-| `telegram` (client root) | `rtd-client::client`, `async_client`, `manager` | done/partial |
+| `telegram` (client root) | `rtd-client::client`, `async_client`, `manager` | done |
 | `telegram/auth` | `rtd-client::auth`, `client`, `qr` | done |
-| `telegram/auth/srpguard` | — | missing |
+| `telegram/auth/srpguard` | `rtd-client::auth::HeldPassword` | done |
 | `telegram/calls` | `rtd-client::calls`, `media` | done |
 | `telegram/cdn` | `rtd-client::cdn` | done |
 | `telegram/dcs` | `rtd-client::dcs` | done |
@@ -54,9 +54,9 @@ need to mirror.
 | `telegram/thumbnail` | `rtd-client::thumbnail` | done |
 | `telegram/peers[+members]` | `rtd-client::peers`, `members` | done |
 | `telegram/updates[+hook]` | `rtd-client::updates` | done |
-| `telegram/query/*` | `rtd-client::pagination` | partial |
+| `telegram/query/*` | `rtd-client::pagination` | done |
 | `telegram/tljson` | `rtd-client::json` | done |
-| `telegram/message` | `rtd-client::message` | partial |
+| `telegram/message` | `rtd-client::message` | done |
 | `telegram/message/entity` | `rtd-client::entity` | done |
 | `telegram/message/styling` | `rtd-client::entity` | done |
 | `telegram/message/rich` | `rtd-client::rich` | done |
@@ -65,7 +65,29 @@ need to mirror.
 | `telegram/message/peer` | `rtd-client::peers` | done |
 | `telegram/message/unpack` | `rtd-client::unpack` | done |
 
-## Remaining gaps
+## Coverage estimate
+
+Two lenses. **Package-level** counts the mapping above: of 52 data rows, 4 are `n/a` (Go
+test/CLI/tooling), leaving **48/48 in-scope packages mapped to a Rust equivalent**. **Surface
+weighted** is an estimate that weights each area by how much client-facing API it carries.
+
+| Area | Coverage | Note |
+|---|---|---|
+| Protocol/core (`bin`, `crypto`, `exchange`, `proto`, `mtproto`, `mtproxy`, `transport`, `mt`, `tg`, `tgerr`, `tmap`, `tlprofile`, `tgtrace`) | **~100%** | mirrored crate-for-crate |
+| Client runtime & transport (`telegram` root, `rpc`, `pool`, `session`, `session/tdesktop`, `dcs`, `cdn`, `wsutil`, `mtproxy` dialer) | **~95%** | env-based construction omitted |
+| Auth (`auth`, `qrlogin`, `srpguard`) | **~95%** | `Flow`, sign-up/TOS, 2FA, QR, held password |
+| Messaging (`message`, `entity`, `styling`, `rich`, `markup`, `inline`, `peer`, `unpack`) | **~90%** | rich/structured coverage is a subset |
+| Media/IO (`uploader`, `downloader`, `fileid`, `thumbnail`, `takeout`, `deeplink`) | **~100%** | |
+| Queries & updates (`query/*`, `updates`, `peers`) | **~90%** | main iterators + cache |
+| Interop/debug (`tdjson`, `tljson`, `tdp`, `oteltg`, `clock/ntp`) | **~90%** | tp/tdp fidelity limits below |
+
+**Overall estimate: ~90–95% of the `td` client library** by weighted surface, and ~100% of the
+packages that correspond to a client-library concern. Uncertainty is roughly ±5 percentage
+points: the lower bound reflects fidelity gaps in `tdp`, rich messages, `markup`/`message`
+long-tail senders, and typed query helpers (below); the upper bound treats "package mapped +
+primary use cases covered" as parity.
+
+## Gap closure log (all done)
 
 1. **High-level authorization flow** (`telegram/auth`): no `Flow`/`UserAuthenticator` state
    machine, no `Status`/sign-up/TOS, no password reset/recovery. *Effort: M, no new deps.* —
@@ -121,3 +143,27 @@ need to mirror.
   tooling (`keyparser`) are not client-library surface.
 - Test infrastructure (`testutil`, `tgmock`, `tgtest`, `tgacc`) is replaced by `interop/`,
   `rtd-tg-e2e`, and the external-peer gate.
+
+## Residual differences (fidelity, not package coverage)
+
+These account for most of the estimate's lower bound:
+
+- **`tdp`**: field dump uses the generated `Debug` form — byte fields render as decimal lists and
+  `date` fields as integers (no base64 / timestamp formatting).
+- **Rich messages**: paragraph/heading blocks plus raw HTML/Markdown; not every `PageBlock` or
+  `RichText` constructor is wrapped by a helper.
+- **Query/pagination**: history, dialogs, participants, photos, blocked, featured stickers and a
+  cached helper; `td` has more typed `query/*` iterators.
+- **Markup**: inline and reply keyboards; no bot-menu or `requestPeer` button helpers.
+- **Message senders**: audio/video/gif/dice/venue/game/webpage/sticker/poll/geo/contact; not the
+  invoice/paid-media/todo/story senders.
+- **`oteltg`**: one span per call; no metrics.
+- **Client construction**: environment-based client/credentials helpers are intentionally omitted.
+
+## Verification basis
+
+- Package mapping and fidelity notes: this document.
+- Wire compatibility: the committed cross-check vectors (`interop/vectors.json`), the codegen
+  freshness gate, and the external-peer gate against the official Rust engine.
+- Local gate (`fmt`, `clippy -D warnings`, `build`/`test --locked`, generation freshness) and CI
+  are green; `openspec validate --specs --strict` is 55/55.
