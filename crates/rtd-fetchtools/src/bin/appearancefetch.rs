@@ -11,7 +11,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use rtd_fetchtools::client::{Tg, default_session_path, is_password_needed};
-use rtd_fetchtools::creds::{TDESKTOP_API_HASH, TDESKTOP_API_ID, env_nonempty};
+use rtd_fetchtools::creds::{TDESKTOP_API_HASH, TDESKTOP_API_ID, api_credentials, env_nonempty};
 use rtd_fetchtools::seed::appearance::{
     Attribute, Catalog, ChatTheme, ColorOption, ColorSet, Document, Photo, ThemeSettings,
     Wallpaper, WallpaperSettings,
@@ -41,7 +41,8 @@ fn run() -> Result<()> {
         return Ok(());
     };
     let session = default_session_path();
-    let mut tg = Tg::connect(TDESKTOP_API_ID, TDESKTOP_API_HASH, &session)?;
+    let (api_id, api_hash) = api_credentials(TDESKTOP_API_ID, TDESKTOP_API_HASH);
+    let mut tg = Tg::connect(api_id, &api_hash, &session)?;
     match command.as_str() {
         "sendcode" => send_code(&mut tg),
         "fetch" => {

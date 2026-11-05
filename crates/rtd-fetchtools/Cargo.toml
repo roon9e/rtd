@@ -21,6 +21,7 @@ rtd-tg = { path = "../rtd-tg" }
 rtd-transport = { path = "../rtd-transport" }
 rtd-util = { path = "../rtd-util" }
 hex = "0.4"
+png = "0.17"
 qrcode = { version = "0.14", default-features = false }
 sha2 = "0.10"
 

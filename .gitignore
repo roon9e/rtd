@@ -8,6 +8,11 @@ openspec/.openspec/
 # Local session handoff
 NEXT_SESSION.md
 
+# Local secrets (never commit)
+.env
+.env.local
+*.session
+
 # Editors / OS
 .vscode/
 .idea/

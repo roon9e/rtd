@@ -15,6 +15,7 @@ use rtd_client::storage::{FileStorage, MemoryStorage, Storage};
 use rtd_client::{Client, Downloader, Framed, InitParams, ReadWrite, TcpTransport, connect_tcp};
 use rtd_crypto::parse_rsa_public_keys;
 use rtd_crypto::rsa::RsaPublicKey;
+use rtd_crypto::{Key, random_bytes};
 use rtd_exchange::ClientConfig;
 use rtd_proto::CodecKind;
 use rtd_tg::{
@@ -365,7 +366,15 @@ fn open_client(
         })?;
     let transport = build_transport(&endpoint.address, dc, proxy)?;
     if let Some(data) = existing {
-        return Ok(Client::from_session(transport, data, clock));
+        // Reuse the authorized key but start a fresh MTProto session. Reusing the
+        // stored session id would restart the content sequence counter at 1, which
+        // Telegram rejects (a new sequence number must be greater than the last)
+        // and then answers with silence.
+        let auth_key = Key::from_array(data.auth_key).with_id();
+        let session_id = i64::from_le_bytes(random_bytes(8).try_into().expect("eight bytes"));
+        return Ok(Client::new(
+            transport, auth_key, session_id, data.salt, clock,
+        ));
     }
     let config = ClientConfig {
         dc,

@@ -51,7 +51,9 @@ fn run() -> Result<()> {
         return Ok(());
     };
 
-    let mut tg = Tg::ephemeral(TDESKTOP_API_ID, TDESKTOP_API_HASH, 2)?;
+    let (api_id, api_hash) =
+        rtd_fetchtools::creds::api_credentials(TDESKTOP_API_ID, TDESKTOP_API_HASH);
+    let mut tg = Tg::ephemeral(api_id, &api_hash, 2)?;
 
     if command == "languages" {
         let pack = args.get(2).map_or("android", String::as_str);

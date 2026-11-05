@@ -80,6 +80,7 @@ struct Options {
     reuse_metadata: bool,
     allowed_missing_thumbs: BTreeSet<String>,
     login_qr: bool,
+    qr_png: Option<String>,
     timeout: Duration,
 }
 
@@ -95,7 +96,7 @@ fn run() -> Result<()> {
     if opts.login_qr {
         spawn_watchdog(Duration::from_secs(15 * 60), "login");
         let mut tg = Tg::connect_proxied(api_id, &api_hash, &session, 2, proxy)?;
-        return login_qr(&mut tg);
+        return login_qr(&mut tg, opts.qr_png.as_deref());
     }
 
     if opts.out.trim().is_empty() {
@@ -142,6 +143,7 @@ fn parse_args() -> Result<Options> {
         reuse_metadata: false,
         allowed_missing_thumbs: BTreeSet::new(),
         login_qr: false,
+        qr_png: None,
         timeout: Duration::from_secs(4 * 60 * 60),
     };
     let mut args = std::env::args().skip(1);
@@ -162,10 +164,7 @@ fn parse_args() -> Result<Options> {
                 opts.allowed_missing_thumbs = parse_allowed_missing_thumbs(&raw)?;
             }
             "-login-qr" => opts.login_qr = true,
-            // Terminal QR only: accept the flag and its value so scripts do not break.
-            "-qr-png" => {
-                let _ = args.next();
-            }
+            "-qr-png" => opts.qr_png = Some(args.next().unwrap_or_default()),
             _ => {}
         }
     }
@@ -173,16 +172,22 @@ fn parse_args() -> Result<Options> {
 }
 
 /// Signs in through a QR login and persists the session.
-fn login_qr(tg: &mut Tg) -> Result<()> {
+fn login_qr(tg: &mut Tg, qr_png: Option<&str>) -> Result<()> {
     if tg.is_authorized()? {
         println!("[session already authorized]");
         return Ok(());
     }
     println!("[qr] scan in Telegram -> Settings -> Devices -> Link Desktop Device");
     let mut token = export_token(tg)?;
-    render_qr(&login_url(&token.0));
+    render_qr(&login_url(&token.0), qr_png);
     loop {
         std::thread::sleep(Duration::from_secs(1));
+        // Refresh the QR just before its token expires; otherwise keep it stable
+        // so the displayed code stays scannable from a chat.
+        if unix_now() + 2 >= i64::from(token.1) {
+            token = export_token(tg)?;
+            render_qr(&login_url(&token.0), qr_png);
+        }
         let request = Method::AuthImportLoginToken(Box::new(AuthImportLoginToken {
             token: token.0.clone(),
         }));
@@ -193,18 +198,9 @@ fn login_qr(tg: &mut Tg) -> Result<()> {
                     tg.save()?;
                     return Ok(());
                 }
-                AuthLoginToken::LoginToken {
-                    expires,
-                    token: fresh,
-                } => {
-                    // The server rotated the token: show the fresh one so the
-                    // displayed QR always matches the pending login.
-                    if fresh != token.0 {
-                        token = (fresh, expires);
-                        render_qr(&login_url(&token.0));
-                    } else {
-                        token.1 = expires;
-                    }
+                AuthLoginToken::LoginToken { expires, .. } => {
+                    // Not scanned yet: adopt the new expiry, keep the shown QR.
+                    token.1 = expires;
                 }
                 AuthLoginToken::LoginTokenMigrateTo { .. } => {
                     return Err(
@@ -220,21 +216,23 @@ fn login_qr(tg: &mut Tg) -> Result<()> {
                 println!("[authorized]");
                 return Ok(());
             }
-            Err(error) => {
-                // An expired token must be re-exported; anything else aborts.
-                let message = format!("{error}");
-                if message.contains("TOKEN_EXPIRED") || message.contains("TOKEN_INVALID") {
-                    token = export_token(tg)?;
-                    render_qr(&login_url(&token.0));
-                    continue;
-                }
-                return Err(error);
+            Err(_error) => {
+                // Not scanned yet. Keep the shown QR; the top-of-loop check
+                // re-exports once it expires.
             }
             Ok(_) => {
                 return Err("auth.importLoginToken returned an unexpected response".into());
             }
         }
     }
+}
+
+/// Returns the current Unix time in seconds.
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 /// Parses a Go-style duration (for example `12m`, `4h`, `90s`).
@@ -288,13 +286,17 @@ fn resolve_password() -> Result<String> {
     Ok(password)
 }
 
-/// Renders the login URL as a half-block terminal QR code.
-fn render_qr(url: &str) {
+/// Renders the login URL as a half-block terminal QR code and, when `png_path`
+/// is set, rewrites a scannable PNG at that path.
+fn render_qr(url: &str, png_path: Option<&str>) {
     let Ok(code) = qrcode::QrCode::with_error_correction_level(url.as_bytes(), qrcode::EcLevel::H)
     else {
         eprintln!("[qr] failed to encode login QR");
         return;
     };
+    if let Some(path) = png_path {
+        write_qr_png(&code, path);
+    }
     let size = code.width();
     let colors = code.to_colors();
     let black = |x: usize, y: usize| colors[y * size + x] == qrcode::types::Color::Dark;
@@ -326,6 +328,48 @@ fn render_qr(url: &str) {
     }
     print!("{out}");
     let _ = std::io::stdout().flush();
+}
+
+/// Writes the QR matrix to `path` as an 8x-scaled grayscale PNG.
+fn write_qr_png(code: &qrcode::QrCode, path: &str) {
+    const SCALE: u32 = 8;
+    const QUIET: u32 = 2;
+    let modules = code.width() as u32;
+    let dim = (modules + 2 * QUIET) * SCALE;
+    let colors = code.to_colors();
+    let mut data = vec![255u8; (dim * dim) as usize];
+    for y in 0..modules {
+        for x in 0..modules {
+            if colors[(y * modules + x) as usize] != qrcode::types::Color::Dark {
+                continue;
+            }
+            let px0 = (QUIET + x) * SCALE;
+            let py0 = (QUIET + y) * SCALE;
+            for py in py0..py0 + SCALE {
+                let row = (py * dim) as usize;
+                for px in px0..px0 + SCALE {
+                    data[row + px as usize] = 0;
+                }
+            }
+        }
+    }
+    let file = match std::fs::File::create(path) {
+        Ok(file) => file,
+        Err(error) => {
+            eprintln!("[qr] write {path}: {error}");
+            return;
+        }
+    };
+    let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), dim, dim);
+    encoder.set_color(png::ColorType::Grayscale);
+    encoder.set_depth(png::BitDepth::Eight);
+    let written = encoder
+        .write_header()
+        .and_then(|mut writer| writer.write_image_data(&data));
+    match written {
+        Ok(()) => println!("[qr] png {path}"),
+        Err(error) => eprintln!("[qr] write {path}: {error}"),
+    }
 }
 
 /// A document and the purposes that reference it.
