@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use rtd_client::dcs::{Resolver as _, StaticResolver, migrate_target};
 use rtd_client::storage::{FileStorage, MemoryStorage, Storage};
-use rtd_client::{Client, Downloader, InitParams, TcpTransport, connect_tcp};
+use rtd_client::{Client, Downloader, Framed, InitParams, ReadWrite, TcpTransport, connect_tcp};
 use rtd_crypto::parse_rsa_public_keys;
 use rtd_crypto::rsa::RsaPublicKey;
 use rtd_exchange::ClientConfig;
@@ -24,6 +24,7 @@ use rtd_util::{Clock, SystemClock};
 
 use crate::Result;
 use crate::creds;
+use crate::proxy::Proxy;
 
 /// The default authorization datacenter.
 pub const DEFAULT_DC: i32 = 2;
@@ -63,6 +64,7 @@ pub struct Tg {
     home_dc: i32,
     home: Client<TcpTransport>,
     others: BTreeMap<i32, Client<TcpTransport>>,
+    proxy: Option<Proxy>,
 }
 
 impl Tg {
@@ -92,7 +94,24 @@ impl Tg {
     ) -> Result<Self> {
         let path = session_path.into();
         let storage: Box<dyn Storage> = Box::new(FileStorage::new(&path));
-        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc)
+        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc, None)
+    }
+
+    /// Connects to a specific home datacenter through an optional SOCKS5 proxy.
+    ///
+    /// # Errors
+    ///
+    /// As [`Tg::connect`].
+    pub fn connect_proxied(
+        api_id: i32,
+        api_hash: &str,
+        session_path: impl Into<PathBuf>,
+        home_dc: i32,
+        proxy: Option<Proxy>,
+    ) -> Result<Self> {
+        let path = session_path.into();
+        let storage: Box<dyn Storage> = Box::new(FileStorage::new(&path));
+        Self::with_storage(api_id, api_hash, storage, Some(path), home_dc, proxy)
     }
 
     /// Connects with an in-memory session, mirroring Go's session-less client.
@@ -105,7 +124,7 @@ impl Tg {
     /// As [`Tg::connect_to`].
     pub fn ephemeral(api_id: i32, api_hash: &str, home_dc: i32) -> Result<Self> {
         let storage: Box<dyn Storage> = Box::new(MemoryStorage::new());
-        Self::with_storage(api_id, api_hash, storage, None, home_dc)
+        Self::with_storage(api_id, api_hash, storage, None, home_dc, None)
     }
 
     fn with_storage(
@@ -114,12 +133,19 @@ impl Tg {
         storage: Box<dyn Storage>,
         session_path: Option<PathBuf>,
         home_dc: i32,
+        proxy: Option<Proxy>,
     ) -> Result<Self> {
         let keys = parse_rsa_public_keys(PROD_PUBLIC_KEYS)
             .map_err(|error| format!("parse production public keys: {error}"))?;
         let clock: Arc<dyn Clock + Send + Sync> = Arc::new(SystemClock);
         let existing = storage.load()?;
-        let mut home = open_client(home_dc, &keys, existing.as_ref(), clock.clone())?;
+        let mut home = open_client(
+            home_dc,
+            &keys,
+            existing.as_ref(),
+            clock.clone(),
+            proxy.as_ref(),
+        )?;
         home.initialize(init_params(api_id))?;
         storage.store(&home.session_data())?;
         Ok(Self {
@@ -132,6 +158,7 @@ impl Tg {
             home_dc,
             home,
             others: BTreeMap::new(),
+            proxy,
         })
     }
 
@@ -305,7 +332,13 @@ impl Tg {
         }
         if !self.others.contains_key(&dc) {
             let exported = self.home.export_authorization(dc)?;
-            let mut fresh = open_client(dc, &self.keys, None, self.clock.clone())?;
+            let mut fresh = open_client(
+                dc,
+                &self.keys,
+                None,
+                self.clock.clone(),
+                self.proxy.as_ref(),
+            )?;
             fresh.initialize(init_params(self.api_id))?;
             fresh.import_authorization(exported.id, exported.bytes)?;
             self.others.insert(dc, fresh);
@@ -320,6 +353,7 @@ fn open_client(
     keys: &[RsaPublicKey],
     existing: Option<&rtd_client::SessionData>,
     clock: Arc<dyn Clock + Send + Sync>,
+    proxy: Option<&Proxy>,
 ) -> rtd_client::Result<Client<TcpTransport>> {
     let resolver = StaticResolver::production();
     let endpoint = resolver
@@ -329,12 +363,7 @@ fn open_client(
         .ok_or_else(|| {
             rtd_client::Error::Unexpected(format!("no known endpoint for datacenter {dc}"))
         })?;
-    let transport = connect_tcp(
-        &endpoint.address,
-        dc as u16,
-        CodecKind::Intermediate,
-        Some(&[]),
-    )?;
+    let transport = build_transport(&endpoint.address, dc, proxy)?;
     if let Some(data) = existing {
         return Ok(Client::from_session(transport, data, clock));
     }
@@ -345,6 +374,30 @@ fn open_client(
         public_keys: keys.to_vec(),
     };
     Client::connect(transport, &config, clock)
+}
+
+/// Builds an obfuscated2 transport, optionally through a SOCKS5 proxy.
+fn build_transport(
+    address: &str,
+    dc: i32,
+    proxy: Option<&Proxy>,
+) -> rtd_client::Result<TcpTransport> {
+    match proxy {
+        None => connect_tcp(address, dc as u16, CodecKind::Intermediate, Some(&[])),
+        Some(proxy) => {
+            let stream = crate::proxy::connect(address, proxy)?;
+            let tag = CodecKind::Intermediate
+                .obfuscated_tag()
+                .ok_or_else(|| rtd_client::Error::Unexpected("no obfuscation tag".to_owned()))?;
+            let obfuscated = rtd_transport::Obfuscated2::handshake(stream, tag, dc as u16, &[])
+                .map_err(|error| rtd_client::Error::Unexpected(error.to_string()))?;
+            Framed::new(
+                Box::new(obfuscated) as Box<dyn ReadWrite>,
+                CodecKind::Intermediate,
+                false,
+            )
+        }
+    }
 }
 
 /// Returns `initConnection` device parameters for the fetchers.

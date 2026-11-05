@@ -21,11 +21,16 @@ rtd-tg = { path = "../rtd-tg" }
 rtd-transport = { path = "../rtd-transport" }
 rtd-util = { path = "../rtd-util" }
 hex = "0.4"
+qrcode = { version = "0.14", default-features = false }
 sha2 = "0.10"
 
 [[bin]]
 name = "appearancefetch"
 path = "src/bin/appearancefetch.rs"
+
+[[bin]]
+name = "giftfetch"
+path = "src/bin/giftfetch.rs"
 
 [[bin]]
 name = "stickerfetch"

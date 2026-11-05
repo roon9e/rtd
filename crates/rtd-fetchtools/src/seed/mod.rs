@@ -6,6 +6,7 @@
 
 pub mod appearance;
 pub mod catalog;
+pub mod gift;
 pub mod langpack;
 pub mod sticker;
 

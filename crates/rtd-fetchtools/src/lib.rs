@@ -21,6 +21,7 @@ pub mod creds;
 pub mod fsutil;
 pub mod gojson;
 pub mod goquote;
+pub mod proxy;
 pub mod seed;
 pub mod timefmt;
 
