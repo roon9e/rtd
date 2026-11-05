@@ -7,6 +7,7 @@
 pub mod appearance;
 pub mod catalog;
 pub mod langpack;
+pub mod sticker;
 
 /// Appends the trailing newline Go's `writeJSON` adds after `MarshalIndent`.
 #[must_use]

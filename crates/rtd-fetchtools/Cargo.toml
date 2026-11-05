@@ -28,6 +28,10 @@ name = "appearancefetch"
 path = "src/bin/appearancefetch.rs"
 
 [[bin]]
+name = "stickerfetch"
+path = "src/bin/stickerfetch.rs"
+
+[[bin]]
 name = "catalogfetch"
 path = "src/bin/catalogfetch.rs"
 
