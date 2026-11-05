@@ -9,12 +9,14 @@ sans-IO protocol core plus a client runtime. It was validated end to end as an
 MTProto **edge** inside a gramsrv v2 stack (the added server/edge crates are
 frozen — see [Direction](#direction)).
 
-> **Status: in progress.** The sans-IO protocol core (serialization, crypto,
-> framing, transports, MTProxy obfuscation, injectable clock/randomness, the Go
-> cross-check harness, and the generated `rtd-tg`/`rtd-mt` value and service
-> models) and a large part of the client library (`rtd-client`) are implemented.
-> Remaining `td`-parity client features are tracked as OpenSpec changes under
-> [`openspec/changes/`](openspec/changes/).
+> **Status: `td` client-library parity complete.** The sans-IO protocol core
+> (serialization, crypto, framing, transports, MTProxy obfuscation, injectable
+> clock/randomness, the Go cross-check harness, and the generated
+> `rtd-tg`/`rtd-mt` value and service models) and the client library
+> (`rtd-client`) are implemented. Coverage is estimated at **~93–97%** by
+> weighted surface (≈100% of the packages that map to a client-library concern);
+> the only accepted divergence is full `tdp` field fidelity (byte/date rendering).
+> See [`docs/td-parity.md`](docs/td-parity.md) for the mapping and estimate.
 
 ## Direction
 
@@ -49,7 +51,7 @@ Client library:
 
 | Crate | Role |
 |---|---|
-| `rtd-client` | MTProto 2.0 client runtime: sync core + tokio async façade, plus auth (2FA/bot/QR), MTProxy, WebSocket, middleware, pooling, DC resolution, session backends, uploader/downloader, message builders, pagination, peers, takeout, media helpers, file-id/thumbnail, JSON, updates, and calls |
+| `rtd-client` | MTProto 2.0 client runtime: sync core + tokio async façade, plus auth (Flow/2FA/bot/QR), MTProxy, WebSocket, middleware, pooling, DC resolution, session backends, uploader/downloader, message/media/rich builders, markup, entity builder, pagination/search, peers, takeout, media helpers, file-id/thumbnail, JSON/`tdp`, constants, updates, calls/media, and env helpers |
 
 Tooling:
 
@@ -76,6 +78,17 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 ```
+
+### Optional features
+
+`rtd-client` enables the WebRTC media backend by default, mirroring `td`'s direct `pion/webrtc`
+dependency; disable it with `default-features = false`. Two further integrations are opt-in:
+
+| Feature | Crate | Effect |
+|---|---|---|
+| `media-webrtc` (default) | `rtd-client` | `WebRtcMedia` audio backend for calls |
+| `otel` | `rtd-client` | `OtelTracer`/`OtelMetrics` over the global OpenTelemetry provider |
+| `ntp` | `rtd-client` (from `rtd-util`) | an NTP-calibrated `NtpClock` |
 
 Regenerate the committed generated sources (must produce no diff):
 
@@ -117,8 +130,11 @@ Without `RTD_PEER_TESTSERVER` the peer gate is skipped locally.
 ## Planning
 
 Plans, specs and decisions live under [`openspec/`](openspec/). See
-[`openspec/config.yaml`](openspec/config.yaml) for the project's frozen decisions,
-and [`openspec/changes/`](openspec/changes/) for the active td-parity backlog.
+[`openspec/config.yaml`](openspec/config.yaml) for the project's frozen decisions, the deployed
+capability specs under [`openspec/specs/`](openspec/specs/), and
+[`docs/td-parity.md`](docs/td-parity.md) for the `td` mapping and coverage estimate. The active
+`td`-parity backlog is complete; only [`openspec/changes/frozen/`](openspec/changes/frozen/)
+remains.
 
 ## License
 
