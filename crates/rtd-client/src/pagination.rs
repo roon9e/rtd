@@ -4,12 +4,14 @@
 //! it into a single vector. Each `next` returns one page, so a caller can stop
 //! early.
 
+use std::collections::HashMap;
+
 use rtd_tg::{
     ChannelParticipant, ChannelParticipantsFilter, ChannelsChannelParticipants,
     ChannelsGetParticipants, Chat, ContactsBlocked, ContactsGetBlocked, Dialog, InputChannel,
-    InputPeer, InputUser, Message, MessagesDialogs, MessagesGetDialogs, MessagesGetHistory,
-    MessagesMessages, Method, Object, Peer, PeerBlocked, Photo, PhotosGetUserPhotos, PhotosPhotos,
-    User,
+    InputPeer, InputUser, Message, MessagesDialogs, MessagesFeaturedStickers, MessagesGetDialogs,
+    MessagesGetFeaturedStickers, MessagesGetHistory, MessagesMessages, Method, Object, Peer,
+    PeerBlocked, Photo, PhotosGetUserPhotos, PhotosPhotos, StickerSetCovered, User,
 };
 
 use crate::client::Client;
@@ -561,6 +563,77 @@ pub fn for_each<Q: Query>(
     Ok(())
 }
 
+/// Fetches the account's featured sticker sets (`messages.getFeaturedStickers`).
+///
+/// # Errors
+///
+/// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+/// when the server answers with an unexpected constructor.
+pub fn fetch_featured_stickers<T: Transport>(
+    client: &mut Client<T>,
+) -> Result<Vec<StickerSetCovered>> {
+    let query =
+        Method::MessagesGetFeaturedStickers(Box::new(MessagesGetFeaturedStickers { hash: 0 }));
+    match client.invoke(query)? {
+        Object::MessagesFeaturedStickers(featured) => match *featured {
+            MessagesFeaturedStickers::FeaturedStickers { sets, .. } => Ok(sets),
+            MessagesFeaturedStickers::FeaturedStickersNotModified { .. } => Ok(Vec::new()),
+        },
+        other => Err(Error::Unexpected(format!(
+            "messages.getFeaturedStickers returned unexpected constructor {:#010x}",
+            other.type_id()
+        ))),
+    }
+}
+
+/// A hash-keyed cache for query results.
+///
+/// See <https://core.telegram.org/api/offsets#hash-generation>: a query carries
+/// a hash, and the server answers `notModified` when it still matches.
+#[derive(Debug, Clone, Default)]
+pub struct QueryCache<T> {
+    entries: HashMap<i64, T>,
+}
+
+impl<T> QueryCache<T> {
+    /// Creates an empty cache.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            entries: HashMap::new(),
+        }
+    }
+
+    /// Returns a cached value for `hash`, if any.
+    #[must_use]
+    pub fn get(&self, hash: i64) -> Option<&T> {
+        self.entries.get(&hash)
+    }
+
+    /// Stores `value` under `hash`.
+    pub fn put(&mut self, hash: i64, value: T) {
+        self.entries.insert(hash, value);
+    }
+}
+
+/// Returns the cached value for `hash`, else runs `fetch` and caches its result.
+///
+/// # Errors
+///
+/// Returns whatever `fetch` reports.
+pub fn cached<T: Clone, F: FnOnce() -> Result<T>>(
+    cache: &mut QueryCache<T>,
+    hash: i64,
+    fetch: F,
+) -> Result<T> {
+    if let Some(value) = cache.get(hash) {
+        return Ok(value.clone());
+    }
+    let value = fetch()?;
+    cache.put(hash, value.clone());
+    Ok(value)
+}
+
 /// The Telegram pagination hash.
 ///
 /// See <https://core.telegram.org/api/offsets#hash-generation>.
@@ -1037,5 +1110,27 @@ mod tests {
         assert_eq!(hasher.sum(), 0);
         hasher.update64(0x0000_0001_0000_0002);
         assert_eq!(hasher.sum(), 20263);
+    }
+
+    #[test]
+    fn cache_avoids_a_second_fetch() {
+        use std::cell::Cell;
+
+        use super::{QueryCache, cached};
+
+        let mut cache: QueryCache<i32> = QueryCache::new();
+        let calls = Cell::new(0);
+        let first = cached(&mut cache, 7, || {
+            calls.set(calls.get() + 1);
+            Ok(42)
+        })
+        .unwrap();
+        let second = cached(&mut cache, 7, || {
+            calls.set(calls.get() + 1);
+            Ok(99)
+        })
+        .unwrap();
+        assert_eq!((first, second), (42, 42));
+        assert_eq!(calls.get(), 1);
     }
 }

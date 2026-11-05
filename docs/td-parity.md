@@ -89,7 +89,8 @@ need to mirror.
     (`send_sticker`/`set_typing`/`save_draft`/`report`/`join_channel`,
     `RequestBuilder::reply_to`/`schedule_date`).
 11. **Query/pagination extras**: featured-stickers iterator and `query/cached` helpers.
-    *Effort: S–M, no new deps.*
+    *Effort: S–M, no new deps.* — **done**, see `fetch_featured_stickers` and
+    `QueryCache`/`cached`.
 12. **Markup richness** (`telegram/message/markup`): reply keyboards, force-reply, richer
     buttons. *Effort: S, no new deps.* — **done**, see `rtd-client::markup`
     (`reply_keyboard`/`reply_keyboard_hide`/`reply_keyboard_force_reply`).

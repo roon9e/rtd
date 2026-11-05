@@ -91,8 +91,9 @@ pub use message::{
 };
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{
-    BlockedIter, DialogsIter, Hasher, HistoryIter, ParticipantsIter, PhotosIter, Query, fetch_all,
-    fetch_dialogs, fetch_history, fetch_participants, for_each,
+    BlockedIter, DialogsIter, Hasher, HistoryIter, ParticipantsIter, PhotosIter, Query, QueryCache,
+    cached, fetch_all, fetch_dialogs, fetch_featured_stickers, fetch_history, fetch_participants,
+    for_each,
 };
 pub use peers::{
     Channel, Chat, MemoryPeerStorage, PeerKey, PeerKind, PeerManager, PeerStorage, PeerValue,
