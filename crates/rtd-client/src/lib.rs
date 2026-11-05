@@ -45,7 +45,9 @@ pub mod uploader;
 pub mod ws;
 
 pub use async_client::AsyncClient;
-pub use auth::{BotToken, ConstantPassword, PasswordProvider};
+pub use auth::{
+    BotToken, ConstantPassword, Flow, HeldPassword, PasswordProvider, Status, default_code_settings,
+};
 pub use calls::{
     CallControl, CallError, CallState, DhConfig, GroupCall, MediaConnection, MediaEvents,
     SenderReport, TrackKind, accept_call, confirm_call, default_protocol, fetch_dh_config,

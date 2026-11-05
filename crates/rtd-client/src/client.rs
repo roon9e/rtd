@@ -20,9 +20,10 @@ use rtd_tg::{
     AuthCheckPassword, AuthCheckRecoveryPassword, AuthExportAuthorization, AuthExportLoginToken,
     AuthExportedAuthorization, AuthImportAuthorization, AuthImportBotAuthorization,
     AuthImportLoginToken, AuthLoginToken, AuthPasswordRecovery, AuthRecoverPassword,
-    AuthRequestPasswordRecovery, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings,
-    DecodeLimits, Decoder, HelpGetConfig, InitConnection, InputCheckPasswordSRP, InputUser,
-    InvokeWithLayer, LAYER, Method, Object, PasswordKdfAlgo, Update, Updates, User, UsersGetUsers,
+    AuthRequestPasswordRecovery, AuthSendCode, AuthSentCode, AuthSignIn, AuthSignUp, CodeSettings,
+    DataJSON, DecodeLimits, Decoder, HelpAcceptTermsOfService, HelpGetConfig, InitConnection,
+    InputCheckPasswordSRP, InputUser, InvokeWithLayer, LAYER, Method, Object, PasswordKdfAlgo,
+    Update, Updates, User, UsersGetUsers,
 };
 use rtd_util::Clock;
 
@@ -384,6 +385,52 @@ impl<T: Transport> Client<T> {
         match self.invoke(query)? {
             Object::AuthAuthorization(authorization) => Ok(*authorization),
             other => Err(unexpected("auth.signIn", &other)),
+        }
+    }
+
+    /// Signs up a new account (`auth.signUp`).
+    ///
+    /// The result may be [`AuthAuthorization::AuthorizationSignUpRequired`]
+    /// when the terms of service must be accepted first.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers with a different constructor.
+    pub fn sign_up(
+        &mut self,
+        phone_number: &str,
+        phone_code_hash: &str,
+        first_name: &str,
+        last_name: &str,
+    ) -> Result<AuthAuthorization> {
+        let query = Method::AuthSignUp(Box::new(AuthSignUp {
+            flags: 0,
+            no_joined_notifications: false,
+            phone_number: phone_number.to_owned(),
+            phone_code_hash: phone_code_hash.to_owned(),
+            first_name: first_name.to_owned(),
+            last_name: last_name.to_owned(),
+        }));
+        match self.invoke(query)? {
+            Object::AuthAuthorization(authorization) => Ok(*authorization),
+            other => Err(unexpected("auth.signUp", &other)),
+        }
+    }
+
+    /// Accepts the terms of service (`help.acceptTermsOfService`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server does not answer `Bool`.
+    pub fn accept_terms_of_service(&mut self, id: DataJSON) -> Result<()> {
+        let query = Method::HelpAcceptTermsOfService(Box::new(HelpAcceptTermsOfService {
+            id: Box::new(id),
+        }));
+        match self.invoke(query)? {
+            Object::Bool(_) => Ok(()),
+            other => Err(unexpected("help.acceptTermsOfService", &other)),
         }
     }
 

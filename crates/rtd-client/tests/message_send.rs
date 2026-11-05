@@ -67,6 +67,16 @@ fn reply(body: &[u8]) -> Option<Vec<u8>> {
             Object::User(Box::new(self_user_value())).encode(&mut writer);
             writer.into_vec()
         }
+        rtd_tg::AuthSignIn::TYPE_ID => encode(&Object::AuthAuthorization(Box::new(
+            rtd_tg::AuthAuthorization::Authorization {
+                flags: 0,
+                setup_password_required: false,
+                otherwise_relogin_days: None,
+                tmp_sessions: None,
+                future_auth_token: None,
+                user: Box::new(self_user_value()),
+            },
+        ))),
         _ => encode(&Object::Bool(Box::new(rtd_tg::Bool::BoolTrue))),
     })
 }
@@ -303,6 +313,43 @@ fn invoke_raw_json_round_trips() {
         response.contains("boolTrue"),
         "unexpected response: {response}"
     );
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn flow_reports_status_and_signs_in() {
+    use rtd_client::{ConstantPassword, Flow, Status, default_code_settings};
+    use rtd_tg::{AuthSentCode, AuthSentCodeType};
+
+    let (private, public) = keypair(149);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server(private, server_stream);
+
+    let mut client =
+        Client::connect(client_stream, &config(public), clock()).expect("client exchange");
+
+    let flow = Flow::new(1, "hash", "+10000000000", default_code_settings());
+    assert_eq!(
+        flow.status(&mut client).expect("status"),
+        Status::Authorized
+    );
+
+    let sent = AuthSentCode::SentCode {
+        flags: 0,
+        type_: Box::new(AuthSentCodeType::SentCodeTypeApp { length: 5 }),
+        phone_code_hash: "hash".to_owned(),
+        next_type: None,
+        timeout: None,
+    };
+    let authorization = flow
+        .sign_in(&mut client, &sent, "12345", &ConstantPassword::new("pw"))
+        .expect("sign_in");
+    assert!(matches!(
+        authorization,
+        rtd_tg::AuthAuthorization::Authorization { .. }
+    ));
 
     drop(client);
     server.join().expect("server thread");

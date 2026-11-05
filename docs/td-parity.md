@@ -42,7 +42,7 @@ need to mirror.
 | `testutil`, `tgmock`, `tgtest`, `tgacc` | `interop/`, `rtd-tg-e2e`, test modules | n/a |
 | `examples`, `cmd` | — | n/a |
 | `telegram` (client root) | `rtd-client::client`, `async_client`, `manager` | done/partial |
-| `telegram/auth` | `rtd-client::auth`, `client`, `qr` | partial (`Flow` missing) |
+| `telegram/auth` | `rtd-client::auth`, `client`, `qr` | done |
 | `telegram/auth/srpguard` | — | missing |
 | `telegram/calls` | `rtd-client::calls`, `media` | done |
 | `telegram/cdn` | `rtd-client::cdn` | done |
@@ -68,8 +68,12 @@ need to mirror.
 ## Remaining gaps
 
 1. **High-level authorization flow** (`telegram/auth`): no `Flow`/`UserAuthenticator` state
-   machine, no `Status`/sign-up/TOS, no password reset/recovery. *Effort: M, no new deps.*
-2. **`srpguard`**: locked/zeroizing buffer for the 2FA password. *Effort: S, optional dep.*
+   machine, no `Status`/sign-up/TOS, no password reset/recovery. *Effort: M, no new deps.* —
+   **done**, see `rtd-client::auth::{Flow, Status}` plus `default_code_settings`; the low-level
+   recovery calls (`request_password_recovery`/`check_recovery_password`/`recover_password`)
+   were already present.
+2. **`srpguard`**: locked/zeroizing buffer for the 2FA password. *Effort: S, optional dep.* —
+   **done**, see `rtd-client::auth::HeldPassword` (zeroized on drop).
 3. **Rich messages** (`telegram/message/rich`): `PageBlock`/`RichText` builders and
    HTML/Markdown parsing; `message.rs` currently sets `rich_message: None`. *Effort: L, no new deps.*
 4. **Styling / entity builder** (`telegram/message/styling`, `entity`): programmatic styled-text

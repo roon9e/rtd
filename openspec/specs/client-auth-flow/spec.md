@@ -1,10 +1,9 @@
-# Spec Delta
+# client-auth-flow Specification
 
 ## Purpose
-
 Defines the high-level login flow and locked 2FA password handling.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Login flow
 
@@ -22,8 +21,12 @@ accepting the terms of service, returning the authorized session.
 
 ### Requirement: Held password
 
-The client SHALL accept a two-factor password held in a buffer that is cleared when dropped, and
-SHALL use it for `auth.checkPassword`.
+The client SHALL accept a two-factor password held in a buffer that is zeroized when dropped,
+and SHALL not expose the password through `Debug`.
+
+#### Scenario: Password is redacted in Debug output
+- **WHEN** the held password is formatted with `Debug`
+- **THEN** the output is redacted
 
 #### Scenario: Password is cleared on drop
 - **WHEN** the held password buffer is dropped

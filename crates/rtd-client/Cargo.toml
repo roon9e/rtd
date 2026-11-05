@@ -25,6 +25,7 @@ sha1 = "0.10"
 sha2 = "0.10"
 pbkdf2 = "0.12"
 num-bigint = "0.4"
+zeroize = "1"
 webrtc = { version = "0.11", optional = true }
 bytes = { version = "1", optional = true }
 
