@@ -21,8 +21,8 @@ use rtd_tg::{
     AuthExportedAuthorization, AuthImportAuthorization, AuthImportBotAuthorization,
     AuthImportLoginToken, AuthLoginToken, AuthPasswordRecovery, AuthRecoverPassword,
     AuthRequestPasswordRecovery, AuthSendCode, AuthSentCode, AuthSignIn, CodeSettings,
-    DecodeLimits, Decoder, HelpGetConfig, InitConnection, InputCheckPasswordSRP, InvokeWithLayer,
-    LAYER, Method, Object, PasswordKdfAlgo, Update, Updates,
+    DecodeLimits, Decoder, HelpGetConfig, InitConnection, InputCheckPasswordSRP, InputUser,
+    InvokeWithLayer, LAYER, Method, Object, PasswordKdfAlgo, Update, Updates, User, UsersGetUsers,
 };
 use rtd_util::Clock;
 
@@ -294,6 +294,47 @@ impl<T: Transport> Client<T> {
             Err(Error::Rpc(error)) => Ok(crate::json::rpc_error_json(&error)),
             Err(other) => Err(other),
         }
+    }
+
+    /// Invokes a TL method given as JSON text and returns the response as JSON
+    /// text (`InvokeRawJSON`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a decode error when `request` is not valid JSON or not a valid
+    /// TL method, or a transport, crypto or decode error from the invocation.
+    pub fn invoke_raw_json(&mut self, request: &str) -> Result<String> {
+        let value =
+            crate::json::parse(request).map_err(|error| Error::Decode(error.to_string()))?;
+        Ok(self.invoke_json(&value)?.to_string())
+    }
+
+    /// Returns the authorized account's user (`users.getUsers` with
+    /// `inputUserSelf`), taking the first non-empty user.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, crypto, decode or RPC error, or [`Error::Unexpected`]
+    /// when the server answers without a user.
+    pub fn self_user(&mut self) -> Result<User> {
+        let query = Method::UsersGetUsers(Box::new(UsersGetUsers {
+            id: vec![InputUser::InputUserSelf],
+        }));
+        let InvokeResult::Vector(items) = self.invoke_raw(query)? else {
+            return Err(Error::Unexpected(
+                "users.getUsers did not return a vector".to_owned(),
+            ));
+        };
+        for object in items {
+            if let Object::User(user) = object
+                && !matches!(*user, User::UserEmpty { .. })
+            {
+                return Ok(*user);
+            }
+        }
+        Err(Error::Unexpected(
+            "users.getUsers returned no user".to_owned(),
+        ))
     }
 
     /// Sends a login code to `phone_number` (`auth.sendCode`).

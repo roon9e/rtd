@@ -5,6 +5,7 @@
 //! and RPC invocation at the canonical layer.
 #![warn(missing_docs)]
 
+pub mod ascii;
 pub mod async_client;
 pub mod auth;
 pub mod calls;
@@ -67,7 +68,8 @@ pub use fileid::{FileId, PhotoSizeSource, Type as FileType, from_document, from_
 pub use inline::{article, set_inline_bot_results};
 pub use json::{
     JsonError, JsonValue, base64_decode, base64_encode, decode_method, decode_object, describe,
-    encode_method, encode_object, format as format_object, rpc_error_json, type_id, type_name,
+    encode_method, encode_object, format as format_object, parse as parse_json, rpc_error_json,
+    type_id, type_name,
 };
 pub use keepalive::{Backoff, Keepalive, Reconnect};
 pub use manager::{DcRouter, ReconnectingClient};

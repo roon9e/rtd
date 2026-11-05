@@ -81,7 +81,7 @@ need to mirror.
    — **done**, see `rtd-client::constant`.
 7. **TL pretty-printing** (`tdp`): a reflection-style field dump of any object. *Effort: M.*
 8. **NTP clock** (`clock/ntp`): an NTP-calibrated clock. *Effort: M, new dep.*
-9. **ASCII predicates** (`ascii`). *Effort: S.*
+9. **ASCII predicates** (`ascii`). *Effort: S.* — **done**, see `rtd-client::ascii`.
 10. **Staged message senders** (`telegram/message`): audio/video/gif/dice/game/venue/webpage
     helpers. *Effort: M, no new deps.* — **done**, see `rtd-client::message`
     (`send_audio`/`send_video`/`send_gif`/`send_dice`/`send_venue`/`send_game`/`send_webpage`).
@@ -91,9 +91,9 @@ need to mirror.
 12. **Markup richness** (`telegram/message/markup`): reply keyboards, force-reply, richer
     buttons. *Effort: S, no new deps.* — **done**, see `rtd-client::markup`
     (`reply_keyboard`/`reply_keyboard_hide`/`reply_keyboard_force_reply`).
-13. **Client ergonomics** (`telegram` root): `Self`, environment-based construction,
-    `InvokeRawJSON`. *Effort: S–M.* This also needs **bare-vector RPC results** (e.g.
-    `users.getUsers` returns `Vector<User>`), which `Client::invoke` cannot currently decode.
+13. **Client ergonomics** (`telegram` root): `Self`, `InvokeRawJSON`. *Effort: S–M.* — **done**,
+    see `Client::self_user`, `parse_json` and `Client::invoke_raw_json` (on top of bare-vector
+    results). Environment-based construction remains out of scope.
 14. **Bare-vector results**: `Client::invoke` decodes only `Object`; methods that return a bare
     `Vector<T>` are unusable. *Effort: M, architectural.* — **done**, see `Client::invoke_raw`
     / `InvokeResult`.

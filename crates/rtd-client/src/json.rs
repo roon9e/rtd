@@ -34,6 +34,241 @@ impl JsonValue {
     }
 }
 
+/// Parses a JSON document into a [`JsonValue`].
+///
+/// # Errors
+///
+/// Returns [`JsonError`] when `input` is not valid JSON.
+pub fn parse(input: &str) -> Result<JsonValue, JsonError> {
+    let mut parser = Parser {
+        bytes: input.as_bytes(),
+        pos: 0,
+    };
+    parser.skip_whitespace();
+    let value = parser.value()?;
+    parser.skip_whitespace();
+    if parser.pos != parser.bytes.len() {
+        return Err(JsonError("trailing characters after JSON value".to_owned()));
+    }
+    Ok(value)
+}
+
+/// A byte-level recursive-descent JSON parser.
+struct Parser<'a> {
+    bytes: &'a [u8],
+    pos: usize,
+}
+
+impl Parser<'_> {
+    fn skip_whitespace(&mut self) {
+        while let Some(&byte) = self.bytes.get(self.pos) {
+            if matches!(byte, b' ' | b'\n' | b'\r' | b'\t') {
+                self.pos += 1;
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn value(&mut self) -> Result<JsonValue, JsonError> {
+        match self.bytes.get(self.pos) {
+            Some(b'{') => self.object(),
+            Some(b'[') => self.array(),
+            Some(b'"') => Ok(JsonValue::String(self.string()?)),
+            Some(b't') => {
+                self.literal("true")?;
+                Ok(JsonValue::Bool(true))
+            }
+            Some(b'f') => {
+                self.literal("false")?;
+                Ok(JsonValue::Bool(false))
+            }
+            Some(b'n') => {
+                self.literal("null")?;
+                Ok(JsonValue::Null)
+            }
+            Some(b'-' | b'0'..=b'9') => self.number(),
+            _ => Err(JsonError("unexpected JSON token".to_owned())),
+        }
+    }
+
+    fn object(&mut self) -> Result<JsonValue, JsonError> {
+        self.expect(b'{')?;
+        let mut entries = BTreeMap::new();
+        self.skip_whitespace();
+        if self.bytes.get(self.pos) == Some(&b'}') {
+            self.pos += 1;
+            return Ok(JsonValue::Object(entries));
+        }
+        loop {
+            self.skip_whitespace();
+            let key = self.string()?;
+            self.skip_whitespace();
+            self.expect(b':')?;
+            self.skip_whitespace();
+            let value = self.value()?;
+            entries.insert(key, value);
+            self.skip_whitespace();
+            match self.bytes.get(self.pos) {
+                Some(b',') => self.pos += 1,
+                Some(b'}') => {
+                    self.pos += 1;
+                    return Ok(JsonValue::Object(entries));
+                }
+                _ => return Err(JsonError("expected ',' or '}'".to_owned())),
+            }
+        }
+    }
+
+    fn array(&mut self) -> Result<JsonValue, JsonError> {
+        self.expect(b'[')?;
+        let mut values = Vec::new();
+        self.skip_whitespace();
+        if self.bytes.get(self.pos) == Some(&b']') {
+            self.pos += 1;
+            return Ok(JsonValue::Array(values));
+        }
+        loop {
+            self.skip_whitespace();
+            values.push(self.value()?);
+            self.skip_whitespace();
+            match self.bytes.get(self.pos) {
+                Some(b',') => self.pos += 1,
+                Some(b']') => {
+                    self.pos += 1;
+                    return Ok(JsonValue::Array(values));
+                }
+                _ => return Err(JsonError("expected ',' or ']'".to_owned())),
+            }
+        }
+    }
+
+    fn string(&mut self) -> Result<String, JsonError> {
+        self.expect(b'"')?;
+        let mut out = String::new();
+        loop {
+            let byte = *self
+                .bytes
+                .get(self.pos)
+                .ok_or_else(|| JsonError("unterminated string".to_owned()))?;
+            self.pos += 1;
+            match byte {
+                b'"' => return Ok(out),
+                b'\\' => {
+                    let escape = *self
+                        .bytes
+                        .get(self.pos)
+                        .ok_or_else(|| JsonError("unterminated escape".to_owned()))?;
+                    self.pos += 1;
+                    match escape {
+                        b'"' => out.push('"'),
+                        b'\\' => out.push('\\'),
+                        b'/' => out.push('/'),
+                        b'b' => out.push('\u{0008}'),
+                        b'f' => out.push('\u{000c}'),
+                        b'n' => out.push('\n'),
+                        b'r' => out.push('\r'),
+                        b't' => out.push('\t'),
+                        b'u' => out.push(self.unicode_escape()?),
+                        _ => return Err(JsonError("invalid escape".to_owned())),
+                    }
+                }
+                other => {
+                    // Re-decode the UTF-8 sequence starting at `other`.
+                    let start = self.pos - 1;
+                    let width = utf8_width(other);
+                    let end = start + width;
+                    let slice = self
+                        .bytes
+                        .get(start..end)
+                        .ok_or_else(|| JsonError("truncated UTF-8".to_owned()))?;
+                    let text = core::str::from_utf8(slice)
+                        .map_err(|_| JsonError("invalid UTF-8".to_owned()))?;
+                    out.push_str(text);
+                    self.pos = end;
+                }
+            }
+        }
+    }
+
+    fn unicode_escape(&mut self) -> Result<char, JsonError> {
+        let first = self.hex4()?;
+        if (0xd800..0xdc00).contains(&first) {
+            // High surrogate: expect a low surrogate.
+            self.expect(b'\\')?;
+            self.expect(b'u')?;
+            let second = self.hex4()?;
+            let combined = 0x10000 + ((first - 0xd800) << 10) + (second - 0xdc00);
+            return char::from_u32(combined)
+                .ok_or_else(|| JsonError("invalid surrogate pair".to_owned()));
+        }
+        char::from_u32(first).ok_or_else(|| JsonError("invalid unicode escape".to_owned()))
+    }
+
+    fn hex4(&mut self) -> Result<u32, JsonError> {
+        let slice = self
+            .bytes
+            .get(self.pos..self.pos + 4)
+            .ok_or_else(|| JsonError("truncated unicode escape".to_owned()))?;
+        let text = core::str::from_utf8(slice)
+            .map_err(|_| JsonError("invalid unicode escape".to_owned()))?;
+        let value = u32::from_str_radix(text, 16)
+            .map_err(|_| JsonError("invalid unicode escape".to_owned()))?;
+        self.pos += 4;
+        Ok(value)
+    }
+
+    fn number(&mut self) -> Result<JsonValue, JsonError> {
+        let start = self.pos;
+        if self.bytes.get(self.pos) == Some(&b'-') {
+            self.pos += 1;
+        }
+        while let Some(&byte) = self.bytes.get(self.pos) {
+            if matches!(byte, b'0'..=b'9' | b'.' | b'e' | b'E' | b'+' | b'-') {
+                self.pos += 1;
+            } else {
+                break;
+            }
+        }
+        let text = core::str::from_utf8(&self.bytes[start..self.pos])
+            .map_err(|_| JsonError("invalid number".to_owned()))?;
+        text.parse::<f64>()
+            .map(JsonValue::Number)
+            .map_err(|_| JsonError(format!("invalid number {text:?}")))
+    }
+
+    fn literal(&mut self, literal: &str) -> Result<(), JsonError> {
+        if self.bytes[self.pos..].starts_with(literal.as_bytes()) {
+            self.pos += literal.len();
+            Ok(())
+        } else {
+            Err(JsonError(format!("expected {literal:?}")))
+        }
+    }
+
+    fn expect(&mut self, byte: u8) -> Result<(), JsonError> {
+        if self.bytes.get(self.pos) == Some(&byte) {
+            self.pos += 1;
+            Ok(())
+        } else {
+            Err(JsonError(format!("expected {:?}", byte as char)))
+        }
+    }
+}
+
+/// Returns the byte width of a UTF-8 sequence from its leading byte.
+fn utf8_width(lead: u8) -> usize {
+    if lead < 0x80 {
+        1
+    } else if lead >> 5 == 0b110 {
+        2
+    } else if lead >> 4 == 0b1110 {
+        3
+    } else {
+        4
+    }
+}
+
 impl fmt::Display for JsonValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -379,5 +614,32 @@ mod tests {
             ),
         ]));
         assert!(super::decode_object(&bad_body).is_err());
+    }
+
+    #[test]
+    fn parses_json_text() {
+        let value = super::parse(r#"{"s":"x\"y","a":[1,true,null],"u":"\u0041\uD83D\uDE00"}"#)
+            .expect("parse");
+        let JsonValue::Object(entries) = value else {
+            panic!("expected object");
+        };
+        assert_eq!(
+            entries.get("s"),
+            Some(&JsonValue::String("x\"y".to_owned()))
+        );
+        assert_eq!(
+            entries.get("a"),
+            Some(&JsonValue::Array(vec![
+                JsonValue::Number(1.0),
+                JsonValue::Bool(true),
+                JsonValue::Null,
+            ]))
+        );
+        assert_eq!(
+            entries.get("u"),
+            Some(&JsonValue::String("A\u{1F600}".to_owned()))
+        );
+        assert!(super::parse("{").is_err());
+        assert!(super::parse("nope").is_err());
     }
 }

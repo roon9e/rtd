@@ -64,11 +64,70 @@ fn reply(body: &[u8]) -> Option<Vec<u8>> {
             let mut writer = Writer::new();
             writer.put_u32(0x1cb5_c415);
             writer.put_u32(1);
-            Object::Bool(Box::new(rtd_tg::Bool::BoolTrue)).encode(&mut writer);
+            Object::User(Box::new(self_user_value())).encode(&mut writer);
             writer.into_vec()
         }
         _ => encode(&Object::Bool(Box::new(rtd_tg::Bool::BoolTrue))),
     })
+}
+
+/// A minimal `User` flagged as the current account.
+fn self_user_value() -> rtd_tg::User {
+    rtd_tg::User::User {
+        flags: 0,
+        self_: true,
+        contact: false,
+        mutual_contact: false,
+        deleted: false,
+        bot: false,
+        bot_chat_history: false,
+        bot_nochats: false,
+        verified: false,
+        restricted: false,
+        min: false,
+        bot_inline_geo: false,
+        support: false,
+        scam: false,
+        apply_min_photo: false,
+        fake: false,
+        bot_attach_menu: false,
+        premium: false,
+        attach_menu_enabled: false,
+        flags2: 0,
+        bot_can_edit: false,
+        close_friend: false,
+        stories_hidden: false,
+        stories_unavailable: false,
+        contact_require_premium: false,
+        bot_business: false,
+        bot_has_main_app: false,
+        bot_forum_view: false,
+        bot_forum_can_manage_topics: false,
+        bot_can_manage_bots: false,
+        bot_guestchat: false,
+        bot_guard: false,
+        id: 7,
+        access_hash: Some(9),
+        first_name: Some("Alice".to_owned()),
+        last_name: None,
+        username: Some("alice".to_owned()),
+        phone: None,
+        photo: None,
+        status: None,
+        bot_info_version: None,
+        restriction_reason: None,
+        bot_inline_placeholder: None,
+        lang_code: None,
+        emoji_status: None,
+        usernames: None,
+        stories_max_id: None,
+        color: None,
+        profile_color: None,
+        bot_active_users: None,
+        bot_verification_icon: None,
+        send_paid_messages_stars: None,
+        linked_community_id: None,
+    }
 }
 
 fn spawn_server(
@@ -201,6 +260,49 @@ fn invoke_raw_decodes_a_vector() {
         InvokeResult::Vector(items) => assert_eq!(items.len(), 1),
         other => panic!("expected a vector, got {other:?}"),
     }
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn self_user_returns_the_self_user() {
+    let (private, public) = keypair(137);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server(private, server_stream);
+
+    let mut client =
+        Client::connect(client_stream, &config(public), clock()).expect("client exchange");
+
+    match client.self_user().expect("self_user") {
+        rtd_tg::User::User {
+            self_: true, id: 7, ..
+        } => {}
+        other => panic!("unexpected self user: {other:?}"),
+    }
+
+    drop(client);
+    server.join().expect("server thread");
+}
+
+#[test]
+fn invoke_raw_json_round_trips() {
+    use rtd_client::encode_method;
+    use rtd_tg::{HelpGetConfig, Method};
+
+    let (private, public) = keypair(139);
+    let (client_stream, server_stream) = DuplexStream::pair();
+    let server = spawn_server(private, server_stream);
+
+    let mut client =
+        Client::connect(client_stream, &config(public), clock()).expect("client exchange");
+
+    let request = encode_method(&Method::HelpGetConfig(Box::new(HelpGetConfig))).to_string();
+    let response = client.invoke_raw_json(&request).expect("invoke_raw_json");
+    assert!(
+        response.contains("boolTrue"),
+        "unexpected response: {response}"
+    );
 
     drop(client);
     server.join().expect("server thread");
