@@ -93,6 +93,8 @@ pub use message::{
     send_poll, send_sticker, send_venue, send_video, send_webpage, set_typing, sticker_media,
     venue_media, video_media, webpage_media,
 };
+#[cfg(feature = "otel")]
+pub use middleware::OtelTracer;
 pub use middleware::{Delay, FloodWait, Middleware, RateLimit, ThreadDelay, Trace, Tracer};
 pub use pagination::{
     BlockedIter, DialogsIter, Hasher, HistoryIter, ParticipantsIter, PhotosIter, Query, QueryCache,
@@ -106,6 +108,8 @@ pub use peers::{
 pub use pool::{Connection, Pool, Router, SelectedKey, SessionOptions};
 pub use qr::{LoginToken, drive_login, login_url};
 pub use rich::RichMessage;
+#[cfg(feature = "ntp")]
+pub use rtd_util::NtpClock;
 pub use session::{ClientSession, SaltStore, SessionData};
 pub use storage::{FileStorage, ImportedSession, MemoryStorage, Storage, decode_telethon};
 pub use takeout::TakeoutConfig;

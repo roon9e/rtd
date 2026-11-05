@@ -27,7 +27,7 @@ need to mirror.
 | `tgtrace` | `rtd-tgtrace` | done |
 | `rpc` (engine) | `rtd-client::client` | done |
 | `clock` | `rtd-util::clock` | done |
-| `clock/ntp` | — | missing |
+| `clock/ntp` | `rtd-util::ntp` (feature `ntp`) | done |
 | `syncio`, `tdsync` | — | n/a (Rust ownership/tokio) |
 | `ascii` | — | missing (trivial) |
 | `constant` | — | missing |
@@ -37,7 +37,7 @@ need to mirror.
 | `pool` | `rtd-client::pool` | done |
 | `session`, `session/tdesktop` | `rtd-client::session`, `storage`, `tdesktop` | done |
 | `gen`, `_tools`, `_schema` | `rtd-codegen`, `schema/` | done |
-| `oteltg` | `rtd-client::middleware` (abstract `Tracer` only) | partial |
+| `oteltg` | `rtd-client::middleware` (`Tracer`) + `OtelTracer` (feature `otel`) | done |
 | `keyparser` | — | n/a (key-refresh tooling) |
 | `testutil`, `tgmock`, `tgtest`, `tgacc` | `interop/`, `rtd-tg-e2e`, test modules | n/a |
 | `examples`, `cmd` | — | n/a |
@@ -83,14 +83,17 @@ need to mirror.
    composition into entities. *Effort: M, no new deps.* — **done**, see `rtd-client::entity`
    (`EntityBuilder`/`EntityKind`; parse and build).
 5. **OpenTelemetry** (`oteltg`): only an abstract `Tracer` trait exists; no OTel integration.
-   *Effort: S–M, new deps.*
+   *Effort: S–M, new deps.* — **done**, see `rtd-client::OtelTracer` behind the optional `otel`
+   feature (uses the OpenTelemetry global tracer provider).
 6. **Constants** (`constant`): TDLib peer-id encoding and well-known IDs/limits. *Effort: S.*
    — **done**, see `rtd-client::constant`.
 7. **TL pretty-printing** (`tdp`): a reflection-style field dump of any object. *Effort: M.* —
    **done**, see `rtd-client::tdp` (`format`/`compact`/`label`), using the generated `Debug`
    representation. Byte fields render as decimal lists (base64 remains available via
    `json::encode_object`).
-8. **NTP clock** (`clock/ntp`): an NTP-calibrated clock. *Effort: M, new dep.*
+8. **NTP clock** (`clock/ntp`): an NTP-calibrated clock. *Effort: M, new dep.* — **done**, see
+   `rtd-util::ntp::NtpClock` behind the optional `ntp` feature (hand-rolled SNTP, no dependency),
+   re-exported from `rtd-client` under `ntp`.
 9. **ASCII predicates** (`ascii`). *Effort: S.* — **done**, see `rtd-client::ascii`.
 10. **Staged message senders** (`telegram/message`): audio/video/gif/dice/game/venue/webpage
     helpers. *Effort: M, no new deps.* — **done**, see `rtd-client::message`

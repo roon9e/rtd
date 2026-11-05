@@ -115,6 +115,38 @@ impl Middleware for Trace {
     }
 }
 
+/// A [`Tracer`] that records one OpenTelemetry span per invocation.
+///
+/// Available with the `otel` feature. It uses the process-global OpenTelemetry
+/// tracer provider, so an application configures the provider; without one the
+/// global tracer is a no-op.
+#[cfg(feature = "otel")]
+pub struct OtelTracer {
+    name: String,
+}
+
+#[cfg(feature = "otel")]
+impl OtelTracer {
+    /// Creates a tracer that records spans under instrumentation `name`.
+    #[must_use]
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+}
+
+#[cfg(feature = "otel")]
+impl Tracer for OtelTracer {
+    fn record(&self, method: &str, ok: bool) {
+        use opentelemetry::trace::{Span as _, Tracer as _};
+        use opentelemetry::{KeyValue, global};
+
+        let tracer = global::tracer(self.name.clone());
+        let mut span = tracer.start(method.to_owned());
+        span.set_attribute(KeyValue::new("rpc.ok", ok));
+        span.end();
+    }
+}
+
 /// Enforces a minimum interval between invocations.
 pub struct RateLimit {
     interval: Duration,
@@ -252,5 +284,16 @@ mod tests {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         assert_eq!(waits.as_slice(), &[Duration::from_secs(2)]);
+    }
+
+    #[cfg(feature = "otel")]
+    #[test]
+    fn otel_tracer_records_without_a_provider() {
+        use super::{OtelTracer, Tracer};
+
+        // With no global provider installed the tracer is a no-op; this asserts
+        // the call path is safe.
+        OtelTracer::new("rtd-test").record("help.getConfig", true);
+        OtelTracer::new("rtd-test").record("help.getConfig", false);
     }
 }

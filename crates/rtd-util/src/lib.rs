@@ -8,7 +8,11 @@
 //! implementations.
 
 pub mod clock;
+#[cfg(feature = "ntp")]
+pub mod ntp;
 pub mod random;
 
 pub use clock::{Clock, ManualClock, SystemClock};
+#[cfg(feature = "ntp")]
+pub use ntp::{NtpClock, NtpOffset};
 pub use random::{DeterministicRandom, Random, SystemRandom, fill_random, random_bytes};
