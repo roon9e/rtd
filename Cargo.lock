@@ -1959,6 +1959,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rtd-fetchtools"
+version = "0.1.1"
+dependencies = [
+ "hex",
+ "rtd-bin",
+ "rtd-client",
+ "rtd-crypto",
+ "rtd-error",
+ "rtd-exchange",
+ "rtd-proto",
+ "rtd-tg",
+ "rtd-transport",
+ "rtd-util",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "rtd-layerhooks"
 version = "0.1.1"
 dependencies = [

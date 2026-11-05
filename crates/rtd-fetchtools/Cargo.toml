@@ -1,0 +1,32 @@
+[package]
+name = "rtd-fetchtools"
+description = "Offline Telegram seed fetchers built on the rtd client library"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rtd-bin = { path = "../rtd-bin" }
+rtd-client = { path = "../rtd-client", default-features = false }
+rtd-crypto = { path = "../rtd-crypto" }
+rtd-error = { path = "../rtd-error" }
+rtd-exchange = { path = "../rtd-exchange" }
+rtd-proto = { path = "../rtd-proto" }
+rtd-tg = { path = "../rtd-tg" }
+rtd-transport = { path = "../rtd-transport" }
+rtd-util = { path = "../rtd-util" }
+hex = "0.4"
+sha2 = "0.10"
+
+[[bin]]
+name = "catalogfetch"
+path = "src/bin/catalogfetch.rs"
+
+[[bin]]
+name = "langpackfetch"
+path = "src/bin/langpackfetch.rs"
