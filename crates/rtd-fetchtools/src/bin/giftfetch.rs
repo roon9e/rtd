@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use rtd_client::qr::login_url;
 use rtd_fetchtools::client::{Tg, is_password_needed};
-use rtd_fetchtools::creds::{TDESKTOP_API_HASH, TDESKTOP_API_ID, env_nonempty};
+use rtd_fetchtools::creds::{self, TDESKTOP_API_HASH, TDESKTOP_API_ID, env_nonempty};
 use rtd_fetchtools::proxy;
 use rtd_fetchtools::seed::gift::{
     Background, CatalogManifest, DocumentManifest, FileArtifact, GiftManifest, MissingThumb,
@@ -65,6 +65,12 @@ fn main() -> ExitCode {
     }
 }
 
+/// Resolved application credentials.
+struct Account {
+    id: i32,
+    hash: String,
+}
+
 /// Parsed command-line options.
 struct Options {
     out: String,
@@ -74,6 +80,7 @@ struct Options {
     reuse_metadata: bool,
     allowed_missing_thumbs: BTreeSet<String>,
     login_qr: bool,
+    timeout: Duration,
 }
 
 fn run() -> Result<()> {
@@ -83,9 +90,11 @@ fn run() -> Result<()> {
         Some(raw) => Some(proxy::parse(&raw)?),
         None => None,
     };
+    let (api_id, api_hash) = creds::api_credentials(TDESKTOP_API_ID, TDESKTOP_API_HASH);
 
     if opts.login_qr {
-        let mut tg = Tg::connect_proxied(TDESKTOP_API_ID, TDESKTOP_API_HASH, &session, 2, proxy)?;
+        spawn_watchdog(Duration::from_secs(15 * 60), "login");
+        let mut tg = Tg::connect_proxied(api_id, &api_hash, &session, 2, proxy)?;
         return login_qr(&mut tg);
     }
 
@@ -101,12 +110,26 @@ fn run() -> Result<()> {
         return Err(format!("workers must be in [1, {MAX_WORKERS}]").into());
     }
 
-    let mut tg = Tg::connect_proxied(TDESKTOP_API_ID, TDESKTOP_API_HASH, &session, 2, proxy)?;
+    spawn_watchdog(opts.timeout, "fetch");
+    let mut tg = Tg::connect_proxied(api_id, &api_hash, &session, 2, proxy)?;
     if !tg.is_authorized()? {
         return Err("SESSION is not authorized (run giftfetch -login-qr first)".into());
     }
     println!("[session authorized]");
-    fetch_catalog(&mut tg, &opts, &session)
+    let account = Account {
+        id: api_id,
+        hash: api_hash,
+    };
+    fetch_catalog(&mut tg, &opts, &session, &account)
+}
+
+/// Aborts the process after `timeout`, mirroring the Go context deadline.
+fn spawn_watchdog(timeout: Duration, label: &'static str) {
+    std::thread::spawn(move || {
+        std::thread::sleep(timeout);
+        eprintln!("ERROR: {label} timed out after {timeout:?}");
+        std::process::exit(1);
+    });
 }
 
 /// Parses the command-line arguments.
@@ -119,6 +142,7 @@ fn parse_args() -> Result<Options> {
         reuse_metadata: false,
         allowed_missing_thumbs: BTreeSet::new(),
         login_qr: false,
+        timeout: Duration::from_secs(4 * 60 * 60),
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -130,6 +154,9 @@ fn parse_args() -> Result<Options> {
             "-skip-thumbs" => opts.skip_thumbs = true,
             "-workers" => opts.workers = args.next().unwrap_or_default().parse().unwrap_or(0),
             "-reuse-metadata" => opts.reuse_metadata = true,
+            "-timeout" => {
+                opts.timeout = parse_duration(&args.next().unwrap_or_default());
+            }
             "-allow-missing-thumb" => {
                 let raw = args.next().unwrap_or_default();
                 opts.allowed_missing_thumbs = parse_allowed_missing_thumbs(&raw)?;
@@ -170,7 +197,14 @@ fn login_qr(tg: &mut Tg) -> Result<()> {
                     expires,
                     token: fresh,
                 } => {
-                    token = (fresh, expires);
+                    // The server rotated the token: show the fresh one so the
+                    // displayed QR always matches the pending login.
+                    if fresh != token.0 {
+                        token = (fresh, expires);
+                        render_qr(&login_url(&token.0));
+                    } else {
+                        token.1 = expires;
+                    }
                 }
                 AuthLoginToken::LoginTokenMigrateTo { .. } => {
                     return Err(
@@ -203,6 +237,11 @@ fn login_qr(tg: &mut Tg) -> Result<()> {
     }
 }
 
+/// Parses a Go-style duration (for example `12m`, `4h`, `90s`).
+fn parse_duration(raw: &str) -> Duration {
+    rtd_fetchtools::duration::parse(raw).unwrap_or_else(|| Duration::from_secs(4 * 60 * 60))
+}
+
 /// Exports a QR login token and returns `(token bytes, expires)`.
 fn export_token(tg: &mut Tg) -> Result<(Vec<u8>, i32)> {
     let request = Method::AuthExportLoginToken(Box::new(AuthExportLoginToken {
@@ -220,7 +259,18 @@ fn export_token(tg: &mut Tg) -> Result<(Vec<u8>, i32)> {
 }
 
 /// Reports the authorized account.
-fn report_authorized(_authorization: &rtd_tg::AuthAuthorization) {
+fn report_authorized(authorization: &rtd_tg::AuthAuthorization) {
+    if let rtd_tg::AuthAuthorization::Authorization { user, .. } = authorization
+        && let rtd_tg::User::User {
+            id, username, bot, ..
+        } = &**user
+    {
+        println!(
+            "[authorized] id={id} username={} bot={bot}",
+            username.clone().unwrap_or_default()
+        );
+        return;
+    }
     println!("[authorized]");
 }
 
@@ -344,7 +394,7 @@ impl Collector {
 }
 
 /// Fetches the catalog and writes the export tree.
-fn fetch_catalog(tg: &mut Tg, opts: &Options, session: &str) -> Result<()> {
+fn fetch_catalog(tg: &mut Tg, opts: &Options, session: &str, account: &Account) -> Result<()> {
     let out = PathBuf::from(&opts.out);
     std::fs::create_dir_all(&out)?;
 
@@ -431,7 +481,15 @@ fn fetch_catalog(tg: &mut Tg, opts: &Options, session: &str) -> Result<()> {
         .into());
     }
 
-    download_documents(tg, opts, session, &out, &collector.documents, &mut manifest)?;
+    download_documents(
+        tg,
+        opts,
+        session,
+        &out,
+        &collector.documents,
+        &mut manifest,
+        account,
+    )?;
 
     let body = format!("{}\n", manifest.to_value().render("  "));
     fsutil::write_file_atomic(&out.join("manifest.json"), body.as_bytes())?;
@@ -456,6 +514,7 @@ fn download_documents(
     out: &Path,
     documents: &BTreeMap<i64, Source>,
     manifest: &mut CatalogManifest,
+    account: &Account,
 ) -> Result<()> {
     let _ = tg;
     let mut ids: Vec<i64> = documents.keys().copied().collect();
@@ -480,8 +539,7 @@ fn download_documents(
             let results = &results;
             let proxy = proxy.clone();
             handles.push(scope.spawn(move || -> Result<()> {
-                let mut worker =
-                    Tg::connect_proxied(TDESKTOP_API_ID, TDESKTOP_API_HASH, session, 2, proxy)?;
+                let mut worker = Tg::connect_proxied(account.id, &account.hash, session, 2, proxy)?;
                 loop {
                     let index = next.fetch_add(1, Ordering::SeqCst);
                     if index >= ids.len() {

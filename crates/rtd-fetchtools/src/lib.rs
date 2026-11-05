@@ -18,6 +18,7 @@
 
 pub mod client;
 pub mod creds;
+pub mod duration;
 pub mod fsutil;
 pub mod gojson;
 pub mod goquote;

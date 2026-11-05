@@ -39,14 +39,19 @@ fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     // Only `-timeout` is a flag; skip it and its value, keep the rest positional.
     let mut positional: Vec<String> = Vec::new();
+    let mut timeout = std::time::Duration::from_secs(12 * 60);
     let mut index = 1;
     while index < args.len() {
         let arg = &args[index];
         if arg == "-timeout" {
+            if let Some(value) = args.get(index + 1) {
+                timeout = rtd_fetchtools::duration::parse(value).unwrap_or(timeout);
+            }
             index += 2;
             continue;
         }
-        if arg.starts_with("-timeout=") {
+        if let Some(value) = arg.strip_prefix("-timeout=") {
+            timeout = rtd_fetchtools::duration::parse(value).unwrap_or(timeout);
             index += 1;
             continue;
         }
@@ -59,6 +64,12 @@ fn run() -> Result<()> {
         );
         return Ok(());
     }
+    // Abort after `-timeout`, mirroring the Go context deadline.
+    std::thread::spawn(move || {
+        std::thread::sleep(timeout);
+        eprintln!("ERROR: timed out after {timeout:?}");
+        std::process::exit(1);
+    });
     let out = PathBuf::from(&positional[0]);
     let specs = &positional[1..];
 
