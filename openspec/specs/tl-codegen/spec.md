@@ -14,7 +14,7 @@ canonical layer and each supported layer's schema file. The set of supported lay
 SHALL NOT require changes to generator source code.
 
 #### Scenario: Adding a layer requires no code change
-- **GIVEN** the generator accepts layers 225 through 232
+- **GIVEN** the generator accepts layers 225 through 233
 - **WHEN** a new layer schema file and manifest entry are added and generation is run
 - **THEN** the generator emits code for the new layer using the same paths as existing layers
 

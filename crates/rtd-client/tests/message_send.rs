@@ -116,6 +116,7 @@ fn self_user_value() -> rtd_tg::User {
         bot_can_manage_bots: false,
         bot_guestchat: false,
         bot_guard: false,
+        bot_forum_sidebar: false,
         id: 7,
         access_hash: Some(9),
         first_name: Some("Alice".to_owned()),

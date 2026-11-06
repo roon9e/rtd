@@ -31,7 +31,7 @@ context: |
     with Rust enums, generated match tables, zero-copy buffers and codec traits.
     Never resolve schemas at runtime; never fall back to a canonical transcode bridge.
   - Layer set: extensible and manifest-driven. Nothing about the number of profiles may
-    be hard-coded. Stage implementation from canonical layer 232, then add 231 -> 225
+    be hard-coded. Stage implementation from canonical layer 233, then add 232 -> 225
     through the same generated path.
   - Codegen: a NEW Rust generator (standalone xtask-style tool; generated Rust is
     committed to the repo, not produced by build.rs).

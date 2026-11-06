@@ -5,7 +5,7 @@
 //! Generated canonical Telegram API value model.
 
 /// The canonical schema layer.
-pub const LAYER: i32 = 232;
+pub const LAYER: i32 = 233;
 
 /// Decode limits enforced while materializing a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3232,6 +3232,20 @@ pub enum BotInlineMessage {
         entities: Option<::std::vec::Vec<MessageEntity>>,
         reply_markup: Option<::std::boxed::Box<ReplyMarkup>>,
     },
+    BotInlineMessageWidget {
+        flags: u32,
+        invert_media: bool,
+        width: i32,
+        height: i32,
+        payload: ::std::vec::Vec<u8>,
+        public_data: Option<::std::string::String>,
+        public_data_hash: Option<i64>,
+        chat_data: Option<::std::string::String>,
+        reply_markup: Option<::std::boxed::Box<ReplyMarkup>>,
+        widget_id: Option<i64>,
+        message: ::std::string::String,
+        entities: Option<::std::vec::Vec<MessageEntity>>,
+    },
 }
 impl BotInlineMessage {
     /// Returns the wire constructor identifier of this value.
@@ -3245,6 +3259,7 @@ impl BotInlineMessage {
             BotInlineMessage::BotInlineMessageMediaWebPage { .. } => 0x809ad9a6,
             BotInlineMessage::BotInlineMessageRichMessage { .. } => 0x0a617e7b,
             BotInlineMessage::BotInlineMessageText { .. } => 0x8c7f65e2,
+            BotInlineMessage::BotInlineMessageWidget { .. } => 0xbaa17834,
         }
     }
 
@@ -3501,6 +3516,70 @@ impl BotInlineMessage {
                     value.encode(__w);
                 }
             }
+            BotInlineMessage::BotInlineMessageWidget {
+                flags,
+                invert_media,
+                width,
+                height,
+                payload,
+                public_data,
+                public_data_hash,
+                chat_data,
+                reply_markup,
+                widget_id,
+                message,
+                entities,
+            } => {
+                __w.put_u32(0xbaa17834);
+                let mut __flags_flags = *flags & !0x0000003fu32;
+                if *invert_media {
+                    __flags_flags |= 1u32 << 5;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if public_data_hash.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if reply_markup.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if entities.is_some() {
+                    __flags_flags |= 1u32 << 4;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_bytes(payload.as_slice());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = public_data_hash {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = reply_markup {
+                    value.encode(__w);
+                }
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
+                __w.put_string(message.as_str());
+                if let Some(value) = entities {
+                    __w.put_vector_header(value.len());
+                    for item in value.iter() {
+                        item.encode(__w);
+                    }
+                }
+            }
         }
     }
 
@@ -3747,6 +3826,69 @@ impl BotInlineMessage {
                 }
                 if let Some(value) = reply_markup {
                     value.encode(__w);
+                }
+            }
+            BotInlineMessage::BotInlineMessageWidget {
+                flags,
+                invert_media,
+                width,
+                height,
+                payload,
+                public_data,
+                public_data_hash,
+                chat_data,
+                reply_markup,
+                widget_id,
+                message,
+                entities,
+            } => {
+                let mut __flags_flags = *flags & !0x0000003fu32;
+                if *invert_media {
+                    __flags_flags |= 1u32 << 5;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if public_data_hash.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if reply_markup.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if entities.is_some() {
+                    __flags_flags |= 1u32 << 4;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_bytes(payload.as_slice());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = public_data_hash {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = reply_markup {
+                    value.encode(__w);
+                }
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
+                __w.put_string(message.as_str());
+                if let Some(value) = entities {
+                    __w.put_vector_header(value.len());
+                    for item in value.iter() {
+                        item.encode(__w);
+                    }
                 }
             }
         }
@@ -4064,6 +4206,77 @@ impl BotInlineMessage {
                     message,
                     entities,
                     reply_markup,
+                })
+            }
+            0xbaa17834 => {
+                let flags = __d.take_u32()?;
+                let invert_media: bool = flags & (1u32 << 5) != 0;
+                let width: i32 = __d.take_i32()?;
+                let height: i32 = __d.take_i32()?;
+                let payload: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                let public_data: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let public_data_hash: Option<i64> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                let chat_data: Option<::std::string::String> = if flags & (1u32 << 1) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let reply_markup: Option<::std::boxed::Box<ReplyMarkup>> =
+                    if flags & (1u32 << 2) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = ReplyMarkup::decode(__d)?;
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let widget_id: Option<i64> = if flags & (1u32 << 3) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                let message: ::std::string::String = __d.take_string()?.to_owned();
+                let entities: Option<::std::vec::Vec<MessageEntity>> = if flags & (1u32 << 4) != 0 {
+                    Some({
+                        let n = __d.take_vector_header()?;
+                        let mut items =
+                            ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+                        for _ in 0..n {
+                            items.push({
+                                __d.enter()?;
+                                let value = MessageEntity::decode(__d)?;
+                                __d.leave();
+                                value
+                            });
+                        }
+                        items
+                    })
+                } else {
+                    None
+                };
+                Ok(BotInlineMessage::BotInlineMessageWidget {
+                    flags,
+                    invert_media,
+                    width,
+                    height,
+                    payload,
+                    public_data,
+                    public_data_hash,
+                    chat_data,
+                    reply_markup,
+                    widget_id,
+                    message,
+                    entities,
                 })
             }
             other => Err(::rtd_bin::Error::UnexpectedId {
@@ -9041,6 +9254,7 @@ pub enum Chat {
         monoforum: bool,
         forum_tabs: bool,
         in_news: bool,
+        forum_sidebar: bool,
         id: i64,
         access_hash: Option<i64>,
         title: ::std::string::String,
@@ -9171,6 +9385,7 @@ impl Chat {
                 monoforum,
                 forum_tabs,
                 in_news,
+                forum_sidebar,
                 id,
                 access_hash,
                 title,
@@ -9279,7 +9494,7 @@ impl Chat {
                     __flags_flags |= 1u32 << 17;
                 }
                 __w.put_u32(__flags_flags);
-                let mut __flags_flags2 = *flags2 & !0x007fff9fu32;
+                let mut __flags_flags2 = *flags2 & !0x00ffff9fu32;
                 if *stories_hidden {
                     __flags_flags2 |= 1u32 << 1;
                 }
@@ -9306,6 +9521,9 @@ impl Chat {
                 }
                 if *in_news {
                     __flags_flags2 |= 1u32 << 21;
+                }
+                if *forum_sidebar {
+                    __flags_flags2 |= 1u32 << 23;
                 }
                 if usernames.is_some() {
                     __flags_flags2 |= 1u32 << 0;
@@ -9628,6 +9846,7 @@ impl Chat {
                 monoforum,
                 forum_tabs,
                 in_news,
+                forum_sidebar,
                 id,
                 access_hash,
                 title,
@@ -9735,7 +9954,7 @@ impl Chat {
                     __flags_flags |= 1u32 << 17;
                 }
                 __w.put_u32(__flags_flags);
-                let mut __flags_flags2 = *flags2 & !0x007fff9fu32;
+                let mut __flags_flags2 = *flags2 & !0x00ffff9fu32;
                 if *stories_hidden {
                     __flags_flags2 |= 1u32 << 1;
                 }
@@ -9762,6 +9981,9 @@ impl Chat {
                 }
                 if *in_news {
                     __flags_flags2 |= 1u32 << 21;
+                }
+                if *forum_sidebar {
+                    __flags_flags2 |= 1u32 << 23;
                 }
                 if usernames.is_some() {
                     __flags_flags2 |= 1u32 << 0;
@@ -10084,6 +10306,7 @@ impl Chat {
                 let monoforum: bool = flags2 & (1u32 << 17) != 0;
                 let forum_tabs: bool = flags2 & (1u32 << 19) != 0;
                 let in_news: bool = flags2 & (1u32 << 21) != 0;
+                let forum_sidebar: bool = flags2 & (1u32 << 23) != 0;
                 let id: i64 = __d.take_i64()?;
                 let access_hash: Option<i64> = if flags & (1u32 << 13) != 0 {
                     Some(__d.take_i64()?)
@@ -10288,6 +10511,7 @@ impl Chat {
                     monoforum,
                     forum_tabs,
                     in_news,
+                    forum_sidebar,
                     id,
                     access_hash,
                     title,
@@ -23388,6 +23612,29 @@ pub enum InputBotInlineMessage {
         entities: Option<::std::vec::Vec<MessageEntity>>,
         reply_markup: Option<::std::boxed::Box<ReplyMarkup>>,
     },
+    InputBotInlineMessageWidget {
+        flags: u32,
+        allow_queries: bool,
+        shared_widget: bool,
+        invert_media: bool,
+        width: i32,
+        height: i32,
+        html: ::std::string::String,
+        public_data: Option<::std::string::String>,
+        chat_data: Option<::std::string::String>,
+        reply_markup: Option<::std::boxed::Box<ReplyMarkup>>,
+        message: ::std::string::String,
+        entities: Option<::std::vec::Vec<MessageEntity>>,
+    },
+    InputBotInlineMessageWidgetId {
+        flags: u32,
+        invert_media: bool,
+        widget_id: i64,
+        chat_data: Option<::std::string::String>,
+        reply_markup: Option<::std::boxed::Box<ReplyMarkup>>,
+        message: ::std::string::String,
+        entities: Option<::std::vec::Vec<MessageEntity>>,
+    },
 }
 impl InputBotInlineMessage {
     /// Returns the wire constructor identifier of this value.
@@ -23402,6 +23649,8 @@ impl InputBotInlineMessage {
             InputBotInlineMessage::InputBotInlineMessageMediaWebPage { .. } => 0xbddcc510,
             InputBotInlineMessage::InputBotInlineMessageRichMessage { .. } => 0xb43df56c,
             InputBotInlineMessage::InputBotInlineMessageText { .. } => 0x3dcd7a87,
+            InputBotInlineMessage::InputBotInlineMessageWidget { .. } => 0xf597a3f0,
+            InputBotInlineMessage::InputBotInlineMessageWidgetId { .. } => 0xfe8b792b,
         }
     }
 
@@ -23664,6 +23913,103 @@ impl InputBotInlineMessage {
                     value.encode(__w);
                 }
             }
+            InputBotInlineMessage::InputBotInlineMessageWidget {
+                flags,
+                allow_queries,
+                shared_widget,
+                invert_media,
+                width,
+                height,
+                html,
+                public_data,
+                chat_data,
+                reply_markup,
+                message,
+                entities,
+            } => {
+                __w.put_u32(0xf597a3f0);
+                let mut __flags_flags = *flags & !0x0000007fu32;
+                if *allow_queries {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if *shared_widget {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if *invert_media {
+                    __flags_flags |= 1u32 << 6;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if reply_markup.is_some() {
+                    __flags_flags |= 1u32 << 4;
+                }
+                if entities.is_some() {
+                    __flags_flags |= 1u32 << 5;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_string(html.as_str());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = reply_markup {
+                    value.encode(__w);
+                }
+                __w.put_string(message.as_str());
+                if let Some(value) = entities {
+                    __w.put_vector_header(value.len());
+                    for item in value.iter() {
+                        item.encode(__w);
+                    }
+                }
+            }
+            InputBotInlineMessage::InputBotInlineMessageWidgetId {
+                flags,
+                invert_media,
+                widget_id,
+                chat_data,
+                reply_markup,
+                message,
+                entities,
+            } => {
+                __w.put_u32(0xfe8b792b);
+                let mut __flags_flags = *flags & !0x0000000fu32;
+                if *invert_media {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if reply_markup.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if entities.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*widget_id);
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = reply_markup {
+                    value.encode(__w);
+                }
+                __w.put_string(message.as_str());
+                if let Some(value) = entities {
+                    __w.put_vector_header(value.len());
+                    for item in value.iter() {
+                        item.encode(__w);
+                    }
+                }
+            }
         }
     }
 
@@ -23915,6 +24261,101 @@ impl InputBotInlineMessage {
                 }
                 if let Some(value) = reply_markup {
                     value.encode(__w);
+                }
+            }
+            InputBotInlineMessage::InputBotInlineMessageWidget {
+                flags,
+                allow_queries,
+                shared_widget,
+                invert_media,
+                width,
+                height,
+                html,
+                public_data,
+                chat_data,
+                reply_markup,
+                message,
+                entities,
+            } => {
+                let mut __flags_flags = *flags & !0x0000007fu32;
+                if *allow_queries {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if *shared_widget {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if *invert_media {
+                    __flags_flags |= 1u32 << 6;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if reply_markup.is_some() {
+                    __flags_flags |= 1u32 << 4;
+                }
+                if entities.is_some() {
+                    __flags_flags |= 1u32 << 5;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_string(html.as_str());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = reply_markup {
+                    value.encode(__w);
+                }
+                __w.put_string(message.as_str());
+                if let Some(value) = entities {
+                    __w.put_vector_header(value.len());
+                    for item in value.iter() {
+                        item.encode(__w);
+                    }
+                }
+            }
+            InputBotInlineMessage::InputBotInlineMessageWidgetId {
+                flags,
+                invert_media,
+                widget_id,
+                chat_data,
+                reply_markup,
+                message,
+                entities,
+            } => {
+                let mut __flags_flags = *flags & !0x0000000fu32;
+                if *invert_media {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if reply_markup.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if entities.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*widget_id);
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = reply_markup {
+                    value.encode(__w);
+                }
+                __w.put_string(message.as_str());
+                if let Some(value) = entities {
+                    __w.put_vector_header(value.len());
+                    for item in value.iter() {
+                        item.encode(__w);
+                    }
                 }
             }
         }
@@ -24259,6 +24700,118 @@ impl InputBotInlineMessage {
                     message,
                     entities,
                     reply_markup,
+                })
+            }
+            0xf597a3f0 => {
+                let flags = __d.take_u32()?;
+                let allow_queries: bool = flags & (1u32 << 0) != 0;
+                let shared_widget: bool = flags & (1u32 << 1) != 0;
+                let invert_media: bool = flags & (1u32 << 6) != 0;
+                let width: i32 = __d.take_i32()?;
+                let height: i32 = __d.take_i32()?;
+                let html: ::std::string::String = __d.take_string()?.to_owned();
+                let public_data: Option<::std::string::String> = if flags & (1u32 << 2) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let chat_data: Option<::std::string::String> = if flags & (1u32 << 3) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let reply_markup: Option<::std::boxed::Box<ReplyMarkup>> =
+                    if flags & (1u32 << 4) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = ReplyMarkup::decode(__d)?;
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let message: ::std::string::String = __d.take_string()?.to_owned();
+                let entities: Option<::std::vec::Vec<MessageEntity>> = if flags & (1u32 << 5) != 0 {
+                    Some({
+                        let n = __d.take_vector_header()?;
+                        let mut items =
+                            ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+                        for _ in 0..n {
+                            items.push({
+                                __d.enter()?;
+                                let value = MessageEntity::decode(__d)?;
+                                __d.leave();
+                                value
+                            });
+                        }
+                        items
+                    })
+                } else {
+                    None
+                };
+                Ok(InputBotInlineMessage::InputBotInlineMessageWidget {
+                    flags,
+                    allow_queries,
+                    shared_widget,
+                    invert_media,
+                    width,
+                    height,
+                    html,
+                    public_data,
+                    chat_data,
+                    reply_markup,
+                    message,
+                    entities,
+                })
+            }
+            0xfe8b792b => {
+                let flags = __d.take_u32()?;
+                let invert_media: bool = flags & (1u32 << 3) != 0;
+                let widget_id: i64 = __d.take_i64()?;
+                let chat_data: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let reply_markup: Option<::std::boxed::Box<ReplyMarkup>> =
+                    if flags & (1u32 << 1) != 0 {
+                        Some({
+                            __d.enter()?;
+                            let value = ReplyMarkup::decode(__d)?;
+                            __d.leave();
+                            ::std::boxed::Box::new(value)
+                        })
+                    } else {
+                        None
+                    };
+                let message: ::std::string::String = __d.take_string()?.to_owned();
+                let entities: Option<::std::vec::Vec<MessageEntity>> = if flags & (1u32 << 2) != 0 {
+                    Some({
+                        let n = __d.take_vector_header()?;
+                        let mut items =
+                            ::std::vec::Vec::with_capacity(::rtd_bin::preallocate_len(n));
+                        for _ in 0..n {
+                            items.push({
+                                __d.enter()?;
+                                let value = MessageEntity::decode(__d)?;
+                                __d.leave();
+                                value
+                            });
+                        }
+                        items
+                    })
+                } else {
+                    None
+                };
+                Ok(InputBotInlineMessage::InputBotInlineMessageWidgetId {
+                    flags,
+                    invert_media,
+                    widget_id,
+                    chat_data,
+                    reply_markup,
+                    message,
+                    entities,
                 })
             }
             other => Err(::rtd_bin::Error::UnexpectedId {
@@ -28272,6 +28825,21 @@ pub enum InputMedia {
         optional: bool,
         url: ::std::string::String,
     },
+    InputMediaWidget {
+        flags: u32,
+        allow_queries: bool,
+        shared_widget: bool,
+        width: i32,
+        height: i32,
+        html: ::std::string::String,
+        public_data: Option<::std::string::String>,
+        chat_data: Option<::std::string::String>,
+    },
+    InputMediaWidgetId {
+        flags: u32,
+        widget_id: i64,
+        chat_data: Option<::std::string::String>,
+    },
 }
 impl InputMedia {
     /// Returns the wire constructor identifier of this value.
@@ -28297,6 +28865,8 @@ impl InputMedia {
             InputMedia::InputMediaUploadedPhoto { .. } => 0x7d8375da,
             InputMedia::InputMediaVenue { .. } => 0xc13d1c11,
             InputMedia::InputMediaWebPage { .. } => 0xc21b8849,
+            InputMedia::InputMediaWidget { .. } => 0x44f6c04e,
+            InputMedia::InputMediaWidgetId { .. } => 0x7c855cb5,
         }
     }
 
@@ -28769,6 +29339,57 @@ impl InputMedia {
                 __w.put_u32(__flags_flags);
                 __w.put_string(url.as_str());
             }
+            InputMedia::InputMediaWidget {
+                flags,
+                allow_queries,
+                shared_widget,
+                width,
+                height,
+                html,
+                public_data,
+                chat_data,
+            } => {
+                __w.put_u32(0x44f6c04e);
+                let mut __flags_flags = *flags & !0x0000000fu32;
+                if *allow_queries {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if *shared_widget {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_string(html.as_str());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+            }
+            InputMedia::InputMediaWidgetId {
+                flags,
+                widget_id,
+                chat_data,
+            } => {
+                __w.put_u32(0x7c855cb5);
+                let mut __flags_flags = *flags & !0x00000001u32;
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*widget_id);
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+            }
         }
     }
 
@@ -29219,6 +29840,55 @@ impl InputMedia {
                 }
                 __w.put_u32(__flags_flags);
                 __w.put_string(url.as_str());
+            }
+            InputMedia::InputMediaWidget {
+                flags,
+                allow_queries,
+                shared_widget,
+                width,
+                height,
+                html,
+                public_data,
+                chat_data,
+            } => {
+                let mut __flags_flags = *flags & !0x0000000fu32;
+                if *allow_queries {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if *shared_widget {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_string(html.as_str());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+            }
+            InputMedia::InputMediaWidgetId {
+                flags,
+                widget_id,
+                chat_data,
+            } => {
+                let mut __flags_flags = *flags & !0x00000001u32;
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*widget_id);
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
             }
         }
     }
@@ -29800,6 +30470,48 @@ impl InputMedia {
                     force_small_media,
                     optional,
                     url,
+                })
+            }
+            0x44f6c04e => {
+                let flags = __d.take_u32()?;
+                let allow_queries: bool = flags & (1u32 << 0) != 0;
+                let shared_widget: bool = flags & (1u32 << 1) != 0;
+                let width: i32 = __d.take_i32()?;
+                let height: i32 = __d.take_i32()?;
+                let html: ::std::string::String = __d.take_string()?.to_owned();
+                let public_data: Option<::std::string::String> = if flags & (1u32 << 2) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let chat_data: Option<::std::string::String> = if flags & (1u32 << 3) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                Ok(InputMedia::InputMediaWidget {
+                    flags,
+                    allow_queries,
+                    shared_widget,
+                    width,
+                    height,
+                    html,
+                    public_data,
+                    chat_data,
+                })
+            }
+            0x7c855cb5 => {
+                let flags = __d.take_u32()?;
+                let widget_id: i64 = __d.take_i64()?;
+                let chat_data: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                Ok(InputMedia::InputMediaWidgetId {
+                    flags,
+                    widget_id,
+                    chat_data,
                 })
             }
             other => Err(::rtd_bin::Error::UnexpectedId {
@@ -43704,6 +44416,19 @@ pub enum MessageMedia {
         safe: bool,
         webpage: ::std::boxed::Box<WebPage>,
     },
+    MessageMediaWidget {
+        flags: u32,
+        is_copy: bool,
+        can_query: bool,
+        background_query: bool,
+        width: i32,
+        height: i32,
+        payload: ::std::vec::Vec<u8>,
+        public_data: Option<::std::string::String>,
+        public_data_hash: Option<i64>,
+        chat_data: Option<::std::string::String>,
+        widget_id: Option<i64>,
+    },
 }
 impl MessageMedia {
     /// Returns the wire constructor identifier of this value.
@@ -43728,6 +44453,7 @@ impl MessageMedia {
             MessageMedia::MessageMediaVenue { .. } => 0x2ec0533f,
             MessageMedia::MessageMediaVideoStream { .. } => 0xca5cab89,
             MessageMedia::MessageMediaWebPage { .. } => 0xddf10c3b,
+            MessageMedia::MessageMediaWidget { .. } => 0x2238f214,
         }
     }
 
@@ -44189,6 +44915,59 @@ impl MessageMedia {
                 __w.put_u32(__flags_flags);
                 webpage.encode(__w);
             }
+            MessageMedia::MessageMediaWidget {
+                flags,
+                is_copy,
+                can_query,
+                background_query,
+                width,
+                height,
+                payload,
+                public_data,
+                public_data_hash,
+                chat_data,
+                widget_id,
+            } => {
+                __w.put_u32(0x2238f214);
+                let mut __flags_flags = *flags & !0x0000003fu32;
+                if *is_copy {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if *can_query {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if *background_query {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if public_data_hash.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 4;
+                }
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 5;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_bytes(payload.as_slice());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = public_data_hash {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
+            }
         }
     }
 
@@ -44628,6 +45407,58 @@ impl MessageMedia {
                 }
                 __w.put_u32(__flags_flags);
                 webpage.encode(__w);
+            }
+            MessageMedia::MessageMediaWidget {
+                flags,
+                is_copy,
+                can_query,
+                background_query,
+                width,
+                height,
+                payload,
+                public_data,
+                public_data_hash,
+                chat_data,
+                widget_id,
+            } => {
+                let mut __flags_flags = *flags & !0x0000003fu32;
+                if *is_copy {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if *can_query {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if *background_query {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if public_data_hash.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 4;
+                }
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 5;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i32(*width);
+                __w.put_i32(*height);
+                __w.put_bytes(payload.as_slice());
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = public_data_hash {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
             }
         }
     }
@@ -45157,6 +45988,48 @@ impl MessageMedia {
                     manual,
                     safe,
                     webpage,
+                })
+            }
+            0x2238f214 => {
+                let flags = __d.take_u32()?;
+                let is_copy: bool = flags & (1u32 << 0) != 0;
+                let can_query: bool = flags & (1u32 << 1) != 0;
+                let background_query: bool = flags & (1u32 << 2) != 0;
+                let width: i32 = __d.take_i32()?;
+                let height: i32 = __d.take_i32()?;
+                let payload: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                let public_data: Option<::std::string::String> = if flags & (1u32 << 3) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let public_data_hash: Option<i64> = if flags & (1u32 << 3) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                let chat_data: Option<::std::string::String> = if flags & (1u32 << 4) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let widget_id: Option<i64> = if flags & (1u32 << 5) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                Ok(MessageMedia::MessageMediaWidget {
+                    flags,
+                    is_copy,
+                    can_query,
+                    background_query,
+                    width,
+                    height,
+                    payload,
+                    public_data,
+                    public_data_hash,
+                    chat_data,
+                    widget_id,
                 })
             }
             other => Err(::rtd_bin::Error::UnexpectedId {
@@ -70752,6 +71625,28 @@ pub enum Update {
         data: ::std::boxed::Box<DataJSON>,
         timeout: i32,
     },
+    UpdateBotWidgetCopyQuery {
+        flags: u32,
+        query_id: i64,
+        query_type: ::std::boxed::Box<WidgetQueryType>,
+        user_id: i64,
+        data: ::std::vec::Vec<u8>,
+        widget_id: i64,
+        wallet_card: Option<::std::boxed::Box<WalletCard>>,
+    },
+    UpdateBotWidgetQuery {
+        flags: u32,
+        query_id: i64,
+        query_type: ::std::boxed::Box<WidgetQueryType>,
+        user_id: i64,
+        peer: ::std::boxed::Box<Peer>,
+        msg_id: i32,
+        chat_instance: i64,
+        chat_type: ::std::string::String,
+        data: ::std::vec::Vec<u8>,
+        widget_id: Option<i64>,
+        wallet_card: Option<::std::boxed::Box<WalletCard>>,
+    },
     UpdateBusinessBotCallbackQuery {
         flags: u32,
         query_id: i64,
@@ -70944,6 +71839,15 @@ pub enum Update {
     UpdateEditEphemeralMessage {
         message: ::std::boxed::Box<EphemeralMessage>,
     },
+    UpdateEditForumTopic {
+        flags: u32,
+        peer: ::std::boxed::Box<Peer>,
+        topic_id: i32,
+        title: Option<::std::string::String>,
+        icon_emoji_id: Option<i64>,
+        closed: Option<bool>,
+        hidden: Option<bool>,
+    },
     UpdateEditMessage {
         message: ::std::boxed::Box<Message>,
         pts: i32,
@@ -71024,6 +71928,18 @@ pub enum Update {
         data: Option<::std::vec::Vec<u8>>,
         game_short_name: Option<::std::string::String>,
     },
+    UpdateInlineBotWidgetQuery {
+        flags: u32,
+        query_id: i64,
+        query_type: ::std::boxed::Box<WidgetQueryType>,
+        user_id: i64,
+        inline_message_id: ::std::boxed::Box<InputBotInlineMessageID>,
+        chat_instance: i64,
+        chat_type: ::std::string::String,
+        data: ::std::vec::Vec<u8>,
+        widget_id: Option<i64>,
+        wallet_card: Option<::std::boxed::Box<WalletCard>>,
+    },
     UpdateJoinChatWebViewDecision {
         peer: ::std::boxed::Box<Peer>,
         query_id: i64,
@@ -71073,6 +71989,16 @@ pub enum Update {
         top_msg_id: Option<i32>,
         saved_peer_id: Option<::std::boxed::Box<Peer>>,
         reactions: ::std::boxed::Box<MessageReactions>,
+    },
+    UpdateMessageWidgetData {
+        flags: u32,
+        peer: ::std::boxed::Box<Peer>,
+        msg_id: i32,
+        public_data: Option<::std::string::String>,
+        public_data_hash: Option<i64>,
+        chat_data: Option<::std::string::String>,
+        pts: i32,
+        pts_count: i32,
     },
     UpdateMonoForumNoPaidException {
         flags: u32,
@@ -71374,6 +72300,12 @@ pub enum Update {
         transcription_id: i64,
         text: ::std::string::String,
     },
+    UpdateTranscribedAudioFile {
+        flags: u32,
+        pending: bool,
+        transcription_id: i64,
+        text: ::std::string::String,
+    },
     UpdateUser {
         user_id: i64,
     },
@@ -71466,6 +72398,8 @@ impl Update {
             Update::UpdateBotStopped { .. } => 0xc4870a49,
             Update::UpdateBotWebhookJSON { .. } => 0x8317c0c3,
             Update::UpdateBotWebhookJSONQuery { .. } => 0x9b9240a6,
+            Update::UpdateBotWidgetCopyQuery { .. } => 0xfa89bef7,
+            Update::UpdateBotWidgetQuery { .. } => 0xb373fe68,
             Update::UpdateBusinessBotCallbackQuery { .. } => 0x1ea2fda7,
             Update::UpdateChannel { .. } => 0x635b4c09,
             Update::UpdateChannelAvailableMessages { .. } => 0xb23fc698,
@@ -71504,6 +72438,7 @@ impl Update {
             Update::UpdateDraftMessage { .. } => 0xedfc111e,
             Update::UpdateEditChannelMessage { .. } => 0x1b3f4df7,
             Update::UpdateEditEphemeralMessage { .. } => 0x4bbb8f01,
+            Update::UpdateEditForumTopic { .. } => 0x2366665c,
             Update::UpdateEditMessage { .. } => 0xe40370a3,
             Update::UpdateEmojiGameInfo { .. } => 0xfb9c547a,
             Update::UpdateEncryptedChatTyping { .. } => 0x1710f156,
@@ -71520,6 +72455,7 @@ impl Update {
             Update::UpdateGroupCallMessage { .. } => 0xd8326f0d,
             Update::UpdateGroupCallParticipants { .. } => 0xf2ebdb4e,
             Update::UpdateInlineBotCallbackQuery { .. } => 0x691e9052,
+            Update::UpdateInlineBotWidgetQuery { .. } => 0xa5f07e08,
             Update::UpdateJoinChatWebViewDecision { .. } => 0xbdac7e70,
             Update::UpdateLangPack { .. } => 0x56022f4d,
             Update::UpdateLangPackTooLong { .. } => 0x46560264,
@@ -71530,6 +72466,7 @@ impl Update {
             Update::UpdateMessagePoll { .. } => 0xd64c522b,
             Update::UpdateMessagePollVote { .. } => 0x7699f014,
             Update::UpdateMessageReactions { .. } => 0x1e297bfa,
+            Update::UpdateMessageWidgetData { .. } => 0xbbb078dd,
             Update::UpdateMonoForumNoPaidException { .. } => 0x9f812b08,
             Update::UpdateMoveStickerSetToTop { .. } => 0x86fccf85,
             Update::UpdateNewAuthorization { .. } => 0x8951abef,
@@ -71598,6 +72535,7 @@ impl Update {
             Update::UpdateStoryID { .. } => 0x1bf335b9,
             Update::UpdateTheme { .. } => 0x8216fba3,
             Update::UpdateTranscribedAudio { .. } => 0x0084cd5a,
+            Update::UpdateTranscribedAudioFile { .. } => 0x734c2e7b,
             Update::UpdateUser { .. } => 0x20529438,
             Update::UpdateUserEmojiStatus { .. } => 0x28373599,
             Update::UpdateUserName { .. } => 0xa7848924,
@@ -71991,6 +72929,67 @@ impl Update {
                 __w.put_i64(*query_id);
                 data.encode(__w);
                 __w.put_i32(*timeout);
+            }
+            Update::UpdateBotWidgetCopyQuery {
+                flags,
+                query_id,
+                query_type,
+                user_id,
+                data,
+                widget_id,
+                wallet_card,
+            } => {
+                __w.put_u32(0xfa89bef7);
+                let mut __flags_flags = *flags & !0x00000002u32;
+                if wallet_card.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*query_id);
+                query_type.encode(__w);
+                __w.put_i64(*user_id);
+                __w.put_bytes(data.as_slice());
+                __w.put_i64(*widget_id);
+                if let Some(value) = wallet_card {
+                    value.encode(__w);
+                }
+            }
+            Update::UpdateBotWidgetQuery {
+                flags,
+                query_id,
+                query_type,
+                user_id,
+                peer,
+                msg_id,
+                chat_instance,
+                chat_type,
+                data,
+                widget_id,
+                wallet_card,
+            } => {
+                __w.put_u32(0xb373fe68);
+                let mut __flags_flags = *flags & !0x00000003u32;
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if wallet_card.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*query_id);
+                query_type.encode(__w);
+                __w.put_i64(*user_id);
+                peer.encode(__w);
+                __w.put_i32(*msg_id);
+                __w.put_i64(*chat_instance);
+                __w.put_string(chat_type.as_str());
+                __w.put_bytes(data.as_slice());
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = wallet_card {
+                    value.encode(__w);
+                }
             }
             Update::UpdateBusinessBotCallbackQuery {
                 flags,
@@ -72492,6 +73491,45 @@ impl Update {
                 __w.put_u32(0x4bbb8f01);
                 message.encode(__w);
             }
+            Update::UpdateEditForumTopic {
+                flags,
+                peer,
+                topic_id,
+                title,
+                icon_emoji_id,
+                closed,
+                hidden,
+            } => {
+                __w.put_u32(0x2366665c);
+                let mut __flags_flags = *flags & !0x0000000fu32;
+                if title.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if icon_emoji_id.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if closed.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if hidden.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                __w.put_u32(__flags_flags);
+                peer.encode(__w);
+                __w.put_i32(*topic_id);
+                if let Some(value) = title {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = icon_emoji_id {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = closed {
+                    __w.put_bool(*value);
+                }
+                if let Some(value) = hidden {
+                    __w.put_bool(*value);
+                }
+            }
             Update::UpdateEditMessage {
                 message,
                 pts,
@@ -72682,6 +73720,41 @@ impl Update {
                     __w.put_string(value.as_str());
                 }
             }
+            Update::UpdateInlineBotWidgetQuery {
+                flags,
+                query_id,
+                query_type,
+                user_id,
+                inline_message_id,
+                chat_instance,
+                chat_type,
+                data,
+                widget_id,
+                wallet_card,
+            } => {
+                __w.put_u32(0xa5f07e08);
+                let mut __flags_flags = *flags & !0x00000003u32;
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if wallet_card.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*query_id);
+                query_type.encode(__w);
+                __w.put_i64(*user_id);
+                inline_message_id.encode(__w);
+                __w.put_i64(*chat_instance);
+                __w.put_string(chat_type.as_str());
+                __w.put_bytes(data.as_slice());
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = wallet_card {
+                    value.encode(__w);
+                }
+            }
             Update::UpdateJoinChatWebViewDecision {
                 peer,
                 query_id,
@@ -72816,6 +73889,42 @@ impl Update {
                     value.encode(__w);
                 }
                 reactions.encode(__w);
+            }
+            Update::UpdateMessageWidgetData {
+                flags,
+                peer,
+                msg_id,
+                public_data,
+                public_data_hash,
+                chat_data,
+                pts,
+                pts_count,
+            } => {
+                __w.put_u32(0xbbb078dd);
+                let mut __flags_flags = *flags & !0x00000003u32;
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if public_data_hash.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                peer.encode(__w);
+                __w.put_i32(*msg_id);
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = public_data_hash {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                __w.put_i32(*pts);
+                __w.put_i32(*pts_count);
             }
             Update::UpdateMonoForumNoPaidException {
                 flags,
@@ -73564,6 +74673,21 @@ impl Update {
                 __w.put_i64(*transcription_id);
                 __w.put_string(text.as_str());
             }
+            Update::UpdateTranscribedAudioFile {
+                flags,
+                pending,
+                transcription_id,
+                text,
+            } => {
+                __w.put_u32(0x734c2e7b);
+                let mut __flags_flags = *flags & !0x00000001u32;
+                if *pending {
+                    __flags_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*transcription_id);
+                __w.put_string(text.as_str());
+            }
             Update::UpdateUser { user_id } => {
                 __w.put_u32(0x20529438);
                 __w.put_i64(*user_id);
@@ -74055,6 +75179,65 @@ impl Update {
                 data.encode(__w);
                 __w.put_i32(*timeout);
             }
+            Update::UpdateBotWidgetCopyQuery {
+                flags,
+                query_id,
+                query_type,
+                user_id,
+                data,
+                widget_id,
+                wallet_card,
+            } => {
+                let mut __flags_flags = *flags & !0x00000002u32;
+                if wallet_card.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*query_id);
+                query_type.encode(__w);
+                __w.put_i64(*user_id);
+                __w.put_bytes(data.as_slice());
+                __w.put_i64(*widget_id);
+                if let Some(value) = wallet_card {
+                    value.encode(__w);
+                }
+            }
+            Update::UpdateBotWidgetQuery {
+                flags,
+                query_id,
+                query_type,
+                user_id,
+                peer,
+                msg_id,
+                chat_instance,
+                chat_type,
+                data,
+                widget_id,
+                wallet_card,
+            } => {
+                let mut __flags_flags = *flags & !0x00000003u32;
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if wallet_card.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*query_id);
+                query_type.encode(__w);
+                __w.put_i64(*user_id);
+                peer.encode(__w);
+                __w.put_i32(*msg_id);
+                __w.put_i64(*chat_instance);
+                __w.put_string(chat_type.as_str());
+                __w.put_bytes(data.as_slice());
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = wallet_card {
+                    value.encode(__w);
+                }
+            }
             Update::UpdateBusinessBotCallbackQuery {
                 flags,
                 query_id,
@@ -74514,6 +75697,44 @@ impl Update {
             Update::UpdateEditEphemeralMessage { message } => {
                 message.encode(__w);
             }
+            Update::UpdateEditForumTopic {
+                flags,
+                peer,
+                topic_id,
+                title,
+                icon_emoji_id,
+                closed,
+                hidden,
+            } => {
+                let mut __flags_flags = *flags & !0x0000000fu32;
+                if title.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if icon_emoji_id.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                if closed.is_some() {
+                    __flags_flags |= 1u32 << 2;
+                }
+                if hidden.is_some() {
+                    __flags_flags |= 1u32 << 3;
+                }
+                __w.put_u32(__flags_flags);
+                peer.encode(__w);
+                __w.put_i32(*topic_id);
+                if let Some(value) = title {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = icon_emoji_id {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = closed {
+                    __w.put_bool(*value);
+                }
+                if let Some(value) = hidden {
+                    __w.put_bool(*value);
+                }
+            }
             Update::UpdateEditMessage {
                 message,
                 pts,
@@ -74687,6 +75908,40 @@ impl Update {
                     __w.put_string(value.as_str());
                 }
             }
+            Update::UpdateInlineBotWidgetQuery {
+                flags,
+                query_id,
+                query_type,
+                user_id,
+                inline_message_id,
+                chat_instance,
+                chat_type,
+                data,
+                widget_id,
+                wallet_card,
+            } => {
+                let mut __flags_flags = *flags & !0x00000003u32;
+                if widget_id.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if wallet_card.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*query_id);
+                query_type.encode(__w);
+                __w.put_i64(*user_id);
+                inline_message_id.encode(__w);
+                __w.put_i64(*chat_instance);
+                __w.put_string(chat_type.as_str());
+                __w.put_bytes(data.as_slice());
+                if let Some(value) = widget_id {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = wallet_card {
+                    value.encode(__w);
+                }
+            }
             Update::UpdateJoinChatWebViewDecision {
                 peer,
                 query_id,
@@ -74810,6 +76065,41 @@ impl Update {
                     value.encode(__w);
                 }
                 reactions.encode(__w);
+            }
+            Update::UpdateMessageWidgetData {
+                flags,
+                peer,
+                msg_id,
+                public_data,
+                public_data_hash,
+                chat_data,
+                pts,
+                pts_count,
+            } => {
+                let mut __flags_flags = *flags & !0x00000003u32;
+                if public_data.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if public_data_hash.is_some() {
+                    __flags_flags |= 1u32 << 0;
+                }
+                if chat_data.is_some() {
+                    __flags_flags |= 1u32 << 1;
+                }
+                __w.put_u32(__flags_flags);
+                peer.encode(__w);
+                __w.put_i32(*msg_id);
+                if let Some(value) = public_data {
+                    __w.put_string(value.as_str());
+                }
+                if let Some(value) = public_data_hash {
+                    __w.put_i64(*value);
+                }
+                if let Some(value) = chat_data {
+                    __w.put_string(value.as_str());
+                }
+                __w.put_i32(*pts);
+                __w.put_i32(*pts_count);
             }
             Update::UpdateMonoForumNoPaidException {
                 flags,
@@ -75480,6 +76770,20 @@ impl Update {
                 __w.put_i64(*transcription_id);
                 __w.put_string(text.as_str());
             }
+            Update::UpdateTranscribedAudioFile {
+                flags,
+                pending,
+                transcription_id,
+                text,
+            } => {
+                let mut __flags_flags = *flags & !0x00000001u32;
+                if *pending {
+                    __flags_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__flags_flags);
+                __w.put_i64(*transcription_id);
+                __w.put_string(text.as_str());
+            }
             Update::UpdateUser { user_id } => {
                 __w.put_i64(*user_id);
             }
@@ -76139,6 +77443,89 @@ impl Update {
                     timeout,
                 })
             }
+            0xfa89bef7 => {
+                let flags = __d.take_u32()?;
+                let query_id: i64 = __d.take_i64()?;
+                let query_type: ::std::boxed::Box<WidgetQueryType> = {
+                    __d.enter()?;
+                    let value = WidgetQueryType::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let user_id: i64 = __d.take_i64()?;
+                let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                let widget_id: i64 = __d.take_i64()?;
+                let wallet_card: Option<::std::boxed::Box<WalletCard>> = if flags & (1u32 << 1) != 0
+                {
+                    Some({
+                        __d.enter()?;
+                        let value = WalletCard::decode(__d)?;
+                        __d.leave();
+                        ::std::boxed::Box::new(value)
+                    })
+                } else {
+                    None
+                };
+                Ok(Update::UpdateBotWidgetCopyQuery {
+                    flags,
+                    query_id,
+                    query_type,
+                    user_id,
+                    data,
+                    widget_id,
+                    wallet_card,
+                })
+            }
+            0xb373fe68 => {
+                let flags = __d.take_u32()?;
+                let query_id: i64 = __d.take_i64()?;
+                let query_type: ::std::boxed::Box<WidgetQueryType> = {
+                    __d.enter()?;
+                    let value = WidgetQueryType::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let user_id: i64 = __d.take_i64()?;
+                let peer: ::std::boxed::Box<Peer> = {
+                    __d.enter()?;
+                    let value = Peer::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let msg_id: i32 = __d.take_i32()?;
+                let chat_instance: i64 = __d.take_i64()?;
+                let chat_type: ::std::string::String = __d.take_string()?.to_owned();
+                let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                let widget_id: Option<i64> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                let wallet_card: Option<::std::boxed::Box<WalletCard>> = if flags & (1u32 << 1) != 0
+                {
+                    Some({
+                        __d.enter()?;
+                        let value = WalletCard::decode(__d)?;
+                        __d.leave();
+                        ::std::boxed::Box::new(value)
+                    })
+                } else {
+                    None
+                };
+                Ok(Update::UpdateBotWidgetQuery {
+                    flags,
+                    query_id,
+                    query_type,
+                    user_id,
+                    peer,
+                    msg_id,
+                    chat_instance,
+                    chat_type,
+                    data,
+                    widget_id,
+                    wallet_card,
+                })
+            }
             0x1ea2fda7 => {
                 let flags = __d.take_u32()?;
                 let query_id: i64 = __d.take_i64()?;
@@ -76796,6 +78183,45 @@ impl Update {
                 };
                 Ok(Update::UpdateEditEphemeralMessage { message })
             }
+            0x2366665c => {
+                let flags = __d.take_u32()?;
+                let peer: ::std::boxed::Box<Peer> = {
+                    __d.enter()?;
+                    let value = Peer::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let topic_id: i32 = __d.take_i32()?;
+                let title: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let icon_emoji_id: Option<i64> = if flags & (1u32 << 1) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                let closed: Option<bool> = if flags & (1u32 << 2) != 0 {
+                    Some(__d.take_bool()?)
+                } else {
+                    None
+                };
+                let hidden: Option<bool> = if flags & (1u32 << 3) != 0 {
+                    Some(__d.take_bool()?)
+                } else {
+                    None
+                };
+                Ok(Update::UpdateEditForumTopic {
+                    flags,
+                    peer,
+                    topic_id,
+                    title,
+                    icon_emoji_id,
+                    closed,
+                    hidden,
+                })
+            }
             0xe40370a3 => {
                 let message: ::std::boxed::Box<Message> = {
                     __d.enter()?;
@@ -77073,6 +78499,54 @@ impl Update {
                     game_short_name,
                 })
             }
+            0xa5f07e08 => {
+                let flags = __d.take_u32()?;
+                let query_id: i64 = __d.take_i64()?;
+                let query_type: ::std::boxed::Box<WidgetQueryType> = {
+                    __d.enter()?;
+                    let value = WidgetQueryType::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let user_id: i64 = __d.take_i64()?;
+                let inline_message_id: ::std::boxed::Box<InputBotInlineMessageID> = {
+                    __d.enter()?;
+                    let value = InputBotInlineMessageID::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let chat_instance: i64 = __d.take_i64()?;
+                let chat_type: ::std::string::String = __d.take_string()?.to_owned();
+                let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+                let widget_id: Option<i64> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                let wallet_card: Option<::std::boxed::Box<WalletCard>> = if flags & (1u32 << 1) != 0
+                {
+                    Some({
+                        __d.enter()?;
+                        let value = WalletCard::decode(__d)?;
+                        __d.leave();
+                        ::std::boxed::Box::new(value)
+                    })
+                } else {
+                    None
+                };
+                Ok(Update::UpdateInlineBotWidgetQuery {
+                    flags,
+                    query_id,
+                    query_type,
+                    user_id,
+                    inline_message_id,
+                    chat_instance,
+                    chat_type,
+                    data,
+                    widget_id,
+                    wallet_card,
+                })
+            }
             0xbdac7e70 => {
                 let peer: ::std::boxed::Box<Peer> = {
                     __d.enter()?;
@@ -77268,6 +78742,43 @@ impl Update {
                     top_msg_id,
                     saved_peer_id,
                     reactions,
+                })
+            }
+            0xbbb078dd => {
+                let flags = __d.take_u32()?;
+                let peer: ::std::boxed::Box<Peer> = {
+                    __d.enter()?;
+                    let value = Peer::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let msg_id: i32 = __d.take_i32()?;
+                let public_data: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let public_data_hash: Option<i64> = if flags & (1u32 << 0) != 0 {
+                    Some(__d.take_i64()?)
+                } else {
+                    None
+                };
+                let chat_data: Option<::std::string::String> = if flags & (1u32 << 1) != 0 {
+                    Some(__d.take_string()?.to_owned())
+                } else {
+                    None
+                };
+                let pts: i32 = __d.take_i32()?;
+                let pts_count: i32 = __d.take_i32()?;
+                Ok(Update::UpdateMessageWidgetData {
+                    flags,
+                    peer,
+                    msg_id,
+                    public_data,
+                    public_data_hash,
+                    chat_data,
+                    pts,
+                    pts_count,
                 })
             }
             0x9f812b08 => {
@@ -78227,6 +79738,18 @@ impl Update {
                     pending,
                     peer,
                     msg_id,
+                    transcription_id,
+                    text,
+                })
+            }
+            0x734c2e7b => {
+                let flags = __d.take_u32()?;
+                let pending: bool = flags & (1u32 << 0) != 0;
+                let transcription_id: i64 = __d.take_i64()?;
+                let text: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(Update::UpdateTranscribedAudioFile {
+                    flags,
+                    pending,
                     transcription_id,
                     text,
                 })
@@ -79757,6 +81280,7 @@ pub enum User {
         bot_can_manage_bots: bool,
         bot_guestchat: bool,
         bot_guard: bool,
+        bot_forum_sidebar: bool,
         id: i64,
         access_hash: Option<i64>,
         first_name: Option<::std::string::String>,
@@ -79828,6 +81352,7 @@ impl User {
                 bot_can_manage_bots,
                 bot_guestchat,
                 bot_guard,
+                bot_forum_sidebar,
                 id,
                 access_hash,
                 first_name,
@@ -79943,7 +81468,7 @@ impl User {
                     __flags_flags |= 1u32 << 30;
                 }
                 __w.put_u32(__flags_flags);
-                let mut __flags_flags2 = *flags2 & !0x003fff3fu32;
+                let mut __flags_flags2 = *flags2 & !0x007fff3fu32;
                 if *bot_can_edit {
                     __flags_flags2 |= 1u32 << 1;
                 }
@@ -79979,6 +81504,9 @@ impl User {
                 }
                 if *bot_guard {
                     __flags_flags2 |= 1u32 << 20;
+                }
+                if *bot_forum_sidebar {
+                    __flags_flags2 |= 1u32 << 22;
                 }
                 if usernames.is_some() {
                     __flags_flags2 |= 1u32 << 0;
@@ -80116,6 +81644,7 @@ impl User {
                 bot_can_manage_bots,
                 bot_guestchat,
                 bot_guard,
+                bot_forum_sidebar,
                 id,
                 access_hash,
                 first_name,
@@ -80230,7 +81759,7 @@ impl User {
                     __flags_flags |= 1u32 << 30;
                 }
                 __w.put_u32(__flags_flags);
-                let mut __flags_flags2 = *flags2 & !0x003fff3fu32;
+                let mut __flags_flags2 = *flags2 & !0x007fff3fu32;
                 if *bot_can_edit {
                     __flags_flags2 |= 1u32 << 1;
                 }
@@ -80266,6 +81795,9 @@ impl User {
                 }
                 if *bot_guard {
                     __flags_flags2 |= 1u32 << 20;
+                }
+                if *bot_forum_sidebar {
+                    __flags_flags2 |= 1u32 << 22;
                 }
                 if usernames.is_some() {
                     __flags_flags2 |= 1u32 << 0;
@@ -80408,6 +81940,7 @@ impl User {
                 let bot_can_manage_bots: bool = flags2 & (1u32 << 18) != 0;
                 let bot_guestchat: bool = flags2 & (1u32 << 19) != 0;
                 let bot_guard: bool = flags2 & (1u32 << 20) != 0;
+                let bot_forum_sidebar: bool = flags2 & (1u32 << 22) != 0;
                 let id: i64 = __d.take_i64()?;
                 let access_hash: Option<i64> = if flags & (1u32 << 0) != 0 {
                     Some(__d.take_i64()?)
@@ -80604,6 +82137,7 @@ impl User {
                     bot_can_manage_bots,
                     bot_guestchat,
                     bot_guard,
+                    bot_forum_sidebar,
                     id,
                     access_hash,
                     first_name,
@@ -81982,6 +83516,99 @@ impl UserStatus {
                 expected: 0x09d05049,
             }),
         }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct UserWallet {
+    pub flags: u32,
+    pub address: ::std::string::String,
+    pub balance: i64,
+    pub public_key: Option<::std::vec::Vec<u8>>,
+    pub state_init: Option<::std::vec::Vec<u8>>,
+}
+impl UserWallet {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x454d2737;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0x454d2737);
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.public_key.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        if self.state_init.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        __w.put_string(self.address.as_str());
+        __w.put_i64(self.balance);
+        if let Some(value) = &self.public_key {
+            __w.put_bytes(value.as_slice());
+        }
+        if let Some(value) = &self.state_init {
+            __w.put_bytes(value.as_slice());
+        }
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.public_key.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        if self.state_init.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        __w.put_string(self.address.as_str());
+        __w.put_i64(self.balance);
+        if let Some(value) = &self.public_key {
+            __w.put_bytes(value.as_slice());
+        }
+        if let Some(value) = &self.state_init {
+            __w.put_bytes(value.as_slice());
+        }
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x454d2737 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x454d2737,
+            });
+        }
+        let flags = __d.take_u32()?;
+        let address: ::std::string::String = __d.take_string()?.to_owned();
+        let balance: i64 = __d.take_i64()?;
+        let public_key: Option<::std::vec::Vec<u8>> = if flags & (1u32 << 0) != 0 {
+            Some(__d.take_bytes()?.to_vec())
+        } else {
+            None
+        };
+        let state_init: Option<::std::vec::Vec<u8>> = if flags & (1u32 << 0) != 0 {
+            Some(__d.take_bytes()?.to_vec())
+        } else {
+            None
+        };
+        Ok(UserWallet {
+            flags,
+            address,
+            balance,
+            public_key,
+            state_init,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -84912,6 +86539,123 @@ impl WebViewResult {
             other => Err(::rtd_bin::Error::UnexpectedId {
                 id: other,
                 expected: 0x4d22ff98,
+            }),
+        }
+    }
+}
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum WidgetQueryType {
+    WidgetQueryTypeData {
+        flags: u32,
+        with_wallet: bool,
+    },
+    WidgetQueryTypeSentTransaction {
+        wallet: ::std::boxed::Box<UserWallet>,
+        msg_hash: ::std::string::String,
+    },
+    WidgetQueryTypeSignData {
+        wallet: ::std::boxed::Box<UserWallet>,
+        sign_data: ::std::boxed::Box<DataJSON>,
+    },
+}
+impl WidgetQueryType {
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        match self {
+            WidgetQueryType::WidgetQueryTypeData { .. } => 0x16d8cf0b,
+            WidgetQueryType::WidgetQueryTypeSentTransaction { .. } => 0xff3b33b4,
+            WidgetQueryType::WidgetQueryTypeSignData { .. } => 0x192047dc,
+        }
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        match self {
+            WidgetQueryType::WidgetQueryTypeData { flags, with_wallet } => {
+                __w.put_u32(0x16d8cf0b);
+                let mut __flags_flags = *flags & !0x00000001u32;
+                if *with_wallet {
+                    __flags_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__flags_flags);
+            }
+            WidgetQueryType::WidgetQueryTypeSentTransaction { wallet, msg_hash } => {
+                __w.put_u32(0xff3b33b4);
+                wallet.encode(__w);
+                __w.put_string(msg_hash.as_str());
+            }
+            WidgetQueryType::WidgetQueryTypeSignData { wallet, sign_data } => {
+                __w.put_u32(0x192047dc);
+                wallet.encode(__w);
+                sign_data.encode(__w);
+            }
+        }
+    }
+
+    /// Encodes the value without its constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        match self {
+            WidgetQueryType::WidgetQueryTypeData { flags, with_wallet } => {
+                let mut __flags_flags = *flags & !0x00000001u32;
+                if *with_wallet {
+                    __flags_flags |= 1u32 << 0;
+                }
+                __w.put_u32(__flags_flags);
+            }
+            WidgetQueryType::WidgetQueryTypeSentTransaction { wallet, msg_hash } => {
+                wallet.encode(__w);
+                __w.put_string(msg_hash.as_str());
+            }
+            WidgetQueryType::WidgetQueryTypeSignData { wallet, sign_data } => {
+                wallet.encode(__w);
+                sign_data.encode(__w);
+            }
+        }
+    }
+
+    /// Decodes a value, reading and dispatching on its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+
+    /// Decodes a value whose identifier has already been read.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        match id {
+            0x16d8cf0b => {
+                let flags = __d.take_u32()?;
+                let with_wallet: bool = flags & (1u32 << 0) != 0;
+                Ok(WidgetQueryType::WidgetQueryTypeData { flags, with_wallet })
+            }
+            0xff3b33b4 => {
+                let wallet: ::std::boxed::Box<UserWallet> = {
+                    __d.enter()?;
+                    let value = UserWallet::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let msg_hash: ::std::string::String = __d.take_string()?.to_owned();
+                Ok(WidgetQueryType::WidgetQueryTypeSentTransaction { wallet, msg_hash })
+            }
+            0x192047dc => {
+                let wallet: ::std::boxed::Box<UserWallet> = {
+                    __d.enter()?;
+                    let value = UserWallet::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                let sign_data: ::std::boxed::Box<DataJSON> = {
+                    __d.enter()?;
+                    let value = DataJSON::decode(__d)?;
+                    __d.leave();
+                    ::std::boxed::Box::new(value)
+                };
+                Ok(WidgetQueryType::WidgetQueryTypeSignData { wallet, sign_data })
+            }
+            other => Err(::rtd_bin::Error::UnexpectedId {
+                id: other,
+                expected: 0x16d8cf0b,
             }),
         }
     }
@@ -95222,6 +96966,67 @@ impl MessagesBotResults {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
+pub struct MessagesBotWidgetQueryAnswer {
+    pub flags: u32,
+    pub result: Option<::std::string::String>,
+}
+impl MessagesBotWidgetQueryAnswer {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x95b73023;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0x95b73023);
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.result.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        if let Some(value) = &self.result {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.result.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        if let Some(value) = &self.result {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x95b73023 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x95b73023,
+            });
+        }
+        let flags = __d.take_u32()?;
+        let result: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+            Some(__d.take_string()?.to_owned())
+        } else {
+            None
+        };
+        Ok(MessagesBotWidgetQueryAnswer { flags, result })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub struct MessagesChatAdminsWithInvites {
     pub admins: ::std::vec::Vec<ChatAdminWithInvites>,
     pub users: ::std::vec::Vec<User>,
@@ -101582,6 +103387,83 @@ impl MessagesWebPagePreview {
     pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
         let id = __d.take_u32()?;
         Self::decode_with_id(__d, id)
+    }
+}
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum MessagesWidgetPublicData {
+    WidgetPublicData {
+        hash: i64,
+        data: ::std::string::String,
+        period: i32,
+    },
+    WidgetPublicDataNotModified {
+        period: i32,
+    },
+}
+impl MessagesWidgetPublicData {
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        match self {
+            MessagesWidgetPublicData::WidgetPublicData { .. } => 0x04493bff,
+            MessagesWidgetPublicData::WidgetPublicDataNotModified { .. } => 0xb9196e57,
+        }
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        match self {
+            MessagesWidgetPublicData::WidgetPublicData { hash, data, period } => {
+                __w.put_u32(0x04493bff);
+                __w.put_i64(*hash);
+                __w.put_string(data.as_str());
+                __w.put_i32(*period);
+            }
+            MessagesWidgetPublicData::WidgetPublicDataNotModified { period } => {
+                __w.put_u32(0xb9196e57);
+                __w.put_i32(*period);
+            }
+        }
+    }
+
+    /// Encodes the value without its constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        match self {
+            MessagesWidgetPublicData::WidgetPublicData { hash, data, period } => {
+                __w.put_i64(*hash);
+                __w.put_string(data.as_str());
+                __w.put_i32(*period);
+            }
+            MessagesWidgetPublicData::WidgetPublicDataNotModified { period } => {
+                __w.put_i32(*period);
+            }
+        }
+    }
+
+    /// Decodes a value, reading and dispatching on its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+
+    /// Decodes a value whose identifier has already been read.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        match id {
+            0x04493bff => {
+                let hash: i64 = __d.take_i64()?;
+                let data: ::std::string::String = __d.take_string()?.to_owned();
+                let period: i32 = __d.take_i32()?;
+                Ok(MessagesWidgetPublicData::WidgetPublicData { hash, data, period })
+            }
+            0xb9196e57 => {
+                let period: i32 = __d.take_i32()?;
+                Ok(MessagesWidgetPublicData::WidgetPublicDataNotModified { period })
+            }
+            other => Err(::rtd_bin::Error::UnexpectedId {
+                id: other,
+                expected: 0x04493bff,
+            }),
+        }
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -143450,6 +145332,574 @@ impl MessagesGetShareThemeBackdrops {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
+pub struct MessagesGetBotWidgetQueryAnswer {
+    pub peer: ::std::boxed::Box<InputPeer>,
+    pub msg_id: i32,
+    pub query_type: ::std::boxed::Box<WidgetQueryType>,
+    pub data: ::std::vec::Vec<u8>,
+}
+impl MessagesGetBotWidgetQueryAnswer {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x5c550579;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0x5c550579);
+        self.peer.encode(__w);
+        __w.put_i32(self.msg_id);
+        self.query_type.encode(__w);
+        __w.put_bytes(self.data.as_slice());
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        self.peer.encode(__w);
+        __w.put_i32(self.msg_id);
+        self.query_type.encode(__w);
+        __w.put_bytes(self.data.as_slice());
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x5c550579 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x5c550579,
+            });
+        }
+        let peer: ::std::boxed::Box<InputPeer> = {
+            __d.enter()?;
+            let value = InputPeer::decode(__d)?;
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        };
+        let msg_id: i32 = __d.take_i32()?;
+        let query_type: ::std::boxed::Box<WidgetQueryType> = {
+            __d.enter()?;
+            let value = WidgetQueryType::decode(__d)?;
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        };
+        let data: ::std::vec::Vec<u8> = __d.take_bytes()?.to_vec();
+        Ok(MessagesGetBotWidgetQueryAnswer {
+            peer,
+            msg_id,
+            query_type,
+            data,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MessagesSetBotWidgetQueryAnswer {
+    pub flags: u32,
+    pub query_id: i64,
+    pub result: Option<::std::string::String>,
+}
+impl MessagesSetBotWidgetQueryAnswer {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0xf8cdec6a;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0xf8cdec6a);
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.result.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        __w.put_i64(self.query_id);
+        if let Some(value) = &self.result {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.result.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        __w.put_i64(self.query_id);
+        if let Some(value) = &self.result {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0xf8cdec6a {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0xf8cdec6a,
+            });
+        }
+        let flags = __d.take_u32()?;
+        let query_id: i64 = __d.take_i64()?;
+        let result: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+            Some(__d.take_string()?.to_owned())
+        } else {
+            None
+        };
+        Ok(MessagesSetBotWidgetQueryAnswer {
+            flags,
+            query_id,
+            result,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MessagesEditMessageWidgetData {
+    pub flags: u32,
+    pub peer: ::std::boxed::Box<InputPeer>,
+    pub id: i32,
+    pub public_data: Option<::std::string::String>,
+    pub chat_data: Option<::std::string::String>,
+}
+impl MessagesEditMessageWidgetData {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0xf624bc1e;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0xf624bc1e);
+        let mut __flags_flags = self.flags & !0x00000003u32;
+        if self.public_data.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        if self.chat_data.is_some() {
+            __flags_flags |= 1u32 << 1;
+        }
+        __w.put_u32(__flags_flags);
+        self.peer.encode(__w);
+        __w.put_i32(self.id);
+        if let Some(value) = &self.public_data {
+            __w.put_string(value.as_str());
+        }
+        if let Some(value) = &self.chat_data {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        let mut __flags_flags = self.flags & !0x00000003u32;
+        if self.public_data.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        if self.chat_data.is_some() {
+            __flags_flags |= 1u32 << 1;
+        }
+        __w.put_u32(__flags_flags);
+        self.peer.encode(__w);
+        __w.put_i32(self.id);
+        if let Some(value) = &self.public_data {
+            __w.put_string(value.as_str());
+        }
+        if let Some(value) = &self.chat_data {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0xf624bc1e {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0xf624bc1e,
+            });
+        }
+        let flags = __d.take_u32()?;
+        let peer: ::std::boxed::Box<InputPeer> = {
+            __d.enter()?;
+            let value = InputPeer::decode(__d)?;
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        };
+        let id: i32 = __d.take_i32()?;
+        let public_data: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+            Some(__d.take_string()?.to_owned())
+        } else {
+            None
+        };
+        let chat_data: Option<::std::string::String> = if flags & (1u32 << 1) != 0 {
+            Some(__d.take_string()?.to_owned())
+        } else {
+            None
+        };
+        Ok(MessagesEditMessageWidgetData {
+            flags,
+            peer,
+            id,
+            public_data,
+            chat_data,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MessagesEditInlineBotMessageWidgetData {
+    pub flags: u32,
+    pub id: ::std::boxed::Box<InputBotInlineMessageID>,
+    pub public_data: Option<::std::string::String>,
+    pub chat_data: Option<::std::string::String>,
+}
+impl MessagesEditInlineBotMessageWidgetData {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x6396ce2b;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0x6396ce2b);
+        let mut __flags_flags = self.flags & !0x00000003u32;
+        if self.public_data.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        if self.chat_data.is_some() {
+            __flags_flags |= 1u32 << 1;
+        }
+        __w.put_u32(__flags_flags);
+        self.id.encode(__w);
+        if let Some(value) = &self.public_data {
+            __w.put_string(value.as_str());
+        }
+        if let Some(value) = &self.chat_data {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        let mut __flags_flags = self.flags & !0x00000003u32;
+        if self.public_data.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        if self.chat_data.is_some() {
+            __flags_flags |= 1u32 << 1;
+        }
+        __w.put_u32(__flags_flags);
+        self.id.encode(__w);
+        if let Some(value) = &self.public_data {
+            __w.put_string(value.as_str());
+        }
+        if let Some(value) = &self.chat_data {
+            __w.put_string(value.as_str());
+        }
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x6396ce2b {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x6396ce2b,
+            });
+        }
+        let flags = __d.take_u32()?;
+        let id: ::std::boxed::Box<InputBotInlineMessageID> = {
+            __d.enter()?;
+            let value = InputBotInlineMessageID::decode(__d)?;
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        };
+        let public_data: Option<::std::string::String> = if flags & (1u32 << 0) != 0 {
+            Some(__d.take_string()?.to_owned())
+        } else {
+            None
+        };
+        let chat_data: Option<::std::string::String> = if flags & (1u32 << 1) != 0 {
+            Some(__d.take_string()?.to_owned())
+        } else {
+            None
+        };
+        Ok(MessagesEditInlineBotMessageWidgetData {
+            flags,
+            id,
+            public_data,
+            chat_data,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MessagesEditWidgetData {
+    pub flags: u32,
+    pub widget_id: i64,
+    pub public_data: ::std::string::String,
+    pub cache_time: Option<i32>,
+}
+impl MessagesEditWidgetData {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0xeac343c0;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0xeac343c0);
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.cache_time.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        __w.put_i64(self.widget_id);
+        __w.put_string(self.public_data.as_str());
+        if let Some(value) = &self.cache_time {
+            __w.put_i32(*value);
+        }
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.cache_time.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        __w.put_i64(self.widget_id);
+        __w.put_string(self.public_data.as_str());
+        if let Some(value) = &self.cache_time {
+            __w.put_i32(*value);
+        }
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0xeac343c0 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0xeac343c0,
+            });
+        }
+        let flags = __d.take_u32()?;
+        let widget_id: i64 = __d.take_i64()?;
+        let public_data: ::std::string::String = __d.take_string()?.to_owned();
+        let cache_time: Option<i32> = if flags & (1u32 << 0) != 0 {
+            Some(__d.take_i32()?)
+        } else {
+            None
+        };
+        Ok(MessagesEditWidgetData {
+            flags,
+            widget_id,
+            public_data,
+            cache_time,
+        })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MessagesGetWidgetPublicData {
+    pub peer: ::std::boxed::Box<InputPeer>,
+    pub msg_id: i32,
+    pub hash: i64,
+}
+impl MessagesGetWidgetPublicData {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x6fc53181;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0x6fc53181);
+        self.peer.encode(__w);
+        __w.put_i32(self.msg_id);
+        __w.put_i64(self.hash);
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        self.peer.encode(__w);
+        __w.put_i32(self.msg_id);
+        __w.put_i64(self.hash);
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x6fc53181 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x6fc53181,
+            });
+        }
+        let peer: ::std::boxed::Box<InputPeer> = {
+            __d.enter()?;
+            let value = InputPeer::decode(__d)?;
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        };
+        let msg_id: i32 = __d.take_i32()?;
+        let hash: i64 = __d.take_i64()?;
+        Ok(MessagesGetWidgetPublicData { peer, msg_id, hash })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MessagesTranscribeAudioFile {
+    pub file: ::std::boxed::Box<InputFile>,
+}
+impl MessagesTranscribeAudioFile {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0x072d2ef7;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0x072d2ef7);
+        self.file.encode(__w);
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        self.file.encode(__w);
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0x072d2ef7 {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0x072d2ef7,
+            });
+        }
+        let file: ::std::boxed::Box<InputFile> = {
+            __d.enter()?;
+            let value = InputFile::decode(__d)?;
+            __d.leave();
+            ::std::boxed::Box::new(value)
+        };
+        Ok(MessagesTranscribeAudioFile { file })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MessagesGetTranscriptionLangs {
+    pub flags: u32,
+    pub peer: Option<::std::boxed::Box<InputPeer>>,
+}
+impl MessagesGetTranscriptionLangs {
+    /// The wire constructor identifier.
+    pub const TYPE_ID: u32 = 0xba6cd9aa;
+    /// Returns the wire constructor identifier of this value.
+    pub fn type_id(&self) -> u32 {
+        Self::TYPE_ID
+    }
+
+    /// Encodes the value, including its constructor identifier.
+    pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
+        __w.put_u32(0xba6cd9aa);
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.peer.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        if let Some(value) = &self.peer {
+            value.encode(__w);
+        }
+    }
+
+    /// Encodes the fields without the constructor identifier.
+    pub fn encode_body(&self, __w: &mut ::rtd_bin::Writer) {
+        let mut __flags_flags = self.flags & !0x00000001u32;
+        if self.peer.is_some() {
+            __flags_flags |= 1u32 << 0;
+        }
+        __w.put_u32(__flags_flags);
+        if let Some(value) = &self.peer {
+            value.encode(__w);
+        }
+    }
+
+    /// Decodes a value with an already-read identifier.
+    pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
+        if id != 0xba6cd9aa {
+            return Err(::rtd_bin::Error::UnexpectedId {
+                id,
+                expected: 0xba6cd9aa,
+            });
+        }
+        let flags = __d.take_u32()?;
+        let peer: Option<::std::boxed::Box<InputPeer>> = if flags & (1u32 << 0) != 0 {
+            Some({
+                __d.enter()?;
+                let value = InputPeer::decode(__d)?;
+                __d.leave();
+                ::std::boxed::Box::new(value)
+            })
+        } else {
+            None
+        };
+        Ok(MessagesGetTranscriptionLangs { flags, peer })
+    }
+
+    /// Decodes a value, reading and checking its identifier.
+    pub fn decode(__d: &mut Decoder<'_>) -> ::rtd_bin::Result<Self> {
+        let id = __d.take_u32()?;
+        Self::decode_with_id(__d, id)
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub struct UpdatesGetState;
 impl UpdatesGetState {
     /// The wire constructor identifier.
@@ -148334,10 +150784,11 @@ pub struct ChannelsToggleForum {
     pub channel: ::std::boxed::Box<InputChannel>,
     pub enabled: bool,
     pub tabs: bool,
+    pub sidebar: bool,
 }
 impl ChannelsToggleForum {
     /// The wire constructor identifier.
-    pub const TYPE_ID: u32 = 0x3ff75734;
+    pub const TYPE_ID: u32 = 0xa2952b54;
     /// Returns the wire constructor identifier of this value.
     pub fn type_id(&self) -> u32 {
         Self::TYPE_ID
@@ -148345,10 +150796,11 @@ impl ChannelsToggleForum {
 
     /// Encodes the value, including its constructor identifier.
     pub fn encode(&self, __w: &mut ::rtd_bin::Writer) {
-        __w.put_u32(0x3ff75734);
+        __w.put_u32(0xa2952b54);
         self.channel.encode(__w);
         __w.put_bool(self.enabled);
         __w.put_bool(self.tabs);
+        __w.put_bool(self.sidebar);
     }
 
     /// Encodes the fields without the constructor identifier.
@@ -148356,14 +150808,15 @@ impl ChannelsToggleForum {
         self.channel.encode(__w);
         __w.put_bool(self.enabled);
         __w.put_bool(self.tabs);
+        __w.put_bool(self.sidebar);
     }
 
     /// Decodes a value with an already-read identifier.
     pub fn decode_with_id(__d: &mut Decoder<'_>, id: u32) -> ::rtd_bin::Result<Self> {
-        if id != 0x3ff75734 {
+        if id != 0xa2952b54 {
             return Err(::rtd_bin::Error::UnexpectedId {
                 id,
-                expected: 0x3ff75734,
+                expected: 0xa2952b54,
             });
         }
         let channel: ::std::boxed::Box<InputChannel> = {
@@ -148374,10 +150827,12 @@ impl ChannelsToggleForum {
         };
         let enabled: bool = __d.take_bool()?;
         let tabs: bool = __d.take_bool()?;
+        let sidebar: bool = __d.take_bool()?;
         Ok(ChannelsToggleForum {
             channel,
             enabled,
             tabs,
+            sidebar,
         })
     }
 
@@ -169923,6 +172378,7 @@ pub enum Object {
     UserFull(Box<UserFull>),
     UserProfilePhoto(Box<UserProfilePhoto>),
     UserStatus(Box<UserStatus>),
+    UserWallet(Box<UserWallet>),
     Username(Box<Username>),
     VideoSize(Box<VideoSize>),
     WallPaper(Box<WallPaper>),
@@ -169939,6 +172395,7 @@ pub enum Object {
     WebPageAttribute(Box<WebPageAttribute>),
     WebViewMessageSent(Box<WebViewMessageSent>),
     WebViewResult(Box<WebViewResult>),
+    WidgetQueryType(Box<WidgetQueryType>),
     AccountAuthorizationForm(Box<AccountAuthorizationForm>),
     AccountAuthorizations(Box<AccountAuthorizations>),
     AccountAutoDownloadSettings(Box<AccountAutoDownloadSettings>),
@@ -170038,6 +172495,7 @@ pub enum Object {
     MessagesBotCallbackAnswer(Box<MessagesBotCallbackAnswer>),
     MessagesBotPreparedInlineMessage(Box<MessagesBotPreparedInlineMessage>),
     MessagesBotResults(Box<MessagesBotResults>),
+    MessagesBotWidgetQueryAnswer(Box<MessagesBotWidgetQueryAnswer>),
     MessagesChatAdminsWithInvites(Box<MessagesChatAdminsWithInvites>),
     MessagesChatFull(Box<MessagesChatFull>),
     MessagesChatInviteImporters(Box<MessagesChatInviteImporters>),
@@ -170093,6 +172551,7 @@ pub enum Object {
     MessagesVotesList(Box<MessagesVotesList>),
     MessagesWebPage(Box<MessagesWebPage>),
     MessagesWebPagePreview(Box<MessagesWebPagePreview>),
+    MessagesWidgetPublicData(Box<MessagesWidgetPublicData>),
     PaymentsBankCardData(Box<PaymentsBankCardData>),
     PaymentsCheckCanSendGiftResult(Box<PaymentsCheckCanSendGiftResult>),
     PaymentsCheckedGiftCode(Box<PaymentsCheckedGiftCode>),
@@ -170594,6 +173053,7 @@ impl Object {
             Object::UserFull(value) => value.type_id(),
             Object::UserProfilePhoto(value) => value.type_id(),
             Object::UserStatus(value) => value.type_id(),
+            Object::UserWallet(value) => value.type_id(),
             Object::Username(value) => value.type_id(),
             Object::VideoSize(value) => value.type_id(),
             Object::WallPaper(value) => value.type_id(),
@@ -170610,6 +173070,7 @@ impl Object {
             Object::WebPageAttribute(value) => value.type_id(),
             Object::WebViewMessageSent(value) => value.type_id(),
             Object::WebViewResult(value) => value.type_id(),
+            Object::WidgetQueryType(value) => value.type_id(),
             Object::AccountAuthorizationForm(value) => value.type_id(),
             Object::AccountAuthorizations(value) => value.type_id(),
             Object::AccountAutoDownloadSettings(value) => value.type_id(),
@@ -170709,6 +173170,7 @@ impl Object {
             Object::MessagesBotCallbackAnswer(value) => value.type_id(),
             Object::MessagesBotPreparedInlineMessage(value) => value.type_id(),
             Object::MessagesBotResults(value) => value.type_id(),
+            Object::MessagesBotWidgetQueryAnswer(value) => value.type_id(),
             Object::MessagesChatAdminsWithInvites(value) => value.type_id(),
             Object::MessagesChatFull(value) => value.type_id(),
             Object::MessagesChatInviteImporters(value) => value.type_id(),
@@ -170764,6 +173226,7 @@ impl Object {
             Object::MessagesVotesList(value) => value.type_id(),
             Object::MessagesWebPage(value) => value.type_id(),
             Object::MessagesWebPagePreview(value) => value.type_id(),
+            Object::MessagesWidgetPublicData(value) => value.type_id(),
             Object::PaymentsBankCardData(value) => value.type_id(),
             Object::PaymentsCheckCanSendGiftResult(value) => value.type_id(),
             Object::PaymentsCheckedGiftCode(value) => value.type_id(),
@@ -171266,6 +173729,7 @@ impl Object {
             Object::UserFull(value) => value.encode(__w),
             Object::UserProfilePhoto(value) => value.encode(__w),
             Object::UserStatus(value) => value.encode(__w),
+            Object::UserWallet(value) => value.encode(__w),
             Object::Username(value) => value.encode(__w),
             Object::VideoSize(value) => value.encode(__w),
             Object::WallPaper(value) => value.encode(__w),
@@ -171282,6 +173746,7 @@ impl Object {
             Object::WebPageAttribute(value) => value.encode(__w),
             Object::WebViewMessageSent(value) => value.encode(__w),
             Object::WebViewResult(value) => value.encode(__w),
+            Object::WidgetQueryType(value) => value.encode(__w),
             Object::AccountAuthorizationForm(value) => value.encode(__w),
             Object::AccountAuthorizations(value) => value.encode(__w),
             Object::AccountAutoDownloadSettings(value) => value.encode(__w),
@@ -171381,6 +173846,7 @@ impl Object {
             Object::MessagesBotCallbackAnswer(value) => value.encode(__w),
             Object::MessagesBotPreparedInlineMessage(value) => value.encode(__w),
             Object::MessagesBotResults(value) => value.encode(__w),
+            Object::MessagesBotWidgetQueryAnswer(value) => value.encode(__w),
             Object::MessagesChatAdminsWithInvites(value) => value.encode(__w),
             Object::MessagesChatFull(value) => value.encode(__w),
             Object::MessagesChatInviteImporters(value) => value.encode(__w),
@@ -171436,6 +173902,7 @@ impl Object {
             Object::MessagesVotesList(value) => value.encode(__w),
             Object::MessagesWebPage(value) => value.encode(__w),
             Object::MessagesWebPagePreview(value) => value.encode(__w),
+            Object::MessagesWidgetPublicData(value) => value.encode(__w),
             Object::PaymentsBankCardData(value) => value.encode(__w),
             Object::PaymentsCheckCanSendGiftResult(value) => value.encode(__w),
             Object::PaymentsCheckedGiftCode(value) => value.encode(__w),
@@ -171938,6 +174405,7 @@ impl Object {
             Object::UserFull(value) => value.encode_body(__w),
             Object::UserProfilePhoto(value) => value.encode_body(__w),
             Object::UserStatus(value) => value.encode_body(__w),
+            Object::UserWallet(value) => value.encode_body(__w),
             Object::Username(value) => value.encode_body(__w),
             Object::VideoSize(value) => value.encode_body(__w),
             Object::WallPaper(value) => value.encode_body(__w),
@@ -171954,6 +174422,7 @@ impl Object {
             Object::WebPageAttribute(value) => value.encode_body(__w),
             Object::WebViewMessageSent(value) => value.encode_body(__w),
             Object::WebViewResult(value) => value.encode_body(__w),
+            Object::WidgetQueryType(value) => value.encode_body(__w),
             Object::AccountAuthorizationForm(value) => value.encode_body(__w),
             Object::AccountAuthorizations(value) => value.encode_body(__w),
             Object::AccountAutoDownloadSettings(value) => value.encode_body(__w),
@@ -172053,6 +174522,7 @@ impl Object {
             Object::MessagesBotCallbackAnswer(value) => value.encode_body(__w),
             Object::MessagesBotPreparedInlineMessage(value) => value.encode_body(__w),
             Object::MessagesBotResults(value) => value.encode_body(__w),
+            Object::MessagesBotWidgetQueryAnswer(value) => value.encode_body(__w),
             Object::MessagesChatAdminsWithInvites(value) => value.encode_body(__w),
             Object::MessagesChatFull(value) => value.encode_body(__w),
             Object::MessagesChatInviteImporters(value) => value.encode_body(__w),
@@ -172108,6 +174578,7 @@ impl Object {
             Object::MessagesVotesList(value) => value.encode_body(__w),
             Object::MessagesWebPage(value) => value.encode_body(__w),
             Object::MessagesWebPagePreview(value) => value.encode_body(__w),
+            Object::MessagesWidgetPublicData(value) => value.encode_body(__w),
             Object::PaymentsBankCardData(value) => value.encode_body(__w),
             Object::PaymentsCheckCanSendGiftResult(value) => value.encode_body(__w),
             Object::PaymentsCheckedGiftCode(value) => value.encode_body(__w),
@@ -172303,6 +174774,9 @@ impl Object {
             ))),
             0x0438865b => Ok(Object::InputStickeredMedia(::std::boxed::Box::new(
                 InputStickeredMedia::decode_with_id(__d, id)?,
+            ))),
+            0x04493bff => Ok(Object::MessagesWidgetPublicData(::std::boxed::Box::new(
+                MessagesWidgetPublicData::decode_with_id(__d, id)?,
             ))),
             0x049ee584 => Ok(Object::Invoice(::std::boxed::Box::new(
                 Invoice::decode_with_id(__d, id)?,
@@ -172640,6 +175114,9 @@ impl Object {
             0x16bf744e => Ok(Object::SendMessageAction(::std::boxed::Box::new(
                 SendMessageAction::decode_with_id(__d, id)?,
             ))),
+            0x16d8cf0b => Ok(Object::WidgetQueryType(::std::boxed::Box::new(
+                WidgetQueryType::decode_with_id(__d, id)?,
+            ))),
             0x16d9703b => Ok(Object::ContactStatus(::std::boxed::Box::new(
                 ContactStatus::decode_with_id(__d, id)?,
             ))),
@@ -172706,6 +175183,9 @@ impl Object {
             0x18e82537 => Ok(Object::WalletEncryptedSecretPhrasePart(
                 ::std::boxed::Box::new(WalletEncryptedSecretPhrasePart::decode_with_id(__d, id)?),
             )),
+            0x192047dc => Ok(Object::WidgetQueryType(::std::boxed::Box::new(
+                WidgetQueryType::decode_with_id(__d, id)?,
+            ))),
             0x19360dc0 => Ok(Object::Update(::std::boxed::Box::new(
                 Update::decode_with_id(__d, id)?,
             ))),
@@ -172919,6 +175399,9 @@ impl Object {
             0x222600ef => Ok(Object::MessagesExportedChatInvite(::std::boxed::Box::new(
                 MessagesExportedChatInvite::decode_with_id(__d, id)?,
             ))),
+            0x2238f214 => Ok(Object::MessageMedia(::std::boxed::Box::new(
+                MessageMedia::decode_with_id(__d, id)?,
+            ))),
             0x2244afad => Ok(Object::CommunitiesPeerLinkRequests(::std::boxed::Box::new(
                 CommunitiesPeerLinkRequests::decode_with_id(__d, id)?,
             ))),
@@ -172936,6 +175419,9 @@ impl Object {
             ))),
             0x2331b22d => Ok(Object::Photo(::std::boxed::Box::new(
                 Photo::decode_with_id(__d, id)?,
+            ))),
+            0x2366665c => Ok(Object::Update(::std::boxed::Box::new(
+                Update::decode_with_id(__d, id)?,
             ))),
             0x236df622 => Ok(Object::EmojiKeyword(::std::boxed::Box::new(
                 EmojiKeyword::decode_with_id(__d, id)?,
@@ -173565,6 +176051,12 @@ impl Object {
             ))),
             0x44e56023 => Ok(Object::MessagesEmojiGameInfo(::std::boxed::Box::new(
                 MessagesEmojiGameInfo::decode_with_id(__d, id)?,
+            ))),
+            0x44f6c04e => Ok(Object::InputMedia(::std::boxed::Box::new(
+                InputMedia::decode_with_id(__d, id)?,
+            ))),
+            0x454d2737 => Ok(Object::UserWallet(::std::boxed::Box::new(
+                UserWallet::decode_with_id(__d, id)?,
             ))),
             0x455b853d => Ok(Object::MessageViews(::std::boxed::Box::new(
                 MessageViews::decode_with_id(__d, id)?,
@@ -174445,6 +176937,9 @@ impl Object {
             0x7311ca11 => Ok(Object::WebPage(::std::boxed::Box::new(
                 WebPage::decode_with_id(__d, id)?,
             ))),
+            0x734c2e7b => Ok(Object::Update(::std::boxed::Box::new(
+                Update::decode_with_id(__d, id)?,
+            ))),
             0x73924be0 => Ok(Object::MessageEntity(::std::boxed::Box::new(
                 MessageEntity::decode_with_id(__d, id)?,
             ))),
@@ -174639,6 +177134,9 @@ impl Object {
             ))),
             0x7c1079d6 => Ok(Object::Update(::std::boxed::Box::new(
                 Update::decode_with_id(__d, id)?,
+            ))),
+            0x7c855cb5 => Ok(Object::InputMedia(::std::boxed::Box::new(
+                InputMedia::decode_with_id(__d, id)?,
             ))),
             0x7c8fe7b6 => Ok(Object::PageBlock(::std::boxed::Box::new(
                 PageBlock::decode_with_id(__d, id)?,
@@ -175103,6 +177601,9 @@ impl Object {
             0x95ace84f => Ok(Object::ShareTheme(::std::boxed::Box::new(
                 ShareTheme::decode_with_id(__d, id)?,
             ))),
+            0x95b73023 => Ok(Object::MessagesBotWidgetQueryAnswer(
+                ::std::boxed::Box::new(MessagesBotWidgetQueryAnswer::decode_with_id(__d, id)?),
+            )),
             0x95c5346b => Ok(Object::WalletState(::std::boxed::Box::new(
                 WalletState::decode_with_id(__d, id)?,
             ))),
@@ -175496,6 +177997,9 @@ impl Object {
             0xa5d72105 => Ok(Object::Update(::std::boxed::Box::new(
                 Update::decode_with_id(__d, id)?,
             ))),
+            0xa5f07e08 => Ok(Object::Update(::std::boxed::Box::new(
+                Update::decode_with_id(__d, id)?,
+            ))),
             0xa6341782 => Ok(Object::MessagesDiscussionMessage(::std::boxed::Box::new(
                 MessagesDiscussionMessage::decode_with_id(__d, id)?,
             ))),
@@ -175750,6 +178254,9 @@ impl Object {
             0xb320aadb => Ok(Object::SecureValueType(::std::boxed::Box::new(
                 SecureValueType::decode_with_id(__d, id)?,
             ))),
+            0xb373fe68 => Ok(Object::Update(::std::boxed::Box::new(
+                Update::decode_with_id(__d, id)?,
+            ))),
             0xb37794af => Ok(Object::AuthSentCodeType(::std::boxed::Box::new(
                 AuthSentCodeType::decode_with_id(__d, id)?,
             ))),
@@ -175903,6 +178410,9 @@ impl Object {
             0xb90c2afd => Ok(Object::UserFull(::std::boxed::Box::new(
                 UserFull::decode_with_id(__d, id)?,
             ))),
+            0xb9196e57 => Ok(Object::MessagesWidgetPublicData(::std::boxed::Box::new(
+                MessagesWidgetPublicData::decode_with_id(__d, id)?,
+            ))),
             0xb91bbd3a => Ok(Object::MessageAction(::std::boxed::Box::new(
                 MessageAction::decode_with_id(__d, id)?,
             ))),
@@ -175932,6 +178442,9 @@ impl Object {
             ))),
             0xba7bb15e => Ok(Object::PollResults(::std::boxed::Box::new(
                 PollResults::decode_with_id(__d, id)?,
+            ))),
+            0xbaa17834 => Ok(Object::BotInlineMessage(::std::boxed::Box::new(
+                BotInlineMessage::decode_with_id(__d, id)?,
             ))),
             0xbaa57628 => Ok(Object::AutoDownloadSettings(::std::boxed::Box::new(
                 AutoDownloadSettings::decode_with_id(__d, id)?,
@@ -175965,6 +178478,9 @@ impl Object {
             ))),
             0xbbab2643 => Ok(Object::StoryReaction(::std::boxed::Box::new(
                 StoryReaction::decode_with_id(__d, id)?,
+            ))),
+            0xbbb078dd => Ok(Object::Update(::std::boxed::Box::new(
+                Update::decode_with_id(__d, id)?,
             ))),
             0xbbb6b4a3 => Ok(Object::StarsAmount(::std::boxed::Box::new(
                 StarsAmount::decode_with_id(__d, id)?,
@@ -177168,6 +179684,9 @@ impl Object {
             0xf5890df1 => Ok(Object::InputTheme(::std::boxed::Box::new(
                 InputTheme::decode_with_id(__d, id)?,
             ))),
+            0xf597a3f0 => Ok(Object::InputBotInlineMessage(::std::boxed::Box::new(
+                InputBotInlineMessage::decode_with_id(__d, id)?,
+            ))),
             0xf5ddd6e7 => Ok(Object::ReportReason(::std::boxed::Box::new(
                 ReportReason::decode_with_id(__d, id)?,
             ))),
@@ -177270,6 +179789,9 @@ impl Object {
             0xfa87f659 => Ok(Object::ChatlistsChatlistInvite(::std::boxed::Box::new(
                 ChatlistsChatlistInvite::decode_with_id(__d, id)?,
             ))),
+            0xfa89bef7 => Ok(Object::Update(::std::boxed::Box::new(
+                Update::decode_with_id(__d, id)?,
+            ))),
             0xfabadc5f => Ok(Object::InputPrivacyKey(::std::boxed::Box::new(
                 InputPrivacyKey::decode_with_id(__d, id)?,
             ))),
@@ -177366,11 +179888,17 @@ impl Object {
             0xfe78eecc => Ok(Object::WalletUserAddress(::std::boxed::Box::new(
                 WalletUserAddress::decode_with_id(__d, id)?,
             ))),
+            0xfe8b792b => Ok(Object::InputBotInlineMessage(::std::boxed::Box::new(
+                InputBotInlineMessage::decode_with_id(__d, id)?,
+            ))),
             0xfe9fc158 => Ok(Object::ChannelAdminLogEventAction(::std::boxed::Box::new(
                 ChannelAdminLogEventAction::decode_with_id(__d, id)?,
             ))),
             0xfebe5491 => Ok(Object::StarsRevenueStatus(::std::boxed::Box::new(
                 StarsRevenueStatus::decode_with_id(__d, id)?,
+            ))),
+            0xff3b33b4 => Ok(Object::WidgetQueryType(::std::boxed::Box::new(
+                WidgetQueryType::decode_with_id(__d, id)?,
             ))),
             0xff544e65 => Ok(Object::Folder(::std::boxed::Box::new(
                 Folder::decode_with_id(__d, id)?,
@@ -177884,6 +180412,14 @@ pub enum Method {
     MessagesRequestChatJoinWebView(Box<MessagesRequestChatJoinWebView>),
     MessagesSetShareTheme(Box<MessagesSetShareTheme>),
     MessagesGetShareThemeBackdrops(Box<MessagesGetShareThemeBackdrops>),
+    MessagesGetBotWidgetQueryAnswer(Box<MessagesGetBotWidgetQueryAnswer>),
+    MessagesSetBotWidgetQueryAnswer(Box<MessagesSetBotWidgetQueryAnswer>),
+    MessagesEditMessageWidgetData(Box<MessagesEditMessageWidgetData>),
+    MessagesEditInlineBotMessageWidgetData(Box<MessagesEditInlineBotMessageWidgetData>),
+    MessagesEditWidgetData(Box<MessagesEditWidgetData>),
+    MessagesGetWidgetPublicData(Box<MessagesGetWidgetPublicData>),
+    MessagesTranscribeAudioFile(Box<MessagesTranscribeAudioFile>),
+    MessagesGetTranscriptionLangs(Box<MessagesGetTranscriptionLangs>),
     UpdatesGetState(Box<UpdatesGetState>),
     UpdatesGetDifference(Box<UpdatesGetDifference>),
     UpdatesGetChannelDifference(Box<UpdatesGetChannelDifference>),
@@ -178751,6 +181287,14 @@ impl Method {
             Method::MessagesRequestChatJoinWebView(value) => value.type_id(),
             Method::MessagesSetShareTheme(value) => value.type_id(),
             Method::MessagesGetShareThemeBackdrops(value) => value.type_id(),
+            Method::MessagesGetBotWidgetQueryAnswer(value) => value.type_id(),
+            Method::MessagesSetBotWidgetQueryAnswer(value) => value.type_id(),
+            Method::MessagesEditMessageWidgetData(value) => value.type_id(),
+            Method::MessagesEditInlineBotMessageWidgetData(value) => value.type_id(),
+            Method::MessagesEditWidgetData(value) => value.type_id(),
+            Method::MessagesGetWidgetPublicData(value) => value.type_id(),
+            Method::MessagesTranscribeAudioFile(value) => value.type_id(),
+            Method::MessagesGetTranscriptionLangs(value) => value.type_id(),
             Method::UpdatesGetState(value) => value.type_id(),
             Method::UpdatesGetDifference(value) => value.type_id(),
             Method::UpdatesGetChannelDifference(value) => value.type_id(),
@@ -179619,6 +182163,14 @@ impl Method {
             Method::MessagesRequestChatJoinWebView(value) => value.encode(__w),
             Method::MessagesSetShareTheme(value) => value.encode(__w),
             Method::MessagesGetShareThemeBackdrops(value) => value.encode(__w),
+            Method::MessagesGetBotWidgetQueryAnswer(value) => value.encode(__w),
+            Method::MessagesSetBotWidgetQueryAnswer(value) => value.encode(__w),
+            Method::MessagesEditMessageWidgetData(value) => value.encode(__w),
+            Method::MessagesEditInlineBotMessageWidgetData(value) => value.encode(__w),
+            Method::MessagesEditWidgetData(value) => value.encode(__w),
+            Method::MessagesGetWidgetPublicData(value) => value.encode(__w),
+            Method::MessagesTranscribeAudioFile(value) => value.encode(__w),
+            Method::MessagesGetTranscriptionLangs(value) => value.encode(__w),
             Method::UpdatesGetState(value) => value.encode(__w),
             Method::UpdatesGetDifference(value) => value.encode(__w),
             Method::UpdatesGetChannelDifference(value) => value.encode(__w),
@@ -180487,6 +183039,14 @@ impl Method {
             Method::MessagesRequestChatJoinWebView(value) => value.encode_body(__w),
             Method::MessagesSetShareTheme(value) => value.encode_body(__w),
             Method::MessagesGetShareThemeBackdrops(value) => value.encode_body(__w),
+            Method::MessagesGetBotWidgetQueryAnswer(value) => value.encode_body(__w),
+            Method::MessagesSetBotWidgetQueryAnswer(value) => value.encode_body(__w),
+            Method::MessagesEditMessageWidgetData(value) => value.encode_body(__w),
+            Method::MessagesEditInlineBotMessageWidgetData(value) => value.encode_body(__w),
+            Method::MessagesEditWidgetData(value) => value.encode_body(__w),
+            Method::MessagesGetWidgetPublicData(value) => value.encode_body(__w),
+            Method::MessagesTranscribeAudioFile(value) => value.encode_body(__w),
+            Method::MessagesGetTranscriptionLangs(value) => value.encode_body(__w),
             Method::UpdatesGetState(value) => value.encode_body(__w),
             Method::UpdatesGetDifference(value) => value.encode_body(__w),
             Method::UpdatesGetChannelDifference(value) => value.encode_body(__w),
@@ -182335,6 +184895,32 @@ impl Method {
             0xf4599ef2 => Ok(Method::MessagesGetShareThemeBackdrops(
                 ::std::boxed::Box::new(MessagesGetShareThemeBackdrops::decode_with_id(__d, id)?),
             )),
+            0x5c550579 => Ok(Method::MessagesGetBotWidgetQueryAnswer(
+                ::std::boxed::Box::new(MessagesGetBotWidgetQueryAnswer::decode_with_id(__d, id)?),
+            )),
+            0xf8cdec6a => Ok(Method::MessagesSetBotWidgetQueryAnswer(
+                ::std::boxed::Box::new(MessagesSetBotWidgetQueryAnswer::decode_with_id(__d, id)?),
+            )),
+            0xf624bc1e => Ok(Method::MessagesEditMessageWidgetData(
+                ::std::boxed::Box::new(MessagesEditMessageWidgetData::decode_with_id(__d, id)?),
+            )),
+            0x6396ce2b => Ok(Method::MessagesEditInlineBotMessageWidgetData(
+                ::std::boxed::Box::new(MessagesEditInlineBotMessageWidgetData::decode_with_id(
+                    __d, id,
+                )?),
+            )),
+            0xeac343c0 => Ok(Method::MessagesEditWidgetData(::std::boxed::Box::new(
+                MessagesEditWidgetData::decode_with_id(__d, id)?,
+            ))),
+            0x6fc53181 => Ok(Method::MessagesGetWidgetPublicData(::std::boxed::Box::new(
+                MessagesGetWidgetPublicData::decode_with_id(__d, id)?,
+            ))),
+            0x072d2ef7 => Ok(Method::MessagesTranscribeAudioFile(::std::boxed::Box::new(
+                MessagesTranscribeAudioFile::decode_with_id(__d, id)?,
+            ))),
+            0xba6cd9aa => Ok(Method::MessagesGetTranscriptionLangs(
+                ::std::boxed::Box::new(MessagesGetTranscriptionLangs::decode_with_id(__d, id)?),
+            )),
             0xedd4882a => Ok(Method::UpdatesGetState(::std::boxed::Box::new(
                 UpdatesGetState::decode_with_id(__d, id)?,
             ))),
@@ -182581,7 +185167,7 @@ impl Method {
             0x0a245dd3 => Ok(Method::ChannelsDeactivateAllUsernames(
                 ::std::boxed::Box::new(ChannelsDeactivateAllUsernames::decode_with_id(__d, id)?),
             )),
-            0x3ff75734 => Ok(Method::ChannelsToggleForum(::std::boxed::Box::new(
+            0xa2952b54 => Ok(Method::ChannelsToggleForum(::std::boxed::Box::new(
                 ChannelsToggleForum::decode_with_id(__d, id)?,
             ))),
             0x68f3e4eb => Ok(Method::ChannelsToggleAntiSpam(::std::boxed::Box::new(
@@ -187103,6 +189689,11 @@ impl TypeId for MessagesBotResults {
         MessagesBotResults::type_id(self)
     }
 }
+impl TypeId for MessagesBotWidgetQueryAnswer {
+    fn type_id(&self) -> u32 {
+        MessagesBotWidgetQueryAnswer::type_id(self)
+    }
+}
 impl TypeId for MessagesChatAdminsWithInvites {
     fn type_id(&self) -> u32 {
         MessagesChatAdminsWithInvites::type_id(self)
@@ -187373,14 +189964,29 @@ impl TypeId for MessagesEditInlineBotMessage {
         MessagesEditInlineBotMessage::type_id(self)
     }
 }
+impl TypeId for MessagesEditInlineBotMessageWidgetData {
+    fn type_id(&self) -> u32 {
+        MessagesEditInlineBotMessageWidgetData::type_id(self)
+    }
+}
 impl TypeId for MessagesEditMessage {
     fn type_id(&self) -> u32 {
         MessagesEditMessage::type_id(self)
     }
 }
+impl TypeId for MessagesEditMessageWidgetData {
+    fn type_id(&self) -> u32 {
+        MessagesEditMessageWidgetData::type_id(self)
+    }
+}
 impl TypeId for MessagesEditQuickReplyShortcut {
     fn type_id(&self) -> u32 {
         MessagesEditQuickReplyShortcut::type_id(self)
+    }
+}
+impl TypeId for MessagesEditWidgetData {
+    fn type_id(&self) -> u32 {
+        MessagesEditWidgetData::type_id(self)
     }
 }
 impl TypeId for MessagesEmojiGameInfo {
@@ -187506,6 +190112,11 @@ impl TypeId for MessagesGetBotApp {
 impl TypeId for MessagesGetBotCallbackAnswer {
     fn type_id(&self) -> u32 {
         MessagesGetBotCallbackAnswer::type_id(self)
+    }
+}
+impl TypeId for MessagesGetBotWidgetQueryAnswer {
+    fn type_id(&self) -> u32 {
+        MessagesGetBotWidgetQueryAnswer::type_id(self)
     }
 }
 impl TypeId for MessagesGetChatInviteImporters {
@@ -187913,6 +190524,11 @@ impl TypeId for MessagesGetTopReactions {
         MessagesGetTopReactions::type_id(self)
     }
 }
+impl TypeId for MessagesGetTranscriptionLangs {
+    fn type_id(&self) -> u32 {
+        MessagesGetTranscriptionLangs::type_id(self)
+    }
+}
 impl TypeId for MessagesGetUnreadMentions {
     fn type_id(&self) -> u32 {
         MessagesGetUnreadMentions::type_id(self)
@@ -187936,6 +190552,11 @@ impl TypeId for MessagesGetWebPage {
 impl TypeId for MessagesGetWebPagePreview {
     fn type_id(&self) -> u32 {
         MessagesGetWebPagePreview::type_id(self)
+    }
+}
+impl TypeId for MessagesGetWidgetPublicData {
+    fn type_id(&self) -> u32 {
+        MessagesGetWidgetPublicData::type_id(self)
     }
 }
 impl TypeId for MessagesHideAllChatJoinRequests {
@@ -188418,6 +191039,11 @@ impl TypeId for MessagesSetBotShippingResults {
         MessagesSetBotShippingResults::type_id(self)
     }
 }
+impl TypeId for MessagesSetBotWidgetQueryAnswer {
+    fn type_id(&self) -> u32 {
+        MessagesSetBotWidgetQueryAnswer::type_id(self)
+    }
+}
 impl TypeId for MessagesSetChatAvailableReactions {
     fn type_id(&self) -> u32 {
         MessagesSetChatAvailableReactions::type_id(self)
@@ -188568,6 +191194,11 @@ impl TypeId for MessagesTranscribeAudio {
         MessagesTranscribeAudio::type_id(self)
     }
 }
+impl TypeId for MessagesTranscribeAudioFile {
+    fn type_id(&self) -> u32 {
+        MessagesTranscribeAudioFile::type_id(self)
+    }
+}
 impl TypeId for MessagesTranscribedAudio {
     fn type_id(&self) -> u32 {
         MessagesTranscribedAudio::type_id(self)
@@ -188661,6 +191292,11 @@ impl TypeId for MessagesWebPage {
 impl TypeId for MessagesWebPagePreview {
     fn type_id(&self) -> u32 {
         MessagesWebPagePreview::type_id(self)
+    }
+}
+impl TypeId for MessagesWidgetPublicData {
+    fn type_id(&self) -> u32 {
+        MessagesWidgetPublicData::type_id(self)
     }
 }
 impl TypeId for Method {
@@ -190903,6 +193539,11 @@ impl TypeId for UserStatus {
         UserStatus::type_id(self)
     }
 }
+impl TypeId for UserWallet {
+    fn type_id(&self) -> u32 {
+        UserWallet::type_id(self)
+    }
+}
 impl TypeId for Username {
     fn type_id(&self) -> u32 {
         Username::type_id(self)
@@ -191236,6 +193877,11 @@ impl TypeId for WebViewMessageSent {
 impl TypeId for WebViewResult {
     fn type_id(&self) -> u32 {
         WebViewResult::type_id(self)
+    }
+}
+impl TypeId for WidgetQueryType {
+    fn type_id(&self) -> u32 {
+        WidgetQueryType::type_id(self)
     }
 }
 /// Wire constructor identifiers, keyed by name.
@@ -191577,6 +194223,7 @@ pub mod ids {
     pub const BOT_INLINE_MESSAGE_MEDIA_WEB_PAGE: u32 = 0x809ad9a6;
     pub const BOT_INLINE_MESSAGE_RICH_MESSAGE: u32 = 0x0a617e7b;
     pub const BOT_INLINE_MESSAGE_TEXT: u32 = 0x8c7f65e2;
+    pub const BOT_INLINE_MESSAGE_WIDGET: u32 = 0xbaa17834;
     pub const BOT_INLINE_RESULT: u32 = 0x11965f3a;
     pub const BOT_MENU_BUTTON: u32 = 0xc7b57ce6;
     pub const BOT_MENU_BUTTON_COMMANDS: u32 = 0x4258c205;
@@ -191660,7 +194307,7 @@ pub mod ids {
     pub const CHANNELS_SPONSORED_MESSAGE_REPORT_RESULT_REPORTED: u32 = 0xad798849;
     pub const CHANNELS_TOGGLE_ANTI_SPAM: u32 = 0x68f3e4eb;
     pub const CHANNELS_TOGGLE_AUTOTRANSLATION: u32 = 0x167fc0a1;
-    pub const CHANNELS_TOGGLE_FORUM: u32 = 0x3ff75734;
+    pub const CHANNELS_TOGGLE_FORUM: u32 = 0xa2952b54;
     pub const CHANNELS_TOGGLE_JOIN_REQUEST: u32 = 0x0ecc2618;
     pub const CHANNELS_TOGGLE_JOIN_TO_SEND: u32 = 0xe4cb9580;
     pub const CHANNELS_TOGGLE_PARTICIPANTS_HIDDEN: u32 = 0x6a6e7854;
@@ -192047,6 +194694,8 @@ pub mod ids {
     pub const INPUT_BOT_INLINE_MESSAGE_MEDIA_WEB_PAGE: u32 = 0xbddcc510;
     pub const INPUT_BOT_INLINE_MESSAGE_RICH_MESSAGE: u32 = 0xb43df56c;
     pub const INPUT_BOT_INLINE_MESSAGE_TEXT: u32 = 0x3dcd7a87;
+    pub const INPUT_BOT_INLINE_MESSAGE_WIDGET: u32 = 0xf597a3f0;
+    pub const INPUT_BOT_INLINE_MESSAGE_WIDGET_ID: u32 = 0xfe8b792b;
     pub const INPUT_BOT_INLINE_RESULT: u32 = 0x88bf9319;
     pub const INPUT_BOT_INLINE_RESULT_DOCUMENT: u32 = 0xfff8fdc4;
     pub const INPUT_BOT_INLINE_RESULT_GAME: u32 = 0x4fa417f2;
@@ -192138,6 +194787,8 @@ pub mod ids {
     pub const INPUT_MEDIA_UPLOADED_PHOTO: u32 = 0x7d8375da;
     pub const INPUT_MEDIA_VENUE: u32 = 0xc13d1c11;
     pub const INPUT_MEDIA_WEB_PAGE: u32 = 0xc21b8849;
+    pub const INPUT_MEDIA_WIDGET: u32 = 0x44f6c04e;
+    pub const INPUT_MEDIA_WIDGET_ID: u32 = 0x7c855cb5;
     pub const INPUT_MESSAGES_FILTER_CHAT_PHOTOS: u32 = 0x3a20ecb8;
     pub const INPUT_MESSAGES_FILTER_CONTACTS: u32 = 0xe062db83;
     pub const INPUT_MESSAGES_FILTER_DOCUMENT: u32 = 0x9eddf188;
@@ -192369,6 +195020,7 @@ pub mod ids {
     pub const MESSAGES_BOT_CALLBACK_ANSWER: u32 = 0x36585ea4;
     pub const MESSAGES_BOT_PREPARED_INLINE_MESSAGE: u32 = 0x8ecf0511;
     pub const MESSAGES_BOT_RESULTS: u32 = 0xe021f2f6;
+    pub const MESSAGES_BOT_WIDGET_QUERY_ANSWER: u32 = 0x95b73023;
     pub const MESSAGES_CHANNEL_MESSAGES: u32 = 0xc776ba4e;
     pub const MESSAGES_CHATS: u32 = 0x64ff9fd5;
     pub const MESSAGES_CHATS_SLICE: u32 = 0x9cd81144;
@@ -192429,8 +195081,11 @@ pub mod ids {
     pub const MESSAGES_EDIT_FACT_CHECK: u32 = 0x0589ee75;
     pub const MESSAGES_EDIT_FORUM_TOPIC: u32 = 0xcecc1134;
     pub const MESSAGES_EDIT_INLINE_BOT_MESSAGE: u32 = 0xa423bb51;
+    pub const MESSAGES_EDIT_INLINE_BOT_MESSAGE_WIDGET_DATA: u32 = 0x6396ce2b;
     pub const MESSAGES_EDIT_MESSAGE: u32 = 0xb106e66c;
+    pub const MESSAGES_EDIT_MESSAGE_WIDGET_DATA: u32 = 0xf624bc1e;
     pub const MESSAGES_EDIT_QUICK_REPLY_SHORTCUT: u32 = 0x5c003cef;
+    pub const MESSAGES_EDIT_WIDGET_DATA: u32 = 0xeac343c0;
     pub const MESSAGES_EMOJI_GAME_DICE_INFO: u32 = 0x44e56023;
     pub const MESSAGES_EMOJI_GAME_OUTCOME: u32 = 0xda2ad647;
     pub const MESSAGES_EMOJI_GAME_UNAVAILABLE: u32 = 0x59e65335;
@@ -192462,6 +195117,7 @@ pub mod ids {
     pub const MESSAGES_GET_AVAILABLE_REACTIONS: u32 = 0x18dea0ac;
     pub const MESSAGES_GET_BOT_APP: u32 = 0x34fdc5c3;
     pub const MESSAGES_GET_BOT_CALLBACK_ANSWER: u32 = 0x9342ca07;
+    pub const MESSAGES_GET_BOT_WIDGET_QUERY_ANSWER: u32 = 0x5c550579;
     pub const MESSAGES_GET_CHATS: u32 = 0x49e9528f;
     pub const MESSAGES_GET_CHAT_INVITE_IMPORTERS: u32 = 0xdf04dd4e;
     pub const MESSAGES_GET_COMMON_CHATS: u32 = 0xe40ca104;
@@ -192543,11 +195199,13 @@ pub mod ids {
     pub const MESSAGES_GET_STICKER_SET: u32 = 0xc8a0ec74;
     pub const MESSAGES_GET_SUGGESTED_DIALOG_FILTERS: u32 = 0xa29cd42c;
     pub const MESSAGES_GET_TOP_REACTIONS: u32 = 0xbb8125ba;
+    pub const MESSAGES_GET_TRANSCRIPTION_LANGS: u32 = 0xba6cd9aa;
     pub const MESSAGES_GET_UNREAD_MENTIONS: u32 = 0xf107e790;
     pub const MESSAGES_GET_UNREAD_POLL_VOTES: u32 = 0x43286cf2;
     pub const MESSAGES_GET_UNREAD_REACTIONS: u32 = 0xbd7f90ac;
     pub const MESSAGES_GET_WEB_PAGE: u32 = 0x8d9692a3;
     pub const MESSAGES_GET_WEB_PAGE_PREVIEW: u32 = 0x570d6f6f;
+    pub const MESSAGES_GET_WIDGET_PUBLIC_DATA: u32 = 0x6fc53181;
     pub const MESSAGES_HIDE_ALL_CHAT_JOIN_REQUESTS: u32 = 0xe085f4ea;
     pub const MESSAGES_HIDE_CHAT_JOIN_REQUEST: u32 = 0x7fe7e815;
     pub const MESSAGES_HIDE_PEER_SETTINGS_BAR: u32 = 0x4facb138;
@@ -192654,6 +195312,7 @@ pub mod ids {
     pub const MESSAGES_SET_BOT_GUEST_CHAT_RESULT: u32 = 0xb8f106e3;
     pub const MESSAGES_SET_BOT_PRECHECKOUT_RESULTS: u32 = 0x09c2dd95;
     pub const MESSAGES_SET_BOT_SHIPPING_RESULTS: u32 = 0xe5f672fa;
+    pub const MESSAGES_SET_BOT_WIDGET_QUERY_ANSWER: u32 = 0xf8cdec6a;
     pub const MESSAGES_SET_CHAT_AVAILABLE_REACTIONS: u32 = 0x864b2581;
     pub const MESSAGES_SET_CHAT_THEME: u32 = 0x081202c9;
     pub const MESSAGES_SET_CHAT_WALL_PAPER: u32 = 0x8ffacae1;
@@ -192689,6 +195348,7 @@ pub mod ids {
     pub const MESSAGES_TOGGLE_TODO_COMPLETED: u32 = 0xd3e03124;
     pub const MESSAGES_TRANSCRIBED_AUDIO: u32 = 0xcfb9d957;
     pub const MESSAGES_TRANSCRIBE_AUDIO: u32 = 0x269e9a49;
+    pub const MESSAGES_TRANSCRIBE_AUDIO_FILE: u32 = 0x072d2ef7;
     pub const MESSAGES_TRANSLATED_RICH_MESSAGE: u32 = 0x4203998f;
     pub const MESSAGES_TRANSLATE_RESULT: u32 = 0x33db32f8;
     pub const MESSAGES_TRANSLATE_RICH_MESSAGE: u32 = 0x1a542004;
@@ -192707,6 +195367,8 @@ pub mod ids {
     pub const MESSAGES_VOTES_LIST: u32 = 0x4899484e;
     pub const MESSAGES_WEB_PAGE: u32 = 0xfd5e12bd;
     pub const MESSAGES_WEB_PAGE_PREVIEW: u32 = 0x8c9a88ac;
+    pub const MESSAGES_WIDGET_PUBLIC_DATA: u32 = 0x04493bff;
+    pub const MESSAGES_WIDGET_PUBLIC_DATA_NOT_MODIFIED: u32 = 0xb9196e57;
     pub const MESSAGE_ACTION_BOOST_APPLY: u32 = 0xcc02aa6d;
     pub const MESSAGE_ACTION_BOT_ALLOWED: u32 = 0xc516d679;
     pub const MESSAGE_ACTION_CHANGE_COMMUNITY: u32 = 0x5d20bae8;
@@ -192827,6 +195489,7 @@ pub mod ids {
     pub const MESSAGE_MEDIA_VENUE: u32 = 0x2ec0533f;
     pub const MESSAGE_MEDIA_VIDEO_STREAM: u32 = 0xca5cab89;
     pub const MESSAGE_MEDIA_WEB_PAGE: u32 = 0xddf10c3b;
+    pub const MESSAGE_MEDIA_WIDGET: u32 = 0x2238f214;
     pub const MESSAGE_PEER_REACTION: u32 = 0x8c79b63c;
     pub const MESSAGE_PEER_VOTE: u32 = 0xb6cc2d5c;
     pub const MESSAGE_PEER_VOTE_INPUT_OPTION: u32 = 0x74cda504;
@@ -193568,6 +196231,8 @@ pub mod ids {
     pub const UPDATE_BOT_STOPPED: u32 = 0xc4870a49;
     pub const UPDATE_BOT_WEBHOOK_JSON: u32 = 0x8317c0c3;
     pub const UPDATE_BOT_WEBHOOK_JSONQUERY: u32 = 0x9b9240a6;
+    pub const UPDATE_BOT_WIDGET_COPY_QUERY: u32 = 0xfa89bef7;
+    pub const UPDATE_BOT_WIDGET_QUERY: u32 = 0xb373fe68;
     pub const UPDATE_BUSINESS_BOT_CALLBACK_QUERY: u32 = 0x1ea2fda7;
     pub const UPDATE_CHANNEL: u32 = 0x635b4c09;
     pub const UPDATE_CHANNEL_AVAILABLE_MESSAGES: u32 = 0xb23fc698;
@@ -193606,6 +196271,7 @@ pub mod ids {
     pub const UPDATE_DRAFT_MESSAGE: u32 = 0xedfc111e;
     pub const UPDATE_EDIT_CHANNEL_MESSAGE: u32 = 0x1b3f4df7;
     pub const UPDATE_EDIT_EPHEMERAL_MESSAGE: u32 = 0x4bbb8f01;
+    pub const UPDATE_EDIT_FORUM_TOPIC: u32 = 0x2366665c;
     pub const UPDATE_EDIT_MESSAGE: u32 = 0xe40370a3;
     pub const UPDATE_EMOJI_GAME_INFO: u32 = 0xfb9c547a;
     pub const UPDATE_ENCRYPTED_CHAT_TYPING: u32 = 0x1710f156;
@@ -193622,6 +196288,7 @@ pub mod ids {
     pub const UPDATE_GROUP_CALL_MESSAGE: u32 = 0xd8326f0d;
     pub const UPDATE_GROUP_CALL_PARTICIPANTS: u32 = 0xf2ebdb4e;
     pub const UPDATE_INLINE_BOT_CALLBACK_QUERY: u32 = 0x691e9052;
+    pub const UPDATE_INLINE_BOT_WIDGET_QUERY: u32 = 0xa5f07e08;
     pub const UPDATE_JOIN_CHAT_WEB_VIEW_DECISION: u32 = 0xbdac7e70;
     pub const UPDATE_LANG_PACK: u32 = 0x56022f4d;
     pub const UPDATE_LANG_PACK_TOO_LONG: u32 = 0x46560264;
@@ -193632,6 +196299,7 @@ pub mod ids {
     pub const UPDATE_MESSAGE_POLL: u32 = 0xd64c522b;
     pub const UPDATE_MESSAGE_POLL_VOTE: u32 = 0x7699f014;
     pub const UPDATE_MESSAGE_REACTIONS: u32 = 0x1e297bfa;
+    pub const UPDATE_MESSAGE_WIDGET_DATA: u32 = 0xbbb078dd;
     pub const UPDATE_MONO_FORUM_NO_PAID_EXCEPTION: u32 = 0x9f812b08;
     pub const UPDATE_MOVE_STICKER_SET_TO_TOP: u32 = 0x86fccf85;
     pub const UPDATE_NEW_AUTHORIZATION: u32 = 0x8951abef;
@@ -193704,6 +196372,7 @@ pub mod ids {
     pub const UPDATE_STORY_ID: u32 = 0x1bf335b9;
     pub const UPDATE_THEME: u32 = 0x8216fba3;
     pub const UPDATE_TRANSCRIBED_AUDIO: u32 = 0x0084cd5a;
+    pub const UPDATE_TRANSCRIBED_AUDIO_FILE: u32 = 0x734c2e7b;
     pub const UPDATE_USER: u32 = 0x20529438;
     pub const UPDATE_USER_EMOJI_STATUS: u32 = 0x28373599;
     pub const UPDATE_USER_NAME: u32 = 0xa7848924;
@@ -193758,6 +196427,7 @@ pub mod ids {
     pub const USER_STATUS_OFFLINE: u32 = 0x008c703f;
     pub const USER_STATUS_ONLINE: u32 = 0xedb93949;
     pub const USER_STATUS_RECENTLY: u32 = 0x7b197dc8;
+    pub const USER_WALLET: u32 = 0x454d2737;
     pub const VIDEO_SIZE: u32 = 0xde33b094;
     pub const VIDEO_SIZE_EMOJI_MARKUP: u32 = 0xf85c413c;
     pub const VIDEO_SIZE_STICKER_MARKUP: u32 = 0x0da082fe;
@@ -193833,6 +196503,9 @@ pub mod ids {
     pub const WEB_PAGE_PENDING: u32 = 0xb0d13e47;
     pub const WEB_VIEW_MESSAGE_SENT: u32 = 0x0c94511c;
     pub const WEB_VIEW_RESULT_URL: u32 = 0x4d22ff98;
+    pub const WIDGET_QUERY_TYPE_DATA: u32 = 0x16d8cf0b;
+    pub const WIDGET_QUERY_TYPE_SENT_TRANSACTION: u32 = 0xff3b33b4;
+    pub const WIDGET_QUERY_TYPE_SIGN_DATA: u32 = 0x192047dc;
 }
 
 /// The wire-id to qualified-name registry, sorted by identifier.
@@ -193878,6 +196551,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x041845db, "phone.getGroupCall"),
         (0x042f1f61, "premium.getBoostsStatus"),
         (0x0438865b, "inputStickeredMediaDocument"),
+        (0x04493bff, "messages.widgetPublicData"),
         (0x049ee584, "invoice"),
         (0x04c4d4ce, "inputStickerSetEmojiGenericAnimations"),
         (0x04f1aaa9, "messages.getFavedStickers"),
@@ -193907,6 +196581,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x06e425c4, "secureValueTypeDriverLicense"),
         (0x06ed998c, "auth.codeTypeFragmentSms"),
         (0x07141dbf, "inputEmojiStatusCollectible"),
+        (0x072d2ef7, "messages.transcribeAudioFile"),
         (0x0773c080, "inputAiComposeToneID"),
         (0x07761198, "updateChatParticipants"),
         (0x07967d36, "account.getWallPapers"),
@@ -194048,6 +196723,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x167fc0a1, "channels.toggleAutotranslation"),
         (0x16a4b93c, "storyItem"),
         (0x16bf744e, "sendMessageTypingAction"),
+        (0x16d8cf0b, "widgetQueryTypeData"),
         (0x16d9703b, "contactStatus"),
         (0x16fcc2cb, "messages.getAttachMenuBots"),
         (0x1710f156, "updateEncryptedChatTyping"),
@@ -194080,6 +196756,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x18dd4e92, "messages.acceptUrlAuth"),
         (0x18dea0ac, "messages.getAvailableReactions"),
         (0x18e82537, "wallet.encryptedSecretPhrasePart"),
+        (0x192047dc, "widgetQueryTypeSignData"),
         (0x19360dc0, "updateFolderPeers"),
         (0x193b4417, "inputNotifyUsers"),
         (0x19420af6, "keyboardInlineButtonRow"),
@@ -194183,6 +196860,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x2210c154, "double"),
         (0x221bb5e4, "todoCompletion"),
         (0x222600ef, "messages.exportedChatInviteReplaced"),
+        (0x2238f214, "messageMediaWidget"),
         (0x2244afad, "communities.peerLinkRequests"),
         (0x22567115, "channels.checkSearchPostsFlood"),
         (0x226ccefb, "auth.codeTypeFlashCall"),
@@ -194192,6 +196870,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x22ddd30c, "messages.getReplies"),
         (0x23209745, "channelAdminLogEventActionStartGroupCall"),
         (0x2331b22d, "photoEmpty"),
+        (0x2366665c, "updateEditForumTopic"),
         (0x236df622, "emojiKeywordDeleted"),
         (0x23734b06, "encryptedMessageService"),
         (0x2390fe44, "auth.sentCodeSuccess"),
@@ -194468,7 +197147,6 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x3fe268fe, "inputButtonTypeRequestPeer"),
         (0x3fedc75f, "help.getDeepLinkInfo"),
         (0x3fedd339, "true"),
-        (0x3ff75734, "channels.toggleForum"),
         (0x40181ffe, "inputPhotoFileLocation"),
         (0x402b4495, "inputMessageReadMetric"),
         (0x40582bb2, "channels.setDiscussionGroup"),
@@ -194520,9 +197198,11 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x44ba9dd9, "messages.savedDialogsSlice"),
         (0x44c1f8e9, "inputStickerSetEmojiDefaultTopicIcons"),
         (0x44e56023, "messages.emojiGameDiceInfo"),
+        (0x44f6c04e, "inputMediaWidget"),
         (0x44fa7a15, "messages.sendEncrypted"),
         (0x4500c525, "wallet.enableBackup"),
         (0x4504d54f, "bots.setBotMenuButton"),
+        (0x454d2737, "userWallet"),
         (0x455b853d, "messageViews"),
         (0x4576f3f0, "attachMenuBotIconColor"),
         (0x45c1d652, "shareThemeBackdropOption"),
@@ -194748,6 +197428,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x5bd0ee50, "messages.deleteChat"),
         (0x5c003cef, "messages.editQuickReplyShortcut"),
         (0x5c467992, "inputNotifyForumTopic"),
+        (0x5c550579, "messages.getBotWidgetQueryAnswer"),
         (0x5c9d3702, "chatInvite"),
         (0x5c9ff4d6, "payments.getStarGiftAuctionState"),
         (0x5cc761bd, "emojiKeywordsDifference"),
@@ -194818,6 +197499,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x6334ee9a, "inlineQueryPeerTypeBroadcast"),
         (0x635b4c09, "updateChannel"),
         (0x635fe375, "phoneConnectionWebrtc"),
+        (0x6396ce2b, "messages.editInlineBotMessageWidgetData"),
         (0x63a440dc, "inputWalletNew"),
         (0x63c3dd0a, "stories.stories"),
         (0x63c66506, "messages.getMessages"),
@@ -194937,6 +197619,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x6f7863f4, "updateRecentReactions"),
         (0x6f8b32aa, "inputBusinessRecipients"),
         (0x6fb4ad87, "messages.emojiGroupsNotModified"),
+        (0x6fc53181, "messages.getWidgetPublicData"),
         (0x6fe1a881, "botCommandScopeChats"),
         (0x702a40e0, "messages.getRecentLocations"),
         (0x70322949, "messageMediaContact"),
@@ -194967,6 +197650,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x72f0eaae, "inputDocumentEmpty"),
         (0x7307544f, "requestedPeerChat"),
         (0x7311ca11, "webPageNotModified"),
+        (0x734c2e7b, "updateTranscribedAudioFile"),
         (0x734f9721, "ephemeral.deleteAllWelcomeMessages"),
         (0x735787a8, "help.getCountriesList"),
         (0x73665bc2, "account.getSecureValue"),
@@ -195066,6 +197750,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x7bfbdefc, "attachMenuPeerTypeBroadcast"),
         (0x7c1079d6, "updateEphemeralBotCallbackQuery"),
         (0x7c2557c4, "stories.toggleAllStoriesHidden"),
+        (0x7c855cb5, "inputMediaWidgetId"),
         (0x7c8fe7b6, "pageBlockVideo"),
         (0x7cb34d79, "updateBotChatInviteRequester"),
         (0x7cde641d, "help.appConfigNotModified"),
@@ -195308,6 +197993,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0x957b50fb, "account.password"),
         (0x95ac5ce4, "auth.importLoginToken"),
         (0x95ace84f, "shareThemeDefault"),
+        (0x95b73023, "messages.botWidgetQueryAnswer"),
         (0x95c5346b, "walletState"),
         (0x95d2ac92, "messageActionChannelCreate"),
         (0x95ddcf69, "messageActionSuggestedPostSuccess"),
@@ -195458,6 +198144,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xa26156c0, "textCustomEmoji"),
         (0xa26a7fa5, "account.updateBusinessAwayMessage"),
         (0xa2875319, "messages.migrateChat"),
+        (0xa2952b54, "channels.toggleForum"),
         (0xa29cd42c, "messages.getSuggestedDialogFilters"),
         (0xa2a5371e, "peerChannel"),
         (0xa2a5594d, "bots.getPreviewMedias"),
@@ -195498,6 +198185,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xa5d0514d, "payments.getStarGiftActiveAuctions"),
         (0xa5d72105, "updateDialogFilterOrder"),
         (0xa5eec345, "messages.translateText"),
+        (0xa5f07e08, "updateInlineBotWidgetQuery"),
         (0xa60ab9ce, "account.getDefaultBackgroundEmojis"),
         (0xa614d034, "account.updateBusinessIntro"),
         (0xa6341782, "messages.discussionMessage"),
@@ -195636,6 +198324,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xb304a621, "upload.saveFilePart"),
         (0xb3134d9d, "contacts.found"),
         (0xb320aadb, "secureValueTypePhone"),
+        (0xb373fe68, "updateBotWidgetQuery"),
         (0xb37794af, "auth.sentCodeTypeSmsPhrase"),
         (0xb390dc08, "pageRelatedArticle"),
         (0xb3a07661, "messageActionGroupCallScheduled"),
@@ -195708,6 +198397,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xb8ea86a9, "inputPeerColorCollectible"),
         (0xb8f106e3, "messages.setBotGuestChatResult"),
         (0xb90c2afd, "userFull"),
+        (0xb9196e57, "messages.widgetPublicDataNotModified"),
         (0xb91bbd3a, "messageActionSetChatTheme"),
         (0xb92c09e2, "recentMeUrlUser"),
         (0xb940c666, "messageMediaGeoLive"),
@@ -195723,9 +198413,11 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xb9ffc55b, "messages.faveSticker"),
         (0xba4a3b5b, "messages.readSavedHistory"),
         (0xba6705f0, "contacts.editCloseFriends"),
+        (0xba6cd9aa, "messages.getTranscriptionLangs"),
         (0xba7bb15e, "pollResults"),
         (0xba8d5f35, "ephemeral.sendMessage"),
         (0xba9ee679, "messages.requestChatJoinWebView"),
+        (0xbaa17834, "botInlineMessageWidget"),
         (0xbaa57628, "autoDownloadSettings"),
         (0xbaafe5e0, "pageBlockAuthorDate"),
         (0xbac3a61a, "reactionNotificationsFromContacts"),
@@ -195740,6 +198432,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xbb92ba95, "messageEntityUnknown"),
         (0xbb9bb9a5, "updatePeerHistoryTTL"),
         (0xbbab2643, "storyReactionPublicForward"),
+        (0xbbb078dd, "updateMessageWidgetData"),
         (0xbbb6b4a3, "starsAmount"),
         (0xbbcce4c2, "payments.currencyRates"),
         (
@@ -196228,6 +198921,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xea8ca4f9, "channels.setStickers"),
         (0xeab5dc38, "channels.readMessageContents"),
         (0xeabbb94c, "channels.togglePreHistoryHidden"),
+        (0xeac343c0, "messages.editWidgetData"),
         (0xeae87e42, "contacts.contacts"),
         (0xeafc32bc, "chatReactionsNone"),
         (0xeafdf716, "messages.reactions"),
@@ -196353,9 +199047,11 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xf5537ebc, "stickers.changeSticker"),
         (0xf568028a, "bankCardOpenUrl"),
         (0xf5890df1, "inputThemeSlug"),
+        (0xf597a3f0, "inputBotInlineMessageWidget"),
         (0xf5b5563f, "account.deletePasskey"),
         (0xf5dad378, "channels.getGroupsForDiscussion"),
         (0xf5ddd6e7, "inputReportReasonFake"),
+        (0xf624bc1e, "messages.editMessageWidgetData"),
         (0xf64daf43, "messages.requestEncryption"),
         (0xf64f54f7, "phone.deleteGroupCallMessages"),
         (0xf6a548d3, "messageMediaInvoice"),
@@ -196383,6 +199079,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xf89a6a4e, "updateChat"),
         (0xf8ab7dfb, "inputMediaContact"),
         (0xf8b036af, "channels.getAdminedPublicChannels"),
+        (0xf8cdec6a, "messages.setBotWidgetQueryAnswer"),
         (0xf8e0aa1c, "account.passkeys"),
         (0xf8ec284b, "peerSelfLocated"),
         (0xf92424d2, "channelAdminLogEventActionParticipantMute"),
@@ -196403,6 +199100,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xfa4f0bb5, "inputFileBig"),
         (0xfa58b6d4, "themeSettings"),
         (0xfa87f659, "chatlists.chatlistInviteAlready"),
+        (0xfa89bef7, "updateBotWidgetCopyQuery"),
         (0xfa8cc6f5, "account.reportProfilePhoto"),
         (0xfabadc5f, "inputPrivacyKeyPhoneCall"),
         (0xfac67d3c, "wallet.tonConnectSubmitResponse"),
@@ -196448,6 +199146,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xfe333952, "starGiftAuctionStateNotModified"),
         (0xfe41b34f, "globalPrivacySettings"),
         (0xfe78eecc, "walletUserAddress"),
+        (0xfe8b792b, "inputBotInlineMessageWidgetId"),
         (
             0xfe9fc158,
             "channelAdminLogEventActionParticipantJoinByInvite",
@@ -196455,6 +199154,7 @@ pub fn types_map() -> &'static [(u32, &'static str)] {
         (0xfebe5491, "starsRevenueStatus"),
         (0xfeed5769, "account.installWallPaper"),
         (0xfef48f62, "messages.sendMessage"),
+        (0xff3b33b4, "widgetQueryTypeSentTransaction"),
         (0xff544e65, "folder"),
         (0xff57708d, "messages.preparedInlineMessage"),
         (0xff6c8049, "notificationSoundRingtone"),

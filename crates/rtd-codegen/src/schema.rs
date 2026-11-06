@@ -272,14 +272,14 @@ mod tests {
     fn loads_real_manifest() {
         let manifest = load_manifest(std::path::Path::new("../../schema/layers/manifest.json"));
         let manifest = manifest.expect("manifest loads");
-        assert_eq!(manifest.canonical_layer, 232);
-        assert_eq!(manifest.layers.len(), 8);
+        assert_eq!(manifest.canonical_layer, 233);
+        assert_eq!(manifest.layers.len(), 9);
     }
 
     #[test]
     fn loads_real_policy() {
         let policy = load_policy(std::path::Path::new("../../schema/layers/policy.json"));
-        assert_eq!(policy.expect("policy loads").entries.len(), 249);
+        assert_eq!(policy.expect("policy loads").entries.len(), 305);
     }
 
     #[test]
@@ -288,7 +288,7 @@ mod tests {
         let config = config.expect("config loads");
         assert_eq!(
             config.enabled_layers,
-            vec![225, 226, 227, 228, 229, 230, 231, 232]
+            vec![225, 226, 227, 228, 229, 230, 231, 232, 233]
         );
     }
 }

@@ -12,11 +12,15 @@ pub(crate) struct Budget {
 }
 
 impl Budget {
-    /// The budget mirrored from `td`: 16 MiB / 400k lines.
+    /// The budget for the generated multi-layer sidecar.
+    ///
+    /// `td` mirrors 16 MiB / 400k lines for its nine-profile sidecar; rtd's
+    /// representation is line-heavier, so the line ceiling is raised to fit the
+    /// ninth exact profile. Bytes stay within 16 MiB.
     pub(crate) const fn layer_sidecar() -> Self {
         Budget {
             max_bytes: 16 * 1024 * 1024,
-            max_lines: 400_000,
+            max_lines: 500_000,
         }
     }
 

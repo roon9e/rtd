@@ -50,7 +50,7 @@ with the canonical layer. Results and updates are encoded per the session's nego
 layer, and a value that a layer cannot represent is an error, never a canonical fallback.
 
 Layers are added by extending the manifest; nothing about the number of profiles is
-hard-coded. The pipeline is staged: prove the machinery on the canonical layer (232), then
+hard-coded. The pipeline is staged: prove the machinery on the canonical layer (233), then
 add 231 → 225.
 
 ## Generation workflow
