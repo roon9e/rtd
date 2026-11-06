@@ -377797,67 +377797,195 @@ pub fn decode_channels_toggle_forum_profile(
 }
 
 fn decode_policy_channels_toggle_forum_225(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 fn decode_policy_channels_toggle_forum_226(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 fn decode_policy_channels_toggle_forum_227(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 fn decode_policy_channels_toggle_forum_228(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 fn decode_policy_channels_toggle_forum_229(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 fn decode_policy_channels_toggle_forum_230(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 fn decode_policy_channels_toggle_forum_231(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 fn decode_policy_channels_toggle_forum_232(
-    _profile: Profile,
-    route: Route,
-    _d: &mut Decoder<'_>,
+    profile: Profile,
+    _route: Route,
+    __d: &mut Decoder<'_>,
 ) -> Result<rtd_tg::ChannelsToggleForum, AdmitError> {
-    Err(AdmitError::UnsupportedRoute(route))
+    let channel: ::std::boxed::Box<rtd_tg::InputChannel> = {
+        __d.enter()?;
+        let value = {
+            let __id = __d.take_u32()?;
+            decode_input_channel_profile(profile, __id, __d)?
+        };
+        __d.leave();
+        ::std::boxed::Box::new(value)
+    };
+    let enabled: bool = __d.take_bool()?;
+    let tabs: bool = __d.take_bool()?;
+    Ok(rtd_tg::ChannelsToggleForum {
+        channel,
+        enabled,
+        tabs,
+        sidebar: false,
+    })
 }
 
 pub fn encode_channels_toggle_anti_spam_profile(

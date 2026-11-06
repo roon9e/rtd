@@ -134,12 +134,12 @@ SHALL admit a request only against an exact supported profile.
 - **WHEN** a canonical `channel`/`user` carrying the new sidebar flags is encoded for 225–232
 - **THEN** the flags are dropped
 
-### Requirement: Required-field route rejection
+### Requirement: Required-field route defaulting
 
-The system SHALL reject admission of a historical `channels.toggleForum` request that cannot
-express the required `sidebar` decision, and SHALL drop `sidebar` when encoding the canonical
-method for 225–232.
+The system SHALL admit a historical `channels.toggleForum` request that cannot express the
+required `sidebar` field and SHALL default `sidebar` to `false`, and SHALL drop `sidebar` when
+encoding the canonical method for 225–232.
 
-#### Scenario: Historical toggle-forum is rejected
+#### Scenario: Historical toggle-forum defaults sidebar
 - **WHEN** a 225–232 request selects `channels.toggleForum`
-- **THEN** admission fails closed rather than defaulting `sidebar`
+- **THEN** it is admitted with `sidebar=false` rather than rejected

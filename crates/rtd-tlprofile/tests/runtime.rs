@@ -7,10 +7,10 @@
 use rtd_bin::Writer;
 use rtd_tg::{
     AuthBindTempAuthKey, Bool, BotCommand, BotInfo, BotVerification, ButtonType,
-    ChannelsJoinChannel, ChatAdminRights, Decoder, InitConnection, InputChannel, InputInvoice,
-    InputPeer, InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer, KeyboardButton, MessageEntity,
-    MessagesChatInviteJoinResult, MessagesDeleteMessages, Method, Object, SendMessageAction,
-    TextWithEntities, Update, WebViewResult,
+    ChannelsJoinChannel, ChannelsToggleForum, ChatAdminRights, Decoder, InitConnection,
+    InputChannel, InputInvoice, InputPeer, InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer,
+    KeyboardButton, MessageEntity, MessagesChatInviteJoinResult, MessagesDeleteMessages, Method,
+    Object, SendMessageAction, TextWithEntities, Update, WebViewResult,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, RouteMode,
@@ -1297,4 +1297,48 @@ fn fail_closed_behaviors_are_unchanged() {
             wire_id: frozen.type_id()
         }
     );
+}
+
+/// Layer 233 changed `channels.toggleForum` to carry an explicit `sidebar` bool.
+/// A historical (225..=232) request cannot express the sidebar layout, so the
+/// profile-to-canonical route admits it and defaults `sidebar` to false rather
+/// than rejecting; the canonical-to-profile encoder drops it and emits
+/// `#3ff75734`.
+#[test]
+fn toggle_forum_sidebar_defaults_in_historical_profiles() {
+    let canonical = Method::ChannelsToggleForum(Box::new(ChannelsToggleForum {
+        channel: Box::new(InputChannel::InputChannelEmpty),
+        enabled: true,
+        tabs: true,
+        sidebar: true,
+    }));
+    let body = encode_method(&canonical);
+    assert_eq!(
+        u32::from_le_bytes(body[..4].try_into().unwrap()),
+        0xa295_2b54
+    );
+    let admission = admit(Profile::new(233), &body).expect("canonical admitted");
+    assert_eq!(admission.request, canonical);
+
+    // The historical wire: `#3ff75734 channel enabled tabs` (no sidebar).
+    let mut writer = Writer::new();
+    writer.put_u32(0x3ff7_5734);
+    InputChannel::InputChannelEmpty.encode(&mut writer);
+    writer.put_bool(true);
+    writer.put_bool(true);
+    let historical = writer.into_vec();
+
+    let expected = Method::ChannelsToggleForum(Box::new(ChannelsToggleForum {
+        channel: Box::new(InputChannel::InputChannelEmpty),
+        enabled: true,
+        tabs: true,
+        sidebar: false,
+    }));
+    for layer in 225..=232 {
+        assert!(resolve_profile(layer).is_some());
+        let admission = admit(Profile::new(layer), &historical).unwrap_or_else(|error| {
+            panic!("layer {layer} rejected a historical toggleForum: {error:?}")
+        });
+        assert_eq!(admission.request, expected, "layer {layer}");
+    }
 }
