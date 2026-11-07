@@ -21,6 +21,7 @@ pub mod legacy;
 pub mod projection;
 pub mod results;
 pub mod text;
+pub mod widget;
 
 pub use error::{HookError, Result};
 
@@ -39,6 +40,7 @@ pub const IMPLEMENTED_HOOKS: &[&str] = &[
     "layerDefaultLegacyKeyboardButtonType",
     "layerProjectEphemeralBotCommand",
     "layerProjectLegacyDefaultKeyboardButton",
+    "layerProjectLegacyWidgetMedia",
     "layerRequireCapturedChatInviteJoinQueryID",
     "layerRequireLegacyEphemeralDeletePeer",
     "layerRequireLegacyEphemeralMessagePeer",

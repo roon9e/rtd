@@ -143,6 +143,12 @@ pub const HOOKS: &[HookSpec] = &[
         signature: "project_default_button_type(value *KeyboardButton) (*KeyboardButton, error); None drops the value",
     },
     HookSpec {
+        name: "layerProjectLegacyWidgetMedia",
+        direction: Direction::CanonicalToProfile,
+        status: Status::Implemented,
+        signature: "project_legacy_widget_media(layer int, value *MessageMedia) (MessageMedia, error); a Layer 233 messageMediaWidget becomes messageMediaUnsupported before Layer 233",
+    },
+    HookSpec {
         name: "layerRequireCapturedChatInviteJoinQueryID",
         direction: Direction::ProfileToCanonical,
         status: Status::Implemented,
@@ -484,6 +490,19 @@ pub fn field_project(name: &str) -> Option<&'static str> {
         "layerProjectLegacyDefaultKeyboardButton" => {
             "rtd_layerhooks::keyboard::project_default_button_type"
         }
+        _ => return None,
+    })
+}
+
+/// The replacement function for a **family-level** project hook: it maps a
+/// canonical class value to the canonical class value to encode instead (the
+/// value itself, or a reviewed fallback constructor) for an older profile.
+///
+/// Hooks with any other shape return `None`, so their layer stays fail-closed.
+#[must_use]
+pub fn family_project(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "layerProjectLegacyWidgetMedia" => "rtd_layerhooks::widget::project_legacy_widget_media",
         _ => return None,
     })
 }

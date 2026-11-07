@@ -148,12 +148,31 @@ fn emit_profile_codec(
             .map(|route| route.semantic_id)
             .ok_or_else(|| format!("no canonical route for {:#010x}", definition.wire_id))
     };
+    // Family-level projections: a new-only constructor whose reviewed resolution
+    // replaces it with another canonical member when an older profile lacks it.
+    let mut family_projects: std::collections::BTreeMap<String, &'static str> =
+        std::collections::BTreeMap::new();
+    for obligation in &plan.obligations {
+        if obligation.kind != "new-only" || obligation.direction != "canonical-to-profile" {
+            continue;
+        }
+        let Some(resolution) = &obligation.resolution else {
+            continue;
+        };
+        if resolution.action != "project" {
+            continue;
+        }
+        if let Some(function) = rtd_layerhooks_registry::family_project(&resolution.hook) {
+            family_projects.insert(obligation.semantic.qname.clone(), function);
+        }
+    }
     let ctx = CodecContext {
         universe,
         plan,
         classes: &classes,
         bare_ids: &bare_ids,
         semantic: &semantic,
+        family_projects: &family_projects,
     };
     let unit_variants = canonical_unit_variants(universe);
     let legacy_classes = {
@@ -215,6 +234,9 @@ struct CodecContext<'a> {
     classes: &'a std::collections::BTreeSet<String>,
     bare_ids: &'a std::collections::BTreeMap<String, (String, u32)>,
     semantic: &'a dyn Fn(&Definition) -> Result<u64, String>,
+    /// Canonical constructor qname to the family-level projection function that
+    /// replaces it when an older profile lacks the member.
+    family_projects: &'a std::collections::BTreeMap<String, &'static str>,
 }
 
 /// Per-container parameters for emitting a policy encode function set.
@@ -2194,9 +2216,22 @@ fn emit_enum_codec(
                 bindings.join(", ")
             ));
         }
-        code.line(&format!(
-            "let route = lookup_route_semantic(profile, SemanticId({sid:#018x})).ok_or(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {cid:#010x} }})?;"
-        ));
+        if let Some(function) = ctx.family_projects.get(&ctor.key.qname) {
+            code.open(&format!(
+                "let Some(route) = lookup_route_semantic(profile, SemanticId({sid:#018x})) else {{"
+            ));
+            code.line(&format!(
+                "let projected = {function}(profile.layer, __value)?;"
+            ));
+            code.line(&format!(
+                "return encode_{fn_name}_profile(profile, &projected, __w);"
+            ));
+            code.close("};");
+        } else {
+            code.line(&format!(
+                "let route = lookup_route_semantic(profile, SemanticId({sid:#018x})).ok_or(ProjectionError::Unrepresentable {{ layer: profile.layer, wire_id: {cid:#010x} }})?;"
+            ));
+        }
         code.open("match route.mode {");
         code.open("RouteMode::Direct | RouteMode::Retag => {");
         code.line("__w.put_u32(route.wire_id);");

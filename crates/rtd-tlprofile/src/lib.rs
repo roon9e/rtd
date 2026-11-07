@@ -218775,12 +218775,11 @@ pub fn encode_message_media_profile(
             chat_data,
             widget_id,
         } => {
-            let route = lookup_route_semantic(profile, SemanticId(0x57e0e699f58d2a26)).ok_or(
-                ProjectionError::Unrepresentable {
-                    layer: profile.layer,
-                    wire_id: 0x2238f214,
-                },
-            )?;
+            let Some(route) = lookup_route_semantic(profile, SemanticId(0x57e0e699f58d2a26)) else {
+                let projected =
+                    rtd_layerhooks::widget::project_legacy_widget_media(profile.layer, __value)?;
+                return encode_message_media_profile(profile, &projected, __w);
+            };
             match route.mode {
                 RouteMode::Direct | RouteMode::Retag => {
                     __w.put_u32(route.wire_id);

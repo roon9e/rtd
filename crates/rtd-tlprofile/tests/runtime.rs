@@ -9,8 +9,9 @@ use rtd_tg::{
     AuthBindTempAuthKey, Bool, BotCommand, BotInfo, BotVerification, ButtonType,
     ChannelsJoinChannel, ChannelsToggleForum, ChatAdminRights, Decoder, InitConnection,
     InputChannel, InputInvoice, InputPeer, InvokeAfterMsg, InvokeAfterMsgs, InvokeWithLayer,
-    KeyboardButton, MessageEntity, MessagesChatInviteJoinResult, MessagesDeleteMessages, Method,
-    Object, SendMessageAction, TextWithEntities, Update, WebViewResult,
+    KeyboardButton, MessageEntity, MessageMedia, MessagesChatInviteJoinResult,
+    MessagesDeleteMessages, Method, Object, SendMessageAction, TextWithEntities, Update,
+    WebViewResult,
 };
 use rtd_tlprofile::{
     Admission, AdmitError, Dispatcher, FrozenObject, Limits, Profile, ProjectionError, RouteMode,
@@ -1340,5 +1341,55 @@ fn toggle_forum_sidebar_defaults_in_historical_profiles() {
             panic!("layer {layer} rejected a historical toggleForum: {error:?}")
         });
         assert_eq!(admission.request, expected, "layer {layer}");
+    }
+}
+
+/// A Layer 233 bot web widget has no wire identity before Layer 233. Rather than
+/// dropping the media (which reaches an older client as an empty text message)
+/// the family-level projection must emit `messageMediaUnsupported#9f84f49e` for
+/// profiles 225–232, and keep the widget at 233.
+#[test]
+fn widget_media_projects_to_unsupported_in_historical_profiles() {
+    let widget = MessageMedia::MessageMediaWidget {
+        flags: 0,
+        is_copy: false,
+        can_query: true,
+        background_query: false,
+        width: 320,
+        height: 200,
+        payload: b"<b>x</b>".to_vec(),
+        public_data: None,
+        public_data_hash: None,
+        chat_data: None,
+        widget_id: Some(7),
+    };
+    let frozen =
+        FrozenObject::freeze(Object::MessageMedia(Box::new(widget.clone()))).expect("freeze");
+
+    for layer in 225..=232 {
+        let profile = resolve_profile(layer).expect("enabled layer resolves");
+        let mut writer = Writer::new();
+        frozen
+            .encode(profile, &mut writer)
+            .unwrap_or_else(|error| panic!("layer {layer} encode: {error:?}"));
+        match decode_object(profile, &writer.into_vec(), Limits::default()).expect("decode") {
+            Object::MessageMedia(media) => assert_eq!(
+                *media,
+                MessageMedia::MessageMediaUnsupported,
+                "layer {layer} did not project the widget"
+            ),
+            other => panic!("layer {layer}: unexpected {other:?}"),
+        }
+    }
+
+    let profile = resolve_profile(233).expect("enabled layer resolves");
+    let mut writer = Writer::new();
+    frozen.encode(profile, &mut writer).expect("encode 233");
+    match decode_object(profile, &writer.into_vec(), Limits::default()).expect("decode 233") {
+        Object::MessageMedia(media) => assert!(
+            matches!(*media, MessageMedia::MessageMediaWidget { .. }),
+            "Layer 233 did not keep the widget"
+        ),
+        other => panic!("unexpected {other:?}"),
     }
 }

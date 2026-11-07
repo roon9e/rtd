@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn loads_real_policy() {
         let policy = load_policy(std::path::Path::new("../../schema/layers/policy.json"));
-        assert_eq!(policy.expect("policy loads").entries.len(), 305);
+        assert_eq!(policy.expect("policy loads").entries.len(), 313);
     }
 
     #[test]
