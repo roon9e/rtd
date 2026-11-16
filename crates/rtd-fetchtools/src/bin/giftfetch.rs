@@ -78,6 +78,9 @@ struct Options {
     skip_thumbs: bool,
     workers: usize,
     reuse_metadata: bool,
+    refresh_metadata: bool,
+    check_updates: bool,
+    baseline_hash: Option<i32>,
     allowed_missing_thumbs: BTreeSet<String>,
     login_qr: bool,
     qr_png: Option<String>,
@@ -116,12 +119,121 @@ fn run() -> Result<()> {
     if !tg.is_authorized()? {
         return Err("SESSION is not authorized (run giftfetch -login-qr first)".into());
     }
+    if opts.check_updates {
+        return check_updates(&mut tg, &opts);
+    }
     println!("[session authorized]");
     let account = Account {
         id: api_id,
         hash: api_hash,
     };
     fetch_catalog(&mut tg, &opts, &session, &account)
+}
+
+/// Compares the catalog hash against the stored baseline and reports whether the
+/// official star-gift catalog changed, without downloading anything.
+fn check_updates(tg: &mut Tg, opts: &Options) -> Result<()> {
+    let out = PathBuf::from(&opts.out);
+    let catalog_path = out.join("catalog.tl");
+    let (baseline_hash, baseline_ids, have_ids) = if catalog_path.exists() {
+        let (baseline, _) = read_catalog_tl(&out)?;
+        let PaymentsStarGifts::StarGifts { hash, gifts, .. } = &baseline else {
+            return Err("baseline catalog is not a starGifts list".into());
+        };
+        (
+            *hash,
+            gifts.iter().filter_map(gift_id).collect::<BTreeSet<i64>>(),
+            true,
+        )
+    } else if let Some(hash) = opts.baseline_hash {
+        (hash, BTreeSet::new(), false)
+    } else {
+        return Err(format!(
+            "no baseline catalog at {} (run a full giftfetch first, or pass -baseline-hash <hash>)",
+            catalog_path.display()
+        )
+        .into());
+    };
+
+    let request = Method::PaymentsGetStarGifts(Box::new(PaymentsGetStarGifts {
+        hash: baseline_hash,
+    }));
+    match tg.invoke(request)? {
+        Object::PaymentsStarGifts(response) => match &*response {
+            PaymentsStarGifts::StarGiftsNotModified => {
+                println!("[catalog unchanged] hash={baseline_hash}");
+            }
+            PaymentsStarGifts::StarGifts {
+                hash: new_hash,
+                gifts,
+                ..
+            } => {
+                if have_ids {
+                    let new_ids: BTreeSet<i64> = gifts.iter().filter_map(gift_id).collect();
+                    let added: Vec<i64> = new_ids.difference(&baseline_ids).copied().collect();
+                    let removed: Vec<i64> = baseline_ids.difference(&new_ids).copied().collect();
+                    println!(
+                        "[catalog changed] hash={baseline_hash} -> {new_hash} gifts={} added={} removed={}",
+                        gifts.len(),
+                        added.len(),
+                        removed.len()
+                    );
+                    if !added.is_empty() {
+                        println!("[added gift ids] {added:?}");
+                    }
+                    if !removed.is_empty() {
+                        println!("[removed gift ids] {removed:?}");
+                    }
+                } else {
+                    println!(
+                        "[catalog changed] hash={baseline_hash} -> {new_hash} gifts={}",
+                        gifts.len()
+                    );
+                }
+                let mut dated: Vec<(i32, i64, String, bool)> = gifts
+                    .iter()
+                    .filter_map(|gift| match gift {
+                        StarGift::StarGift {
+                            id,
+                            title,
+                            first_sale_date,
+                            sold_out,
+                            ..
+                        } => Some((
+                            first_sale_date.unwrap_or(0),
+                            *id,
+                            title.clone().unwrap_or_default(),
+                            *sold_out,
+                        )),
+                        _ => None,
+                    })
+                    .collect();
+                dated.sort_by_key(|a| std::cmp::Reverse(a.0));
+                println!("[newest regular gifts by first_sale_date]");
+                for (date, id, title, sold_out) in dated.iter().take(15) {
+                    println!(
+                        "  {} id={id} sold_out={sold_out} title={title:?}",
+                        rtd_fetchtools::timefmt::rfc3339_utc(i64::from(*date))
+                    );
+                }
+            }
+        },
+        other => {
+            return Err(format!(
+                "payments.getStarGifts returned unexpected constructor {:#010x}",
+                other.type_id()
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+/// Returns a gift's id whatever constructor it uses.
+fn gift_id(class: &StarGift) -> Option<i64> {
+    match class {
+        StarGift::StarGift { id, .. } | StarGift::StarGiftUnique { id, .. } => Some(*id),
+    }
 }
 
 /// Aborts the process after `timeout`, mirroring the Go context deadline.
@@ -141,6 +253,9 @@ fn parse_args() -> Result<Options> {
         skip_thumbs: false,
         workers: DEFAULT_WORKERS,
         reuse_metadata: false,
+        refresh_metadata: false,
+        check_updates: false,
+        baseline_hash: None,
         allowed_missing_thumbs: BTreeSet::new(),
         login_qr: false,
         qr_png: None,
@@ -156,6 +271,11 @@ fn parse_args() -> Result<Options> {
             "-skip-thumbs" => opts.skip_thumbs = true,
             "-workers" => opts.workers = args.next().unwrap_or_default().parse().unwrap_or(0),
             "-reuse-metadata" => opts.reuse_metadata = true,
+            "-refresh-metadata" => opts.refresh_metadata = true,
+            "-check-updates" => opts.check_updates = true,
+            "-baseline-hash" => {
+                opts.baseline_hash = args.next().unwrap_or_default().parse().ok();
+            }
             "-timeout" => {
                 opts.timeout = parse_duration(&args.next().unwrap_or_default());
             }
@@ -442,8 +562,9 @@ fn fetch_catalog(tg: &mut Tg, opts: &Options, session: &str, account: &Account) 
     let out = PathBuf::from(&opts.out);
     std::fs::create_dir_all(&out)?;
     // Reuse the raw TL artifacts when they already exist, unless the caller
-    // explicitly asked to refetch; this keeps re-runs from burning rate limits.
-    let reuse_metadata = opts.reuse_metadata || out.join("catalog.tl").exists();
+    // asked to refresh; this keeps re-runs from burning rate limits.
+    let reuse_metadata =
+        !opts.refresh_metadata && (opts.reuse_metadata || out.join("catalog.tl").exists());
 
     let (catalog, raw_artifact) = if reuse_metadata {
         let (catalog, artifact) = read_catalog_tl(&out)?;
@@ -801,7 +922,7 @@ fn fetch_upgrade_attribute_set(
     reuse_metadata: bool,
 ) -> Result<UpgradeAttributeSet> {
     let rel = format!("upgrade-attributes/{gift_id}.tl");
-    let (result, artifact) = if reuse_metadata || root.join(&rel).exists() {
+    let (result, artifact) = if reuse_metadata && root.join(&rel).exists() {
         read_upgrade_tl(root, &rel)?
     } else {
         let request = Method::PaymentsGetStarGiftUpgradeAttributes(Box::new(
